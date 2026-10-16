@@ -1,0 +1,24 @@
+import { AppShell, FlowButton, FlowTopbar, ImportStepper, PageFrame } from '@miceplans/ui';
+import { MappingForm } from './mapping-form';
+
+export default function ImportMappingPage() {
+  return (
+    <AppShell active="events">
+      <PageFrame topbar={<FlowTopbar showToggle breadcrumb={['행사s', 'Excel Import']} />} mainClassName="items-center">
+        <div className="flex w-[760px] shrink-0 flex-col items-start py-[60px]">
+          <div className="flex w-[760px] shrink-0 flex-col items-start gap-[6px]">
+            <h1 className="m-0 text-xl font-bold whitespace-nowrap text-fg">Excel에서 행사가져오기</h1>
+            <ImportStepper current={3} />
+          </div>
+          <MappingForm />
+          <div className="flex h-[64px] w-[760px] shrink-0 items-center justify-between py-[16px]">
+            <FlowButton href="/import/sheet">이전</FlowButton>
+            <FlowButton variant="primary" href="/import/preview">
+              다음
+            </FlowButton>
+          </div>
+        </div>
+      </PageFrame>
+    </AppShell>
+  );
+}
