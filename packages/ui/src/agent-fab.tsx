@@ -12,17 +12,17 @@ export function AgentLogo({ className = '' }: { className?: string }): ReactNode
 }
 
 /**
- * 우하단 AI 채팅 FAB. 배경 없이 로고만 둔다.
- * 위치는 `className`으로 지정한다(부모는 relative).
+ * 우하단 AI 채팅 FAB. 배경 없이 로고만 두고, 로고에 검은 그림자를 입힌다(drop-shadow).
+ * 위치는 `className`으로 지정한다(전역 플로팅은 루트 레이아웃에서 지정).
  */
 export function AgentFab({ className = '', label = 'AI 채팅 열기' }: { className?: string; label?: string }): ReactNode {
   return (
     <button
       type="button"
       aria-label={label}
-      className={`flex size-[48px] items-center justify-center rounded-full shadow-ai ${className}`}
+      className={`flex size-[64px] items-center justify-center rounded-full bg-transparent drop-shadow-ai ${className}`}
     >
-      <AgentLogo />
+      <AgentLogo className="scale-[1.35]" />
     </button>
   );
 }

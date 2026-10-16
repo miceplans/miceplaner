@@ -1,4 +1,4 @@
-import { AiFab, AppShell, SCHEDULE_TABS, StatusPill, Topbar, ViewTabs, type StatusKey } from '@miceplans/ui';
+import { AppShell, SCHEDULE_TABS, StatusPill, Topbar, ViewTabs, type StatusKey } from '@miceplans/ui';
 
 const A = '/assets/schedule';
 
@@ -69,7 +69,6 @@ export default function ScheduleTablePage() {
             </span>
           </button>
         </div>
-        <AiFab />
       </div>
     </AppShell>
   );

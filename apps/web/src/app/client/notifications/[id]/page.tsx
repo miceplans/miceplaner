@@ -1,4 +1,4 @@
-import { ClientFab, ClientHeader } from '@miceplans/ui';
+import { ClientHeader } from '@miceplans/ui';
 import { GROUPS } from '../data';
 
 const A = '/assets/client/inbox-detail';
@@ -135,7 +135,6 @@ export default function ClientNotificationDetailPage() {
             <div className="min-h-px w-full flex-1" />
           </div>
         </div>
-        <ClientFab color="var(--color-ai-strong)" icon={`${A}/sparkles.svg`} />
       </main>
     </div>
   );

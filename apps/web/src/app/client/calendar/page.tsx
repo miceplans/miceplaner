@@ -1,4 +1,4 @@
-import { ClientFab, ClientHeader } from '@miceplans/ui';
+import { ClientHeader } from '@miceplans/ui';
 
 const A = '/assets/client/calendar-view';
 
@@ -131,7 +131,6 @@ export default function ClientCalendarPage() {
             </div>
           ))}
         </div>
-        <ClientFab color="var(--color-brand)" icon={`${A}/sparkles.svg`} />
       </main>
     </div>
   );

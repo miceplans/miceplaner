@@ -68,7 +68,6 @@ AI 기능은 브랜드 레드와 분리된 바이올렛 계열 액센트를 쓴�
 | 토큰 | 값 | 용도 |
 | --- | --- | --- |
 | `text-ai` / `bg-ai` | `#4a4ec4` | AI 라벨 · 아이콘 칩 텍스트 |
-| `bg-ai-strong` | `#000bec` | AI 채팅 FAB |
 | `bg-ai-tint` | `#eeeffb` | AI 아이콘 칩 · New/DDay 칩 배경 |
 
 ## 2. 타이포그래피
@@ -103,7 +102,7 @@ AI 기능은 브랜드 레드와 분리된 바이올렛 계열 액센트를 쓴�
 | `rounded-full` | 999px | 숫자 배지 · 세그먼트 |
 
 - 간격: `gap` 4/6/8/10/12 기본 단계. 수평 패딩은 행 16px, 버튼 14px, 필 8px가 표준.
-- 그림자: `shadow-card`(표준 카드) · `shadow-widget`(위젯) · `shadow-segment`(세그먼트) · `shadow-panel`(좌측 드로어) · `shadow-ai`(AI FAB).
+- 그림자: `shadow-card`(표준 카드) · `shadow-widget`(위젯) · `shadow-segment`(세그먼트) · `shadow-panel`(좌측 드로어) · `drop-shadow-ai`(AI FAB 로고의 검은 그림자).
 
 ## 4. 컴포넌트 규격
 

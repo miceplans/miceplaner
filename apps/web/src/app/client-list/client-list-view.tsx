@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { AgentFab } from '@miceplans/ui';
 
 const A = '/assets/client-list';
 const SHADOW = 'shadow-card';
@@ -25,7 +24,7 @@ const CLIENTS: Client[] = [
 ];
 
 const STATUS_STYLE: Record<Client['status'], string> = {
-  진행: 'bg-ai-tint text-ai',
+  진행: 'bg-info-bg text-info',
   '계약 완료': 'bg-success-bg text-success-deep',
 };
 
@@ -53,7 +52,7 @@ export function ClientListView() {
                 <span className="text-2xs text-fg-tertiary">현재 고객사</span>
                 <div className="flex items-end gap-[5px]">
                   <span className="text-xl font-semibold leading-[97.22%] text-fg">7</span>
-                  <span className="text-2xs text-brand-green">+1</span>
+                  <span className="text-2xs text-success-deep">+1</span>
                 </div>
               </div>
             </div>
@@ -76,7 +75,7 @@ export function ClientListView() {
             </div>
           </div>
           <div className="flex w-full items-center justify-between bg-surface">
-            <label className="flex h-[30px] w-[210px] items-center gap-[8px] rounded-md bg-surface-section px-[10px]">
+            <label className="flex h-[30px] w-[210px] items-center gap-[8px] rounded-sm bg-surface-chip px-[10px]">
               <img alt="" src={`${A}/search-icon.svg`} className="size-[13px] shrink-0" />
               <input
                 value={query}
@@ -85,7 +84,7 @@ export function ClientListView() {
                 className="min-w-0 flex-1 bg-transparent text-xs text-fg outline-none placeholder:text-fg-tertiary"
               />
             </label>
-            <button type="button" className="flex h-[30px] items-center gap-[6px] rounded-sm bg-ai px-[12px]">
+            <button type="button" className="flex h-[30px] items-center gap-[6px] rounded-sm bg-brand px-[12px]">
               <img alt="" src={`${A}/plus-icon.svg`} className="size-[13px]" />
               <span className="whitespace-nowrap text-sm font-medium text-fg-inverse">고객사 추가</span>
             </button>
@@ -116,8 +115,8 @@ export function ClientListView() {
                 </div>
                 <div className="flex h-full w-[100px] shrink-0 items-center gap-[12px]">
                   <span className="shrink-0 whitespace-nowrap text-xs text-fg-secondary">{c.recent}</span>
-                  <div className="relative h-[22px] w-[96px] shrink-0">
-                    <span className={`absolute left-0 top-0 flex h-[22px] items-center justify-center whitespace-nowrap rounded-lg px-[8px] text-2xs font-semibold ${STATUS_STYLE[c.status]}`}>
+                  <div className="relative h-[24px] w-[96px] shrink-0">
+                    <span className={`absolute left-0 top-0 flex h-[24px] items-center justify-center whitespace-nowrap rounded-sm px-[8px] text-xs font-bold ${STATUS_STYLE[c.status]}`}>
                       {c.status}
                     </span>
                   </div>
@@ -126,7 +125,6 @@ export function ClientListView() {
             ))}
           </div>
         </div>
-        <AgentFab className="absolute left-[1128px] top-[772px]" />
       </div>
     </div>
   );

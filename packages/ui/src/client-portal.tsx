@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { AgentFab } from './agent-fab';
 
 const A = '/assets/client';
 
@@ -46,12 +45,6 @@ export function ClientHeader({ active = 'dashboard' }: { active?: ClientNavKey }
       </div>
     </header>
   );
-}
-
-/** 우하단 AI 채팅 FAB. 부모(main)가 relative 여야 한다. */
-// color·icon은 호환용으로 남기며 사용하지 않는다(Agent 로고는 AgentFab 고정).
-export function ClientFab(_props: { color?: string; icon?: string } = {}): ReactNode {
-  return <AgentFab className="fixed bottom-[24px] right-[24px] z-20" />;
 }
 
 export type PrepStatus = '진행중' | '성공' | '확인중';

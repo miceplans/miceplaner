@@ -1,4 +1,4 @@
-import { ClientFab, ClientHeader } from '@miceplans/ui';
+import { ClientHeader } from '@miceplans/ui';
 import { CHIP, GROUPS } from './data';
 
 const A = '/assets/client/inbox';
@@ -57,7 +57,6 @@ export default function ClientNotificationsPage() {
             30일이 지난 알림은 자동으로 정리돼요
           </p>
         </div>
-        <ClientFab color="var(--color-ai-strong)" icon={`${A}/sparkles.svg`} />
       </main>
     </div>
   );

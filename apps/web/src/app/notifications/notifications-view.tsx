@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { AgentFab } from '@miceplans/ui';
 
 const A = '/assets/notifications';
 
@@ -127,7 +126,6 @@ export function NotificationsView() {
             </div>
           ))}
         </div>
-        <AgentFab className="absolute left-[1128px] top-[772px]" />
       </div>
     </div>
   );
