@@ -1,0 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Preahvihear&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+@import "tailwindcss";
+@import "@miceplans/ui/design-system.css";
+@source "../../../../packages/ui/src";
+html, body { margin: 0; font-family: var(--font-sans); }
+* { box-sizing: border-box; }
+@media (max-width: 767px) {
+  html, body { min-width: 0; overflow-x: hidden; }
+  input, textarea, select { font-size: 16px; }
+  .mobile-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .mobile-table-scroll > * { min-width: 760px; }
+}
