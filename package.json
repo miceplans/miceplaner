@@ -1,0 +1,11 @@
+{
+  "name": "miceplaner",
+  "private": true,
+  "packageManager": "pnpm@12.3.4",
+  "scripts": {
+    "dev": "pnpm --filter @miceplans/web dev",
+    "build": "pnpm --filter @miceplans/web build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint"
+  }
+}

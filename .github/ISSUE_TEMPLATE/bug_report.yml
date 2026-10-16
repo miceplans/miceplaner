@@ -1,0 +1,61 @@
+name: 버그 제보
+description: 재현 가능한 오류를 제보합니다.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        비밀 값, 고객 정보, 접근 토큰 등 민감한 정보는 입력하지 마세요.
+  - type: textarea
+    id: summary
+    attributes:
+      label: 문제 설명
+      description: 실제로 발생한 문제를 간결하게 설명해 주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 절차
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대한 결과
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 결과
+      description: 오류 메시지, 로그, 스크린샷이 있으면 첨부해 주세요. 민감한 값은 제거해 주세요.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영향 범위
+      options:
+        - Web UI
+        - API
+        - DB / RLS
+        - Authentication / Authorization
+        - Realtime
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 환경
+      description: 브라우저 또는 실행 환경, 버전, 발생 시각을 작성해 주세요.
+    validations:
+      required: true

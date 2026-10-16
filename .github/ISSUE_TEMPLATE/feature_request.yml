@@ -1,0 +1,66 @@
+name: 기능 요청
+description: 제품 기능, 정책 또는 개선 사항을 제안합니다.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        기능 범위와 수용 기준을 구체적으로 작성해 주세요. 기능 명세에 없는 정책 결정이 필요하면 `결정 필요 사항`에 분리해 주세요.
+  - type: textarea
+    id: problem
+    attributes:
+      label: 해결하려는 문제
+      description: 사용자, 상황, 현재의 불편을 설명해 주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 제안 내용
+      description: 원하는 동작, 주요 화면 또는 API 흐름을 설명해 주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: 수용 기준
+      description: 완료 여부를 판단할 수 있는 항목을 작성해 주세요.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영향 범위
+      options:
+        - Web UI
+        - API
+        - DB / RLS
+        - Contracts
+        - Domain
+        - UI package
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: security-and-permissions
+    attributes:
+      label: 권한·보안 영향
+      description: 워크스페이스, 역할, 행사 권한, Client 공개 데이터, 감사 로그 영향이 있으면 작성해 주세요. 없으면 `없음`이라고 적어 주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: decisions-needed
+    attributes:
+      label: 결정 필요 사항
+      description: 구현 전에 확정해야 하는 정책 또는 계약을 작성해 주세요. 없으면 `없음`이라고 적어 주세요.
+  - type: textarea
+    id: references
+    attributes:
+      label: 참고 자료
+      description: 관련 명세, 디자인, 이슈 또는 스크린샷을 연결해 주세요.
