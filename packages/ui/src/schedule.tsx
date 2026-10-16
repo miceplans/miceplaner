@@ -1,7 +1,7 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { AgentFab } from './agent-fab';
+import { useState, type ReactNode } from 'react';
+import { SidePeekPanel } from './side-peek';
 
 const A = '/assets/schedule';
 
@@ -125,12 +125,6 @@ export function ViewTabs({ tabs, active, bordered = false, onChange }: { tabs: V
   );
 }
 
-/* ---------- AI 채팅 FAB ---------- */
-
-export function AiFab(): ReactNode {
-  return <AgentFab className="fixed bottom-[24px] right-[24px] z-20" />;
-}
-
 /* ---------- 월간 캘린더 ---------- */
 
 export type ChipKey = 'invite' | 'design' | 'brochure' | 'ai' | 'rehearsal' | 'kimes' | 'kimesHome';
@@ -162,13 +156,17 @@ export const MARCH_2025: CalCell[][] = [
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-function Chip({ k }: { k: ChipKey }): ReactNode {
+function Chip({ k, onClick }: { k: ChipKey; onClick?: () => void }): ReactNode {
   const ch = CHIPS[k];
   return (
-    <span className={`flex h-[20px] w-fit shrink-0 items-center gap-[4px] rounded-xs px-[6px] text-2xs font-medium ${ch.bg} ${ch.fg}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-[20px] w-fit shrink-0 cursor-pointer items-center gap-[4px] rounded-xs px-[6px] text-2xs font-medium hover:opacity-80 ${ch.bg} ${ch.fg}`}
+    >
       <img alt="" src={`${A}/${ch.dot}.svg`} className="size-[5px]" />
       <span className="whitespace-nowrap">{ch.label}</span>
-    </span>
+    </button>
   );
 }
 
@@ -190,8 +188,10 @@ export function MonthCalendar({
   padX?: number;
 }): ReactNode {
   const last = weeks.length - 1;
+  const [peek, setPeek] = useState<{ title: string; date: string } | null>(null);
   return (
     <div className="flex w-full flex-col items-center" style={{ gap: gridGap }}>
+      {peek ? <SidePeekPanel title={peek.title} date={peek.date} onClose={() => setPeek(null)} /> : null}
       <div className="flex shrink-0 items-center gap-[17.895px]">
         <button type="button" aria-label="이전 달" className="size-[26.842px] rounded-sm hover:bg-surface-chip">
           <img alt="" src={`${A}/4f176.svg`} className="size-full" />
@@ -201,8 +201,8 @@ export function MonthCalendar({
           <img alt="" src={`${A}/2e379.svg`} className="size-full" />
         </button>
       </div>
-      <div className="flex w-full flex-1 flex-col items-start overflow-x-auto pb-[24px]" style={{ paddingInline: padX }}>
-        <div className="flex h-[32px] w-full max-w-[1152px] shrink-0 items-start bg-surface">
+      <div className="flex w-full flex-1 flex-col items-center overflow-x-auto pb-[24px]" style={{ paddingInline: padX }}>
+        <div className="flex h-[32px] w-full shrink-0 items-start bg-surface">
           {WEEKDAYS.map((w) => (
             <div key={w} className="flex h-full flex-1 items-center justify-center text-xs font-medium text-fg-tertiary">
               {w}
@@ -212,7 +212,7 @@ export function MonthCalendar({
         {weeks.map((week, wi) => (
           <div
             key={wi}
-            className={`grid h-[102px] w-full max-w-[1152px] shrink-0 grid-cols-7 items-start border-b border-solid border-border-strong ${
+            className={`grid h-[102px] w-full shrink-0 grid-cols-7 items-start border-b border-solid border-border-strong ${
               wi === last ? 'rounded-b-md' : ''
             }`}
           >
@@ -239,7 +239,7 @@ export function MonthCalendar({
                   ) : cell.d !== undefined ? (
                     <span className="shrink-0 text-sm text-fg-secondary">{cell.d}</span>
                   ) : null}
-                  {cell.chips?.map((k, i) => <Chip key={`${k}-${i}`} k={k} />)}
+                  {cell.chips?.map((k, i) => <Chip key={`${k}-${i}`} k={k} onClick={() => setPeek({ title: CHIPS[k].label, date: `${title} ${cell.d}일` })} />)}
                 </div>
               );
             })}

@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
-import { AgentFab } from './agent-fab';
 
 const A = '/assets/flow';
 
 /** 상단바. 좌측(leading/breadcrumb)만 페이지마다 다르다. */
 export function FlowTopbar({
   title,
+  leading,
   breadcrumb,
   showToggle = false,
   showKbd = true,
@@ -14,6 +14,8 @@ export function FlowTopbar({
   title?: string;
   /** [상위, 현재] 경로. */
   breadcrumb?: [string, string];
+  /** title 대신 좌측에 넣을 임의 요소(예: 행사 선택 드롭다운). */
+  leading?: ReactNode;
   showToggle?: boolean;
   showKbd?: boolean;
 }): ReactNode {
@@ -25,6 +27,7 @@ export function FlowTopbar({
         </button>
       ) : null}
       <div className="flex h-full items-center gap-[6px]">
+        {leading}
         {title ? <p className="whitespace-nowrap text-base font-semibold text-fg">{title}</p> : null}
         {breadcrumb ? (
           <>
@@ -54,12 +57,7 @@ export function FlowTopbar({
   );
 }
 
-/** 우하단 AI 채팅 FAB. */
-export function FlowFab(): ReactNode {
-  return <AgentFab className="fixed bottom-[24px] right-[24px] z-20" />;
-}
-
-/** AppShell 안쪽 콘텐츠 영역(1200px): 상단바 + 본문(Main). Main은 FAB 기준 relative. */
+/** AppShell 안쪽 콘텐츠 영역(1200px): 상단바 + 본문(Main). */
 export function PageFrame({
   topbar,
   fab,
@@ -67,7 +65,7 @@ export function PageFrame({
   children,
 }: {
   topbar: ReactNode;
-  /** 기본 FlowFab. 다른 플로팅 요소가 필요하면 교체. */
+  /** 페이지 전용 우하단 플로팅 요소. AI FAB은 루트 레이아웃에서 전역으로 렌더링한다. */
   fab?: ReactNode;
   mainClassName?: string;
   children: ReactNode;
@@ -77,7 +75,7 @@ export function PageFrame({
       {topbar}
       <div className={`relative flex flex-1 flex-col bg-surface ${mainClassName}`}>
         {children}
-        {fab === undefined ? <FlowFab /> : fab}
+        {fab}
       </div>
     </div>
   );

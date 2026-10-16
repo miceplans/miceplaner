@@ -9,3 +9,4 @@ export * from './schedule';
 export * from './view-toggle';
 export * from './client-portal';
 export * from './agent-fab';
+export * from './side-peek';
