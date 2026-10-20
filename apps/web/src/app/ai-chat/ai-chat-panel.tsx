@@ -6,7 +6,7 @@ const A = '/assets/ai-chat';
 
 const CHIPS = ['다음 주 일정', '지연된 Task 보여줘'];
 
-export function AiChatPanel() {
+export function AiChatPanel({ onClose, className }: { onClose?: () => void; className?: string } = {}) {
   const [open, setOpen] = useState(true);
   const [draft, setDraft] = useState('');
 
@@ -14,7 +14,7 @@ export function AiChatPanel() {
 
   return (
     <div
-      className="absolute left-[1099.5px] top-[358px] flex leading-[normal] h-[524px] w-[323px] flex-col items-start overflow-clip rounded-md border-l-[0.834px] border-solid border-border bg-surface shadow-panel"
+      className={className ?? 'absolute left-[1099.5px] top-[358px] flex leading-[normal] h-[524px] w-[323px] flex-col items-start overflow-clip rounded-md border-l-[0.834px] border-solid border-border bg-surface shadow-panel'}
       data-name="AI Chat Panel Overlay"
     >
       <div className="flex h-[46.69px] w-full shrink-0 items-center justify-between border-b-[0.834px] border-solid border-border px-[16.675px]">
@@ -25,13 +25,14 @@ export function AiChatPanel() {
         <button
           type="button"
           aria-label="닫기"
-          onClick={() => setOpen(false)}
+          onClick={() => onClose ? onClose() : setOpen(false)}
           className="flex size-[23.345px] items-center justify-center rounded-xs"
         >
           <img alt="" src={`${A}/close-icon.svg`} className="size-[13.34px]" />
         </button>
       </div>
-      <div className="flex min-h-px w-full flex-1 flex-col items-start gap-[11.673px] bg-surface p-[13.34px]">
+      <div className="flex min-h-px w-full flex-1 flex-col items-start gap-[11.673px] overflow-y-auto bg-surface p-[13.34px]">
+        <p className="text-2xs text-fg-secondary">예시 화면 · AI 답변 기능 준비 중</p>
         <div className="flex w-full items-start justify-end">
           <div className="flex items-center justify-center self-stretch rounded-bl-lg rounded-br-xs rounded-tl-lg rounded-tr-lg bg-brand px-[11.673px] py-[8.337px]">
             <span className="whitespace-nowrap text-center text-2xs text-fg-inverse">이번 주 행사 뭐 있어?</span>
@@ -84,7 +85,6 @@ export function AiChatPanel() {
         className="flex h-[53.36px] w-full shrink-0 items-center gap-[6.67px] border-t-[0.834px] border-solid border-border bg-surface px-[10.005px]"
         onSubmit={(e) => {
           e.preventDefault();
-          setDraft('');
         }}
       >
         <input
@@ -93,7 +93,7 @@ export function AiChatPanel() {
           placeholder="무엇이든 물어보세요"
           className="h-[33.35px] min-w-px flex-1 rounded-sm bg-surface-sunken px-[10.005px] text-2xs text-fg outline-none placeholder:text-fg-tertiary"
         />
-        <button type="submit" aria-label="보내기" className="flex size-[30.015px] items-center justify-center rounded-sm bg-brand">
+        <button type="submit" aria-label="보내기 (준비 중)" disabled className="flex size-[30.015px] items-center justify-center rounded-sm bg-brand opacity-50">
           <img alt="" src={`${A}/send-icon.svg`} className="size-[13.34px]" />
         </button>
       </form>
