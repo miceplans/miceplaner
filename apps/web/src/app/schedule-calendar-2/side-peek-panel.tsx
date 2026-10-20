@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { StatusPill } from '@miceplans/ui';
+import { StatusPill, TaskSubtaskSection } from '@miceplans/ui';
 
 const A = '/assets/schedule';
 
@@ -94,6 +94,7 @@ export function SidePeekPanel() {
           <Section label="클라이언트 메모">
             <TextBlock>{MEMO}</TextBlock>
           </Section>
+          <TaskSubtaskSection />
           <Section label="관련 링크 및 첨부">
             <div className="flex w-full flex-col gap-[2px]">
               {LINKS.map((l) => (

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
-import { SidePeekPanel } from './side-peek';
+import { useState, type MouseEvent, type ReactNode } from 'react';
+import { SidePeekPanel, type AgendaItem } from './side-peek';
 
 const A = '/assets/schedule';
 
@@ -154,9 +154,44 @@ export const MARCH_2025: CalCell[][] = [
   [c(30), c(31), BLANK, BLANK, BLANK, BLANK, BLANK],
 ];
 
+/** 2025년 3월 날짜별 내 할 일·프로그램·태스크·서브태스크 */
+const MARCH_AGENDA: Record<number, AgendaItem[]> = {
+  3: [
+    { kind: 'program', title: '초청장 발송', meta: 'KIMES' },
+    { kind: 'task', title: '초청장 수신처 리스트 정리', meta: '최' },
+  ],
+  5: [
+    { kind: 'todo', title: '디자인 시안 최종 확인' },
+    { kind: 'task', title: 'KIMES 부스 3D 렌더링 수정', meta: '박' },
+    { kind: 'subtask', title: '조명 재질 수정', meta: '박', done: true },
+  ],
+  6: [
+    { kind: 'todo', title: '인쇄 업체 견적 회신 확인' },
+    { kind: 'program', title: '브로슈어 인쇄', meta: 'KIMES' },
+    { kind: 'task', title: '브로슈어 인쇄 견적 3사 비교', meta: '한' },
+    { kind: 'subtask', title: '견적서 3부 수집', meta: '한', done: true },
+    { kind: 'subtask', title: '단가 비교표 작성', meta: '한' },
+  ],
+  10: [
+    { kind: 'program', title: 'AI서밋 홈페이지', meta: 'AI 서밋' },
+    { kind: 'task', title: 'AI서밋 발표 자료 템플릿', meta: '김' },
+  ],
+  12: [
+    { kind: 'todo', title: '리허설 동선 점검' },
+    { kind: 'program', title: '리허설', meta: 'KIMES' },
+    { kind: 'task', title: '리허설 장비 체크리스트 작성', meta: '최' },
+    { kind: 'subtask', title: '음향 장비 목록 확인' },
+  ],
+  13: [
+    { kind: 'program', title: 'KIMES 당일 운영', meta: 'KIMES' },
+    { kind: 'task', title: '스태프 배치도 초안', meta: '박' },
+  ],
+  24: [{ kind: 'program', title: 'KIMES 홈페이지', meta: 'KIMES' }],
+};
+
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-function Chip({ k, onClick }: { k: ChipKey; onClick?: () => void }): ReactNode {
+function Chip({ k, onClick }: { k: ChipKey; onClick?: (e: MouseEvent<HTMLButtonElement>) => void }): ReactNode {
   const ch = CHIPS[k];
   return (
     <button
@@ -188,10 +223,10 @@ export function MonthCalendar({
   padX?: number;
 }): ReactNode {
   const last = weeks.length - 1;
-  const [peek, setPeek] = useState<{ title: string; date: string } | null>(null);
+  const [peek, setPeek] = useState<{ title: string; date: string; day: number } | null>(null);
   return (
     <div className="flex w-full flex-col items-center" style={{ gap: gridGap }}>
-      {peek ? <SidePeekPanel title={peek.title} date={peek.date} onClose={() => setPeek(null)} /> : null}
+      {peek ? <SidePeekPanel title={peek.title} date={peek.date} agenda={MARCH_AGENDA[peek.day] ?? []} onClose={() => setPeek(null)} /> : null}
       <div className="flex shrink-0 items-center gap-[17.895px]">
         <button type="button" aria-label="이전 달" className="size-[26.842px] rounded-sm hover:bg-surface-chip">
           <img alt="" src={`${A}/4f176.svg`} className="size-full" />
@@ -228,7 +263,8 @@ export function MonthCalendar({
               return (
                 <div
                   key={ci}
-                  className={`flex h-full flex-col items-start gap-[4px] px-[8px] pb-[6px] pt-[8px] ${
+                  onClick={cell.d === undefined ? undefined : () => setPeek({ title: `${cell.d}일 일정`, date: `${title} ${cell.d}일`, day: cell.d! })}
+                  className={`flex h-full flex-col items-start gap-[4px] px-[8px] pb-[6px] pt-[8px] ${cell.d === undefined ? '' : 'cursor-pointer hover:bg-surface-muted'} ${
                     cell.d === undefined ? 'bg-surface-subtle' : 'bg-surface'
                   } ${border}`}
                 >
@@ -239,7 +275,7 @@ export function MonthCalendar({
                   ) : cell.d !== undefined ? (
                     <span className="shrink-0 text-sm text-fg-secondary">{cell.d}</span>
                   ) : null}
-                  {cell.chips?.map((k, i) => <Chip key={`${k}-${i}`} k={k} onClick={() => setPeek({ title: CHIPS[k].label, date: `${title} ${cell.d}일` })} />)}
+                  {cell.chips?.map((k, i) => <Chip key={`${k}-${i}`} k={k} onClick={(e) => { e.stopPropagation(); setPeek({ title: CHIPS[k].label, date: `${title} ${cell.d}일`, day: cell.d! }); }} />)}
                 </div>
               );
             })}
