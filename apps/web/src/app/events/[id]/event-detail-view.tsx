@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { SidePeekPanel, StatusPill, type StatusKey } from '@miceplans/ui';
 import { Checklist, type CheckItem } from './event-checklist';
+import { ScheduleList } from './event-schedule-list';
 import { EventDocs } from './event-docs';
 import { EventStats } from './event-stats';
 import { InviteDialog, type Invitee, type InviteRole } from './invite-dialog';
+import { DesignRequestTable, ProgressTable, type Team } from './event-products';
 
 const A = '/assets/event-detail';
 
@@ -15,17 +17,19 @@ type EventInfo = {
   client: string;
   pm: string;
   am: string;
+  design: string;
   place: string;
   status: StatusKey;
   dday: string;
+  color: string; // 행사 대표색(primary)
 };
 
 const EVENTS: Record<string, EventInfo> = {
-  e1: { name: '제54회 KIMES 2025', period: '2025. 03. 13 – 03. 16', client: '메디코리아', pm: '박서연', am: '최민준', place: '코엑스 Hall A·B', status: '진행중', dday: 'D-14' },
-  e2: { name: '글로벌 AI 서밋 2025', period: '2025. 04. 02 – 04. 03', client: '테크노웨이', pm: '김도현', am: '한지우', place: '인터컨티넨탈 파르나스', status: '성공', dday: 'D-30' },
-  e3: { name: '삼성 파트너스 데이', period: '2025. 04. 18', client: '삼성전자', pm: '박서연', am: '이준호', place: '코엑스 오디토리움', status: '진행중', dday: 'D-46' },
-  e4: { name: '제12회 프랜차이즈 엑스포', period: '2025. 05. 08 – 05. 10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', place: '일산 킨텍스 Hall 1', status: '제출', dday: 'D-66' },
-  e5: { name: '현대자동차 신차 발표회', period: '2025. 05. 22', client: '현대자동차', pm: '김도현', am: '한지우', place: '잠실 롯데월드타워', status: '보류중', dday: 'D-80' },
+  e1: { name: '제54회 KIMES 2025', period: '2025. 03. 13 – 03. 16', client: '메디코리아', pm: '박서연', am: '최민준', design: '이하은', place: '코엑스 Hall A·B', status: '진행중', dday: 'D-14', color: '#f567a5' },
+  e2: { name: '글로벌 AI 서밋 2025', period: '2025. 04. 02 – 04. 03', client: '테크노웨이', pm: '김도현', am: '한지우', design: '오세민', place: '인터컨티넨탈 파르나스', status: '성공', dday: 'D-30', color: '#ffa83f' },
+  e3: { name: '삼성 파트너스 데이', period: '2025. 04. 18', client: '삼성전자', pm: '박서연', am: '이준호', design: '윤서준', place: '코엑스 오디토리움', status: '진행중', dday: 'D-46', color: '#ffc53d' },
+  e4: { name: '제12회 프랜차이즈 엑스포', period: '2025. 05. 08 – 05. 10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', design: '강예린', place: '일산 킨텍스 Hall 1', status: '제출', dday: 'D-66', color: '#ff7a45' },
+  e5: { name: '현대자동차 신차 발표회', period: '2025. 05. 22', client: '현대자동차', pm: '김도현', am: '한지우', design: '이하은', place: '잠실 롯데월드타워', status: '보류중', dday: 'D-80', color: '#ff4c50' },
 };
 
 // TODO: 인증 연동 전까지 현재 사용자를 고정한다. 초대는 해당 행사 PM(또는 Super Admin)만 가능.
@@ -83,7 +87,12 @@ const INITIAL_TASKS: CheckItem[] = [
   { id: 't4', title: '운영 인력 배치표 공유', done: false, date: '3월 10일', owner: '박' },
 ];
 
-const TABS = ['스케줄', '할 일', '문서', '통계'] as const;
+const TABS_BY_TEAM = {
+  planning: ['스케줄', '할 일', '문서', '통계', '제작물'],
+  design: ['스케줄', '할 일', '문서', '통계'],
+} as const;
+type TabName = (typeof TABS_BY_TEAM)['planning'][number];
+const DEFAULT_TAB: Record<Team, TabName> = { planning: '제작물', design: '스케줄' };
 
 type Person = { init: string; color: string };
 type Task = { title: string; meta: string; people: Person[]; done?: boolean };
@@ -142,27 +151,28 @@ const DAY_START = 9;
 const DAY_SPAN = HOURS.length - 1; // 9시 ~ 20시 중 표시 구간(시간)
 const DRAG_THRESHOLD = 4;
 
-type CalEvent = { id: string; day: number; title: string; start: number; end: number };
+type CalEvent = { id: string; eventId: string; day: number; title: string; start: number; end: number };
 
-// 한 행사의 일정만 보이므로 모든 블록은 행사 대표색 하나를 쓴다.
-const EVENT_COLOR = 'bg-error-brand';
+// 캘린더에는 여러 행사의 일정이 함께 보이며, 블록 색은 소속 행사의 대표색이다.
+// 현재 보고 있는 행사가 아닌 블록은 흐리게 처리한다.
+const OTHER_EVENT_OPACITY = 0.3;
 
 // day: BASE_MONDAY 기준 일수, start/end: 9시 기준 시간(h)
 const INITIAL_EVENTS: CalEvent[] = [
-  { id: 'c1', day: 0, title: 'Design Review', start: 1, end: 2.5 },
-  { id: 'c2', day: 0, title: 'Team Sync', start: 5, end: 6 },
-  { id: 'c3', day: 1, title: 'Sprint Planning', start: 0.5, end: 2 },
-  { id: 'c4', day: 1, title: 'Client Call', start: 4, end: 5.5 },
-  { id: 'c5', day: 1, title: '1:1 · Sara', start: 7, end: 8 },
-  { id: 'c6', day: 2, title: 'Standup', start: 0, end: 1 },
-  { id: 'c7', day: 2, title: 'UX Workshop', start: 2, end: 4 },
-  { id: 'c8', day: 2, title: 'Roadmap Review', start: 6, end: 7.5 },
-  { id: 'c9', day: 3, title: 'Design Critique', start: 1.5, end: 3 },
-  { id: 'c10', day: 3, title: 'Interview · FE', start: 5, end: 6.5 },
-  { id: 'c11', day: 4, title: 'Retro', start: 0, end: 1 },
-  { id: 'c12', day: 4, title: 'Demo Day', start: 2, end: 3 },
-  { id: 'c13', day: 4, title: 'Design Sprint', start: 5, end: 7 },
-  { id: 'c14', day: 5, title: 'Team Lunch', start: 2.5, end: 4 },
+  { id: 'c1', eventId: 'e1', day: 0, title: 'Design Review', start: 1, end: 2.5 },
+  { id: 'c2', eventId: 'e2', day: 0, title: 'Team Sync', start: 5, end: 6 },
+  { id: 'c3', eventId: 'e2', day: 1, title: 'Sprint Planning', start: 0.5, end: 2 },
+  { id: 'c4', eventId: 'e3', day: 1, title: 'Client Call', start: 4, end: 5.5 },
+  { id: 'c5', eventId: 'e5', day: 1, title: '1:1 · Sara', start: 7, end: 8 },
+  { id: 'c6', eventId: 'e3', day: 2, title: 'Standup', start: 0, end: 1 },
+  { id: 'c7', eventId: 'e5', day: 2, title: 'UX Workshop', start: 2, end: 4 },
+  { id: 'c8', eventId: 'e1', day: 2, title: 'Roadmap Review', start: 6, end: 7.5 },
+  { id: 'c9', eventId: 'e2', day: 3, title: 'Design Critique', start: 1.5, end: 3 },
+  { id: 'c10', eventId: 'e4', day: 3, title: 'Interview · FE', start: 5, end: 6.5 },
+  { id: 'c11', eventId: 'e4', day: 4, title: 'Retro', start: 0, end: 1 },
+  { id: 'c12', eventId: 'e1', day: 4, title: 'Demo Day', start: 2, end: 3 },
+  { id: 'c13', eventId: 'e2', day: 4, title: 'Design Sprint', start: 5, end: 7 },
+  { id: 'c14', eventId: 'e5', day: 5, title: 'Team Lunch', start: 2.5, end: 4 },
 ];
 
 function formatClock(h: number) {
@@ -211,7 +221,15 @@ export function EventDetailView({ eventId }: { eventId: string }) {
   const event = EVENTS[eventId] ?? EVENTS.e1;
   const [isPublic, setIsPublic] = useState(true);
   const [client, setClient] = useState(event.client);
-  const [tab, setTab] = useState<(typeof TABS)[number]>('스케줄');
+  // TODO: 팀 구분 기준(역할·소속)이 확정되면 인증 정보에서 가져온다. 그전에는 ?team=design 으로 디자인팀 화면을 본다.
+  const [team, setTeam] = useState<Team>('planning');
+  const [tab, setTab] = useState<TabName>(DEFAULT_TAB.planning);
+  useEffect(() => {
+    const next: Team = new URLSearchParams(window.location.search).get('team') === 'design' ? 'design' : 'planning';
+    setTeam(next);
+    setTab(DEFAULT_TAB[next]);
+  }, []);
+  const tabs = TABS_BY_TEAM[team];
   const [schedule, setSchedule] = useState(INITIAL_SCHEDULE);
   const [tasks, setTasks] = useState(INITIAL_TASKS);
   const [listsLoaded, setListsLoaded] = useState(false);
@@ -396,13 +414,15 @@ export function EventDetailView({ eventId }: { eventId: string }) {
                       }));
                     }}
                     style={{
+                      backgroundColor: EVENTS[e.eventId]?.color,
+                      opacity: dragging ? 0.9 : e.eventId === eventId ? 1 : OTHER_EVENT_OPACITY,
                       left: `calc(${(di / 7) * 100}% + 3px)`,
                       width: `calc(${100 / 7}% - 6px)`,
                       top: e.start * HOUR_H + 2,
                       height: (e.end - e.start) * HOUR_H - 4,
                     }}
-                    className={`absolute touch-none select-none overflow-hidden rounded-md px-[7px] py-[5px] text-fg-inverse outline-none ${EVENT_COLOR} ${
-                      dragging ? 'z-[5] cursor-grabbing opacity-90 shadow-card' : 'z-[3] cursor-grab transition-[top,left] duration-100'
+                    className={`absolute touch-none select-none overflow-hidden rounded-md px-[7px] py-[5px] text-fg-inverse outline-none ${
+                      dragging ? 'z-[5] cursor-grabbing shadow-card' : 'z-[3] cursor-grab transition-[top,left] duration-100'
                     } ${selected ? 'ring-2 ring-fg ring-offset-1' : 'focus-visible:ring-2 focus-visible:ring-fg'}`}
                   >
                     <p className="m-0 flex items-center gap-[4px] text-[10px] font-bold"><span className="size-[4px] rounded-full bg-fg-inverse" />{e.title}</p>
@@ -421,6 +441,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
     <div className="flex min-h-full w-full flex-col gap-[20px] bg-surface px-[28px] py-[24px] max-md:px-[16px]">
       <div className="flex flex-col items-start pb-[40px] pt-[44px]">
         <div className="flex w-full items-center gap-[12px]">
+          <span aria-hidden style={{ backgroundColor: event.color }} className="h-[33px] w-[9px] shrink-0 rounded-sm" />
           <h1 className="m-0 text-[28px] font-bold text-fg">{event.name}</h1>
           <div className="h-px min-w-px flex-1" />
           <div className="flex items-center gap-[8px]">
@@ -452,6 +473,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
           <Prop icon="prop-client" label="Client"><ClientSelect value={client} onChange={setClient} /></Prop>
           <Prop icon="prop-person" label="PM">{event.pm}</Prop>
           <Prop icon="prop-person" label="AM">{event.am}</Prop>
+          <Prop icon="prop-person" label="Design">{event.design}</Prop>
           {invited.length > 0 && (
             <Prop icon="prop-person" label="초대됨">
               <span className="flex items-center gap-[8px]">
@@ -468,8 +490,15 @@ export function EventDetailView({ eventId }: { eventId: string }) {
           <Prop icon="prop-place" label="장소">{event.place}</Prop>
         </div>
 
+        {team === 'design' && (
+          <div className="flex w-full flex-col gap-[16px] pb-[8px]">
+            <ProgressTable />
+            <DesignRequestTable team="design" />
+          </div>
+        )}
+
         <div role="tablist" className="mt-[16px] flex h-[44px] w-full items-start border-0 border-b border-solid border-border-soft">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t}
               type="button"
@@ -485,10 +514,16 @@ export function EventDetailView({ eventId }: { eventId: string }) {
           ))}
         </div>
 
-        {tab === '스케줄' && scheduleCalendar}
+        {tab === '스케줄' && <ScheduleList items={schedule} onChange={(fn) => setSchedule(fn)} />}
         {tab === '할 일' && <Checklist items={tasks} onChange={(fn) => setTasks(fn)} label="할 일" />}
         {tab === '문서' && <EventDocs eventId={eventId} />}
         {tab === '통계' && <EventStats schedule={schedule} tasks={tasks} />}
+        {tab === '제작물' && (
+          <div className="mt-[24px] flex w-full flex-col gap-[24px]">
+            <ProgressTable />
+            <DesignRequestTable team="planning" />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-4 gap-[24px] px-[5px] max-lg:grid-cols-2 max-sm:grid-cols-1">
@@ -558,6 +593,8 @@ export function EventDetailView({ eventId }: { eventId: string }) {
           <div className="rounded-md bg-surface-muted px-[11px] py-[10px] text-sm font-semibold text-fg">[BIPC] 포스터 변경 부탁드립니다.</div>
         </section>
       </div>
+
+      {scheduleCalendar}
 
       {inviteOpen && (
         <InviteDialog
