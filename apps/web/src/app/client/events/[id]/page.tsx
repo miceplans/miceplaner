@@ -22,7 +22,7 @@ export default function ClientEventDetailPage() {
         <div className="flex size-[26px] shrink-0 items-center justify-center rounded-sm bg-fg">
           <p className="text-base font-semibold text-fg-inverse">M</p>
         </div>
-        <p className="whitespace-nowrap text-md font-semibold tracking-[0.3px] text-fg">MICEPLANS</p>
+        <p className="whitespace-nowrap text-md font-semibold tracking-[0.3px] text-fg">mice planner</p>
         <div className="h-[16px] w-px shrink-0 bg-border-strong" />
         <p className="whitespace-nowrap text-sm text-fg-secondary">Client Portal</p>
         <div className="h-px min-w-px flex-1" />

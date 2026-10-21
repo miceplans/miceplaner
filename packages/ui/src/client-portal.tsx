@@ -17,7 +17,7 @@ export function ClientHeader({ active = 'dashboard' }: { active?: ClientNavKey }
       <div className="flex h-[64px] min-w-px flex-1 items-center justify-between gap-[24px] border-b border-solid border-border bg-surface px-[40px] max-md:h-auto max-md:flex-col max-md:items-stretch max-md:gap-[8px] max-md:px-[16px] max-md:py-[12px]">
         <div className="flex shrink-0 items-center gap-[8px]">
           <div className="flex shrink-0 items-center gap-[7px]">
-            <img alt="MICE PLANER" src={`${A}/shared/layer1.svg`} className="h-[11.76px] w-[114px]" />
+            <img alt="mice planner" src="/assets/mice-planner-logo.png" className="h-[11px] w-[116px] object-contain brightness-0" />
             <img alt="" src={`${A}/shared/group5.svg`} className="h-[26.758px] w-[21px]" />
           </div>
           <div className="h-[16px] w-px shrink-0 bg-border-strong" />

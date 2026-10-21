@@ -3,7 +3,7 @@ import { AgentChat } from './agent-chat';
 import './globals.css';
 
 export const metadata = {
-  title: 'MICE PLANER',
+  title: 'mice planner',
   icons: { icon: '/assets/miceplaner-favicon.png' },
 };
 

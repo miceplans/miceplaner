@@ -24,7 +24,7 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
     <aside className={`flex h-full w-[240px] shrink-0 flex-col overflow-hidden bg-surface-sidebar leading-[normal] max-md:h-auto max-md:w-full max-md:border-b max-md:border-border ${className}`} data-name="Sidebar">
       <div className="flex h-[52px] shrink-0 items-center pl-[12px] pr-[14px] max-md:hidden">
         <div className="flex items-center gap-[7px]">
-          <img alt="MICE PLANER" src={`${A}/layer1.svg`} className="block h-[11.76px] w-[114px]" />
+          <img alt="mice planner" src="/assets/mice-planner-logo.png" className="block h-[11px] w-[116px] object-contain brightness-0" />
           <img alt="" src={`${A}/group5.svg`} className="block h-[26.758px] w-[21px]" />
         </div>
       </div>
