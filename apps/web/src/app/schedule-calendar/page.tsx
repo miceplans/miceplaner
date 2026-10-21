@@ -1,4 +1,5 @@
-import { AppShell, MARCH_2025, MonthCalendar, SCHEDULE_TABS, Topbar, ViewTabs } from '@miceplans/ui';
+import { AppShell, SCHEDULE_TABS, Topbar, ViewTabs } from '@miceplans/ui';
+import { ScheduleViewCalendar } from './schedule-view-calendar';
 
 export default function ScheduleCalendarPage() {
   return (
@@ -6,7 +7,7 @@ export default function ScheduleCalendarPage() {
       <div className="relative flex min-h-[900px] flex-col leading-[normal]">
         <Topbar />
         <ViewTabs tabs={SCHEDULE_TABS} active={2} />
-        <MonthCalendar title="2025년 3월" weeks={MARCH_2025} />
+        <ScheduleViewCalendar />
       </div>
     </AppShell>
   );

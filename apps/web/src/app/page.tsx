@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { EventTable } from './event-table';
-import { AppShell, MonthCalendar, ViewTabs, type CalCell, type ChipKey, type StatusKey, type ViewTab } from '@miceplans/ui';
+import { AppShell, ViewTabs, type CalCell, type ChipKey, type StatusKey, type ViewTab } from '@miceplans/ui';
+import { ScheduleViewCalendar } from './schedule-calendar/schedule-view-calendar';
 
 const TABS: ViewTab[] = [
   { label: '전체 행사', icon: '10b86', activeIcon: '753c4', href: '/' },
@@ -34,6 +35,29 @@ const WEEKS: CalCell[][] = [
   [c(20), c(21), c(22), c(23), c(24, 'kimesHome'), c(25, 'kimesHome'), c(26, 'kimesHome')],
   [c(27), c(28), c(29), c(30), c(31), B, B],
 ];
+const WORK_CHIPS: Partial<Record<number, ChipKey[]>> = {
+  3: ['designProduction'],
+  5: ['designProduction'],
+  6: ['designProduction', 'videoProduction'],
+  7: ['videoProduction'],
+  8: ['videoProduction'],
+  9: ['videoProduction'],
+  10: ['designProduction', 'videoProduction'],
+  11: ['videoProduction'],
+  12: ['designProduction', 'videoProduction'],
+  13: ['videoProduction'],
+  14: ['videoProduction'],
+  15: ['videoProduction'],
+  16: ['videoProduction'],
+  24: ['designProduction'],
+  25: ['designProduction'],
+  26: ['designProduction'],
+};
+
+const WORK_WEEKS: CalCell[][] = WEEKS.map((week) =>
+  week.map((cell) => (cell.d === undefined ? cell : { ...cell, chips: WORK_CHIPS[cell.d] })),
+);
+
 
 export default function HomePage() {
   const [tab, setTab] = useState(0);
@@ -44,7 +68,7 @@ export default function HomePage() {
         <ViewTabs tabs={TABS} active={tab} onChange={setTab} bordered />
         <div className="flex w-full flex-col gap-[24px]">
           <EventTable key={tab} initial={events} />
-          <MonthCalendar title="2025년 3월" weeks={WEEKS} gridGap={19} padX={20} />
+          <ScheduleViewCalendar eventWeeks={WEEKS} workWeeks={WORK_WEEKS} gridGap={19} padX={20} />
         </div>
       </div>
     </AppShell>

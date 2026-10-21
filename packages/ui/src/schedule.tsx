@@ -127,7 +127,7 @@ export function ViewTabs({ tabs, active, bordered = false, onChange }: { tabs: V
 
 /* ---------- 월간 캘린더 ---------- */
 
-export type ChipKey = 'invite' | 'design' | 'brochure' | 'ai' | 'rehearsal' | 'kimes' | 'kimesHome';
+export type ChipKey = 'invite' | 'design' | 'brochure' | 'ai' | 'rehearsal' | 'kimes' | 'kimesHome' | 'designProduction' | 'videoProduction';
 
 const CHIPS: Record<ChipKey, { label: string; bg: string; fg: string; dot: string }> = {
   invite: { label: '초청장 발송', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e' },
@@ -137,6 +137,8 @@ const CHIPS: Record<ChipKey, { label: string; bg: string; fg: string; dot: strin
   ai: { label: 'AI서밋 홈페이지', bg: 'bg-brand-pink-strong', fg: 'text-fg-inverse', dot: 'e2e7c' },
   rehearsal: { label: '리허설', bg: 'bg-error-brand', fg: 'text-fg-inverse', dot: 'e2e7c' },
   kimes: { label: 'KIMES 당일 운영', bg: 'bg-error-brand', fg: 'text-fg-inverse', dot: 'e2e7c' },
+  designProduction: { label: '[KIMES 2025] 디자인 제작물', bg: 'bg-info', fg: 'text-fg-inverse', dot: 'e2e7c' },
+  videoProduction: { label: '[AI 서밋 2025] 영상 제작물', bg: 'bg-error-brand', fg: 'text-fg-inverse', dot: 'e2e7c' },
 };
 
 export type CalCell = { d?: number; today?: boolean; chips?: ChipKey[] };
@@ -197,6 +199,8 @@ function Chip({ k, onClick }: { k: ChipKey; onClick?: (e: MouseEvent<HTMLButtonE
     <button
       type="button"
       onClick={onClick}
+      aria-label={ch.label}
+      title={ch.label}
       className={`flex h-[20px] w-fit shrink-0 cursor-pointer items-center gap-[4px] rounded-xs px-[6px] text-2xs font-medium hover:opacity-80 ${ch.bg} ${ch.fg}`}
     >
       <img alt="" src={`${A}/${ch.dot}.svg`} className="size-[5px]" />
@@ -208,6 +212,7 @@ function Chip({ k, onClick }: { k: ChipKey; onClick?: (e: MouseEvent<HTMLButtonE
 export function MonthCalendar({
   title,
   weeks,
+  headerAddon,
   gridGap = 24,
   thickRows = [3],
   firstRowTopBorder = true,
@@ -215,6 +220,8 @@ export function MonthCalendar({
 }: {
   title: string;
   weeks: CalCell[][];
+  /** 월 제목 옆에 표시할 보기 전환 등 보조 컨트롤 */
+  headerAddon?: ReactNode;
   gridGap?: number;
   /** 아래 경계선이 이중으로 보이는 주(0부터) */
   thickRows?: number[];
@@ -235,6 +242,7 @@ export function MonthCalendar({
         <button type="button" aria-label="다음 달" className="size-[26.842px] rounded-sm hover:bg-surface-chip">
           <img alt="" src={`${A}/2e379.svg`} className="size-full" />
         </button>
+        {headerAddon}
       </div>
       <div className="flex w-full flex-1 flex-col items-center overflow-x-auto pb-[24px]" style={{ paddingInline: padX }}>
         <div className="flex h-[32px] w-full shrink-0 items-start bg-surface">
