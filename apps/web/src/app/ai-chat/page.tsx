@@ -81,7 +81,7 @@ export default function AiChatPage() {
             </div>
             <button type="button" className="flex h-[30px] items-center gap-[6px] rounded-sm bg-brand px-[12px]">
               <img alt="" src={`${A}/plus-icon.svg`} className="size-[14px]" />
-              <span className="whitespace-nowrap text-base font-semibold text-fg-inverse" onClick={() => {}}>New 행사</span>
+              <span className="whitespace-nowrap text-base font-semibold text-fg-inverse">New 행사</span>
             </button>
             <span className="flex size-[26px] items-center justify-center rounded-xl bg-brand-tint text-2xs font-semibold text-brand">JY</span>
           </div>
