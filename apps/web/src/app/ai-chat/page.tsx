@@ -1,32 +1,9 @@
-import { AppShell } from '@miceplans/ui';
+import { StatusPill } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 
 const A = '/assets/ai-chat';
 
 type Status = '진행중' | '성공' | '확인중' | '만료' | '제출';
-
-const PILL: Record<Status, { bg: string; fg: string; icon: string; w: number; h: number }> = {
-  진행중: { bg: 'bg-info-bg', fg: 'text-info', icon: 'ellipse24', w: 12, h: 12 },
-  성공: { bg: 'bg-success-bg', fg: 'text-success', icon: 'vector', w: 14.333, h: 14.333 },
-  확인중: { bg: 'bg-warning-bg', fg: 'text-warning', icon: 'vector1', w: 12, h: 11.828 },
-  만료: { bg: 'bg-expired-bg', fg: 'text-expired', icon: 'vector2', w: 14, h: 14 },
-  제출: { bg: 'bg-submit-bg', fg: 'text-submit', icon: 'vector3', w: 12.5, h: 12 },
-};
-
-function StatusPill({ status }: { status: Status }) {
-  const p = PILL[status];
-  return (
-    <div className={`flex items-center gap-[4px] rounded-sm px-[8px] py-[5px] ${p.bg} ${status === '성공' || status === '제출' ? 'h-[24px]' : ''}`}>
-      <span className="flex shrink-0 items-center justify-center" style={{ width: p.w, height: p.h }}>
-        {status === '제출' ? (
-          <img alt="" src={`${A}/${p.icon}.svg`} className="block rotate-[25deg]" />
-        ) : (
-          <img alt="" src={`${A}/${p.icon}.svg`} className="block size-full max-w-none" />
-        )}
-      </span>
-      <span className={`whitespace-nowrap text-xs font-bold ${p.fg}`}>{status}</span>
-    </div>
-  );
-}
 
 const ROWS: { name: string; period: string; client: string; pm: string; am: string; status: Status; place: string }[] = [
   { name: '제54회 KIMES 2025', period: '03.13 – 03.16', client: '메디코리아', pm: '박서연', am: '최민준', status: '진행중', place: '코엑스 Hall A·B' },

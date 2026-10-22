@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { EventTable } from './event-table';
-import { AppShell, ViewTabs, type CalCell, type ChipKey, type StatusKey, type ViewTab } from '@miceplans/ui';
+import { ViewTabs, type CalCell, type ChipKey, type StatusKey, type ViewTab } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 import { ScheduleViewCalendar } from './schedule-calendar/schedule-view-calendar';
 
 const TABS: ViewTab[] = [
@@ -11,12 +12,12 @@ const TABS: ViewTab[] = [
   { label: '캘린더', icon: 'b0b49', href: '/schedule-calendar' },
 ];
 
-const EVENTS: { id: string; name: string; dot: string; period: string; client: string; pm: string; am: string; status: StatusKey; place: string }[] = [
-  { id: 'e1', name: '제54회 KIMES 2025', dot: 'b7f4e', period: '03.13 – 03.16', client: '메디코리아', pm: '박서연', am: '최민준', status: '진행중', place: '코엑스 Hall A·B' },
-  { id: 'e2', name: '글로벌 AI 서밋 2025', dot: '175f6', period: '04.02 – 04.03', client: '테크노웨이', pm: '김도현', am: '한지우', status: '성공', place: '인터컨티넨탈 파르나스' },
-  { id: 'e3', name: '삼성 파트너스 데이', dot: 'd8446', period: '04.18', client: '삼성전자', pm: '박서연', am: '이준호', status: '진행중', place: '코엑스 오디토리움' },
-  { id: 'e4', name: '제12회 프랜차이즈 엑스포', dot: 'ff1cc', period: '05.08 – 05.10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', status: '제출', place: '일산 킨텍스 Hall 1' },
-  { id: 'e5', name: '현대자동차 신차 발표회', dot: 'd8446', period: '05.22', client: '현대자동차', pm: '김도현', am: '한지우', status: '보류중', place: '잠실 롯데월드타워' },
+const EVENTS: { id: string; name: string; dot: string; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; status: StatusKey; place: string; budget?: string }[] = [
+  { id: 'e1', name: '제54회 KIMES 2025', dot: 'b7f4e', startDate: '2026-03-13', endDate: '2026-03-16', priority: true, client: '메디코리아', pm: '박서연', am: '최민준', design: '이하은', status: '진행중', place: '코엑스 Hall A·B', budget: '1.2억' },
+  { id: 'e2', name: '글로벌 AI 서밋 2025', dot: '175f6', startDate: '2026-11-03', endDate: '2026-11-04', priority: true, client: '테크노웨이', pm: '김도현', am: '한지우', design: '오세민', status: '성공', budget: '8,500만', place: '인터컨티넨탈 파르나스' },
+  { id: 'e3', name: '삼성 파트너스 데이', dot: 'd8446', startDate: '2026-10-22', endDate: '2026-10-22', priority: true, client: '삼성전자', pm: '박서연', am: '이준호', design: '윤서준', status: '진행중', budget: '6,000만', place: '코엑스 오디토리움' },
+  { id: 'e4', name: '제12회 프랜차이즈 엑스포', dot: 'ff1cc', startDate: '2026-05-08', endDate: '2026-05-10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', design: '강예린', status: '제출', budget: '4,500만', place: '일산 킨텍스 Hall 1' },
+  { id: 'e5', name: '현대자동차 신차 발표회', dot: 'd8446', startDate: '2026-12-15', endDate: '2026-12-15', client: '현대자동차', pm: '김도현', am: '한지우', design: '이하은', status: '보류중', budget: '9,800만', place: '잠실 롯데월드타워' },
 ];
 
 const c = (d: number, ...chips: ChipKey[]): CalCell => ({ d, chips });
@@ -35,6 +36,7 @@ const WEEKS: CalCell[][] = [
   [c(20), c(21), c(22), c(23), c(24, 'kimesHome'), c(25, 'kimesHome'), c(26, 'kimesHome')],
   [c(27), c(28), c(29), c(30), c(31), B, B],
 ];
+
 const WORK_CHIPS: Partial<Record<number, ChipKey[]>> = {
   3: ['designProduction'],
   5: ['designProduction'],
@@ -57,7 +59,6 @@ const WORK_CHIPS: Partial<Record<number, ChipKey[]>> = {
 const WORK_WEEKS: CalCell[][] = WEEKS.map((week) =>
   week.map((cell) => (cell.d === undefined ? cell : { ...cell, chips: WORK_CHIPS[cell.d] })),
 );
-
 
 export default function HomePage() {
   const [tab, setTab] = useState(0);

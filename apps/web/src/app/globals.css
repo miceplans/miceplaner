@@ -11,3 +11,20 @@ html, body { margin: 0; font-family: var(--font-sans); }
   .mobile-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .mobile-table-scroll > * { min-width: 760px; }
 }
+
+/* 개인 일정(내 일정) 칩 빗금 배경 — 배경색 위에 겹쳐 그려진다 */
+.bg-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgb(255 255 255 / 0.38) 0px, rgb(255 255 255 / 0.38) 5px,
+    transparent 5px, transparent 10px
+  );
+}
+/* 밝은 배경(bg-surface-chip 등) 칩용 — 어두운 줄 */
+.bg-stripes-dark {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgb(23 23 28 / 0.10) 0px, rgb(23 23 28 / 0.10) 5px,
+    transparent 5px, transparent 10px
+  );
+}
