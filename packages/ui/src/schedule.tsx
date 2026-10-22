@@ -2,6 +2,7 @@
 
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { SidePeekPanel, type AgendaItem } from './side-peek';
+import { statusTones, type StatusToneKey } from './tokens';
 
 const A = '/assets/schedule';
 
@@ -9,13 +10,13 @@ const A = '/assets/schedule';
 
 export type StatusKey = '진행중' | '성공' | '확인중' | '만료' | '제출' | '보류중';
 
-const STATUS: Record<StatusKey, { bg: string; fg: string }> = {
-  진행중: { bg: 'bg-info-bg', fg: 'text-info' },
-  성공: { bg: 'bg-success-bg', fg: 'text-success' },
-  확인중: { bg: 'bg-warning-bg', fg: 'text-warning' },
-  만료: { bg: 'bg-expired-bg', fg: 'text-expired' },
-  제출: { bg: 'bg-submit-bg', fg: 'text-submit' },
-  보류중: { bg: 'bg-warning-hold-bg', fg: 'text-warning-hold' },
+const TONE_OF: Record<StatusKey, StatusToneKey> = {
+  진행중: 'progress',
+  성공: 'success',
+  확인중: 'review',
+  만료: 'expired',
+  제출: 'submit',
+  보류중: 'hold',
 };
 
 function StatusIcon({ status }: { status: StatusKey }): ReactNode {
@@ -50,11 +51,11 @@ function StatusIcon({ status }: { status: StatusKey }): ReactNode {
 }
 
 export function StatusPill({ status }: { status: StatusKey }): ReactNode {
-  const s = STATUS[status];
+  const tone = statusTones[TONE_OF[status]];
   return (
-    <span className={`inline-flex h-[24px] items-center gap-[4px] rounded-sm px-[8px] ${s.bg}`}>
+    <span className="inline-flex h-[24px] items-center gap-[4px] rounded-sm px-[8px]" style={{ background: tone.bg }}>
       <StatusIcon status={status} />
-      <span className={`whitespace-nowrap text-xs font-bold ${s.fg}`}>{status}</span>
+      <span className="whitespace-nowrap text-xs font-bold" style={{ color: tone.fg }}>{tone.label}</span>
     </span>
   );
 }
@@ -95,6 +96,9 @@ export function Topbar(): ReactNode {
 
 export type ViewTab = { label: string; icon: string; activeIcon?: string; href?: string };
 
+/** `/`로 시작하면 전체 경로, 아니면 `/assets/schedule` 아래 파일명으로 해석한다. */
+const tabIcon = (name: string): string => (name.startsWith('/') ? name : `${A}/${name}.svg`);
+
 export function ViewTabs({ tabs, active, bordered = false, onChange }: { tabs: ViewTab[]; active: number; bordered?: boolean; onChange?: (index: number) => void }): ReactNode {
   return (
     <div className={`flex h-[52px] w-full shrink-0 items-center overflow-x-auto px-[24px] max-md:px-[8px] ${bordered ? 'border-b border-solid border-border' : ''}`}>
@@ -106,7 +110,7 @@ export function ViewTabs({ tabs, active, bordered = false, onChange }: { tabs: V
           }`;
           const body = (
             <>
-              <img alt="" src={`${A}/${on && t.activeIcon ? t.activeIcon : t.icon}.svg`} className="size-[15px]" />
+              <img alt="" src={tabIcon(on && t.activeIcon ? t.activeIcon : t.icon)} className="size-[15px]" />
               <span className="whitespace-nowrap">{t.label}</span>
             </>
           );
@@ -129,10 +133,10 @@ export function ViewTabs({ tabs, active, bordered = false, onChange }: { tabs: V
 
 export type ChipKey = 'invite' | 'design' | 'brochure' | 'ai' | 'rehearsal' | 'kimes' | 'kimesHome' | 'designProduction' | 'videoProduction';
 
-const CHIPS: Record<ChipKey, { label: string; bg: string; fg: string; dot: string }> = {
-  invite: { label: '초청장 발송', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e' },
-  design: { label: '디자인 승인', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e' },
-  kimesHome: { label: 'KIMES 홈페이지', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e' },
+export const CHIPS: Record<ChipKey, { label: string; bg: string; fg: string; dot: string; /** 밝은 배경 칩(어두운 빗금 적용) */ light?: boolean }> = {
+  invite: { label: '초청장 발송', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e', light: true },
+  design: { label: '디자인 승인', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e', light: true },
+  kimesHome: { label: 'KIMES 홈페이지', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e', light: true },
   brochure: { label: '브로슈어 인쇄', bg: 'bg-warning-hold', fg: 'text-fg-inverse', dot: 'e2e7c' },
   ai: { label: 'AI서밋 홈페이지', bg: 'bg-brand-pink-strong', fg: 'text-fg-inverse', dot: 'e2e7c' },
   rehearsal: { label: '리허설', bg: 'bg-error-brand', fg: 'text-fg-inverse', dot: 'e2e7c' },
@@ -193,18 +197,57 @@ const MARCH_AGENDA: Record<number, AgendaItem[]> = {
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-function Chip({ k, onClick }: { k: ChipKey; onClick?: (e: MouseEvent<HTMLButtonElement>) => void }): ReactNode {
-  const ch = CHIPS[k];
+type Segment = { k: ChipKey; start: number; end: number; lane: number; contFrom: boolean; contTo: boolean };
+
+/** 한 주 안에서 같은 행사 칩이 연속된 날짜를 하나의 바로 묶고, 겹치지 않게 줄(lane)을 배정한다. */
+function buildSegments(week: CalCell[], prevWeek?: CalCell[], nextWeek?: CalCell[]): Segment[] {
+  const has = (cell: CalCell | undefined, k: ChipKey) => !!cell?.chips?.includes(k);
+  const keys: ChipKey[] = [];
+  week.forEach((cell) => cell.chips?.forEach((k) => { if (!keys.includes(k)) keys.push(k); }));
+  const raw: Omit<Segment, 'lane'>[] = [];
+  for (const k of keys) {
+    let i = 0;
+    while (i < 7) {
+      if (!has(week[i], k)) { i++; continue; }
+      let j = i;
+      while (j + 1 < 7 && has(week[j + 1], k)) j++;
+      raw.push({
+        k,
+        start: i,
+        end: j,
+        contFrom: i === 0 ? has(prevWeek?.[6], k) : false,
+        contTo: j === 6 ? has(nextWeek?.[0], k) : false,
+      });
+      i = j + 1;
+    }
+  }
+  raw.sort((x, y) => x.start - y.start || y.end - x.end);
+  const laneEnd: number[] = [];
+  return raw.map((seg) => {
+    let lane = laneEnd.findIndex((e) => e < seg.start);
+    if (lane === -1) lane = laneEnd.length;
+    laneEnd[lane] = seg.end;
+    return { ...seg, lane };
+  });
+}
+
+function Bar({ seg, striped, onClick }: { seg: Segment; striped?: boolean; onClick: (e: MouseEvent<HTMLButtonElement>) => void }): ReactNode {
+  const ch = CHIPS[seg.k];
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={ch.label}
       title={ch.label}
-      className={`flex h-[20px] w-fit shrink-0 cursor-pointer items-center gap-[4px] rounded-xs px-[6px] text-2xs font-medium hover:opacity-80 ${ch.bg} ${ch.fg}`}
+      style={{ gridColumn: `${seg.start + 1} / ${seg.end + 2}`, gridRow: seg.lane + 1 }}
+      className={`pointer-events-auto flex h-[20px] min-w-0 cursor-pointer items-center gap-[4px] px-[6px] text-2xs font-medium hover:opacity-80 ${ch.bg} ${ch.fg} ${
+        striped ? (ch.light ? 'bg-stripes-dark' : 'bg-stripes') : ''
+      } ${
+        seg.contFrom ? 'ml-0 rounded-l-none' : 'ml-[4px] rounded-l-xs'
+      } ${seg.contTo ? 'mr-0 rounded-r-none' : 'mr-[4px] rounded-r-xs'}`}
     >
-      <img alt="" src={`${A}/${ch.dot}.svg`} className="size-[5px]" />
-      <span className="whitespace-nowrap">{ch.label}</span>
+      {seg.contFrom ? null : <img alt="" src={`${A}/${ch.dot}.svg`} className="size-[5px] shrink-0" />}
+      <span className="truncate whitespace-nowrap">{seg.contFrom ? '' : ch.label}</span>
     </button>
   );
 }
@@ -217,6 +260,7 @@ export function MonthCalendar({
   thickRows = [3],
   firstRowTopBorder = true,
   padX = 24,
+  personal = false,
 }: {
   title: string;
   weeks: CalCell[][];
@@ -228,6 +272,8 @@ export function MonthCalendar({
   firstRowTopBorder?: boolean;
   /** 그리드 좌우 여백(px) */
   padX?: number;
+  /** 개인 일정(내 일정) 모드: 칩 배경에 빗금을 입힌다 */
+  personal?: boolean;
 }): ReactNode {
   const last = weeks.length - 1;
   const [peek, setPeek] = useState<{ title: string; date: string; day: number } | null>(null);
@@ -255,7 +301,7 @@ export function MonthCalendar({
         {weeks.map((week, wi) => (
           <div
             key={wi}
-            className={`grid h-[102px] w-full shrink-0 grid-cols-7 items-start border-b border-solid border-border-strong ${
+            className={`relative grid h-[102px] w-full shrink-0 grid-cols-7 items-start border-b border-solid border-border-strong ${
               wi === last ? 'rounded-b-md' : ''
             }`}
           >
@@ -277,16 +323,33 @@ export function MonthCalendar({
                   } ${border}`}
                 >
                   {cell.today ? (
-                    <span className="flex size-[22px] shrink-0 items-center justify-center rounded-lg bg-brand text-xs font-semibold text-fg-inverse">
-                      {cell.d}
+                    <span className="flex shrink-0 items-center gap-[4px]">
+                      <span className="flex size-[22px] items-center justify-center rounded-lg bg-brand text-xs font-semibold text-fg-inverse">
+                        {cell.d}
+                      </span>
+                      <span className="text-2xs font-medium text-fg-tertiary">({WEEKDAYS[ci]})</span>
                     </span>
                   ) : cell.d !== undefined ? (
-                    <span className="shrink-0 text-sm text-fg-secondary">{cell.d}</span>
+                    <span className="shrink-0 whitespace-nowrap text-sm text-fg-secondary">
+                      {cell.d} <span className="text-2xs text-fg-tertiary">({WEEKDAYS[ci]})</span>
+                    </span>
                   ) : null}
-                  {cell.chips?.map((k, i) => <Chip key={`${k}-${i}`} k={k} onClick={(e) => { e.stopPropagation(); setPeek({ title: CHIPS[k].label, date: `${title} ${cell.d}일`, day: cell.d! }); }} />)}
                 </div>
               );
             })}
+            <div className="pointer-events-none absolute inset-x-0 top-[38px] grid grid-cols-7 auto-rows-[20px] gap-y-[4px]">
+              {buildSegments(week, weeks[wi - 1], weeks[wi + 1]).map((seg) => {
+                const day = week[seg.start].d!;
+                return (
+                  <Bar
+                    key={`${seg.k}-${seg.start}`}
+                    seg={seg}
+                    striped={personal}
+                    onClick={(e) => { e.stopPropagation(); setPeek({ title: CHIPS[seg.k].label, date: `${title} ${day}일`, day }); }}
+                  />
+                );
+              })}
+            </div>
           </div>
         ))}
       </div>

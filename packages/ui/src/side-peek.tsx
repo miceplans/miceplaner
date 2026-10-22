@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type DragEvent, type PointerEvent, type ReactNode } from 'react';
 
 const A = '/assets/schedule';
 
@@ -16,7 +16,35 @@ const LINKS = [
 
 const MEMO = '메인 스테이지 전체 사운드 밸런싱 작업입니다. 음향 업체와 협의한 세팅 시트를 참고해 진행하세요.';
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+type PeekComponentKey = 'period' | 'place' | 'assignee' | 'agenda' | 'description' | 'clientMemo' | 'tasks' | 'links';
+const PEEK_COMPONENTS: { key: PeekComponentKey; label: string }[] = [
+  { key: 'period', label: '기간' },
+  { key: 'place', label: '장소' },
+  { key: 'assignee', label: '담당자' },
+  { key: 'agenda', label: '이날의 내 일정' },
+  { key: 'description', label: '설명' },
+  { key: 'clientMemo', label: '클라이언트 메모' },
+  { key: 'tasks', label: 'Task · Subtask' },
+  { key: 'links', label: '관련 링크 및 첨부' },
+];
+const PEEK_LAYOUT_KEY = 'miceplans.schedule.sidePeekLayout';
+const DEFAULT_PEEK_LAYOUT = PEEK_COMPONENTS.map((component) => component.key);
+
+function isPeekComponentKey(value: unknown): value is PeekComponentKey {
+  return typeof value === 'string' && PEEK_COMPONENTS.some((component) => component.key === value);
+}
+
+function readPeekLayout(): PeekComponentKey[] {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(PEEK_LAYOUT_KEY) ?? 'null');
+    if (!Array.isArray(parsed)) return DEFAULT_PEEK_LAYOUT;
+    return parsed.filter(isPeekComponentKey).filter((key, index, all) => all.indexOf(key) === index);
+  } catch {
+    return DEFAULT_PEEK_LAYOUT;
+  }
+}
+
+export function SidePeekSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex w-full flex-col gap-[12px]">
       <p className="h-[16.433px] whitespace-nowrap text-md font-bold tracking-[0.4695px] text-fg-strong">{label}</p>
@@ -25,7 +53,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function TextBlock({ children }: { children: string }) {
+export function SidePeekTextBlock({ children }: { children: string }) {
   return (
     <div className="flex w-full items-center justify-center rounded-md bg-surface-subtle px-[16.433px] py-[12.912px]">
       <p className="w-full text-lg text-fg-strong">{children}</p>
@@ -45,7 +73,7 @@ const AGENDA_GROUPS: { kind: AgendaKind; label: string; badge: string }[] = [
 
 function AgendaSection({ items }: { items: AgendaItem[] }) {
   return (
-    <Section label="이날의 내 일정">
+    <SidePeekSection label="이날의 내 일정">
       {items.length === 0 ? (
         <p className="text-sm text-fg-tertiary">이날 예정된 항목이 없습니다.</p>
       ) : (
@@ -70,7 +98,7 @@ function AgendaSection({ items }: { items: AgendaItem[] }) {
           })}
         </div>
       )}
-    </Section>
+    </SidePeekSection>
   );
 }
 
@@ -315,13 +343,147 @@ export function SidePeekPanel({
   }, [onClose]);
 
   const props = PROPS.map((p) => (p.label === '기간' && period ? { ...p, value: period } : p.label === '장소' && place ? { ...p, value: place } : p));
+  const [componentOrder, setComponentOrder] = useState<PeekComponentKey[]>(DEFAULT_PEEK_LAYOUT);
+  const [editingLayout, setEditingLayout] = useState(false);
+  const [draggedComponent, setDraggedComponent] = useState<PeekComponentKey | null>(null);
+  const [dropTarget, setDropTarget] = useState<PeekComponentKey | null>(null);
+
+  useEffect(() => {
+    setComponentOrder(readPeekLayout());
+  }, []);
+
+  const saveComponentOrder = (next: PeekComponentKey[]) => {
+    setComponentOrder(next);
+    try {
+      window.localStorage.setItem(PEEK_LAYOUT_KEY, JSON.stringify(next));
+    } catch {
+      // 저장할 수 없는 브라우저에서는 현재 화면에만 적용한다.
+    }
+  };
+
+  const reorderComponent = (from: PeekComponentKey, to: PeekComponentKey) => {
+    const fromIndex = componentOrder.indexOf(from);
+    const toIndex = componentOrder.indexOf(to);
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+    const next = [...componentOrder];
+    next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, from);
+    saveComponentOrder(next);
+  };
+
+  const startComponentDrag = (event: DragEvent<HTMLDivElement>, key: PeekComponentKey) => {
+    if (!editingLayout) return;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', key);
+    setDraggedComponent(key);
+  };
+
+  const overComponent = (event: DragEvent<HTMLDivElement>, key: PeekComponentKey) => {
+    if (!editingLayout) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    if (key !== draggedComponent) setDropTarget(key);
+  };
+
+  const dropComponent = (event: DragEvent<HTMLDivElement>, target: PeekComponentKey) => {
+    if (!editingLayout) return;
+    event.preventDefault();
+    const payload: unknown = event.dataTransfer.getData('text/plain');
+    const source = isPeekComponentKey(payload) ? payload : draggedComponent;
+    if (source) reorderComponent(source, target);
+    setDraggedComponent(null);
+    setDropTarget(null);
+  };
+
+  const startPointerDrag = (event: PointerEvent<HTMLSpanElement>, key: PeekComponentKey) => {
+    if (!editingLayout) return;
+    event.preventDefault();
+    setDraggedComponent(key);
+  };
+
+  const enterPointerDropTarget = (key: PeekComponentKey) => {
+    if (!editingLayout || !draggedComponent || draggedComponent === key) return;
+    setDropTarget(key);
+    reorderComponent(draggedComponent, key);
+  };
+
+  const finishPointerDrag = () => {
+    setDraggedComponent(null);
+    setDropTarget(null);
+  };
+
+  const restoreDefaults = () => {
+    setComponentOrder(DEFAULT_PEEK_LAYOUT);
+    try {
+      window.localStorage.removeItem(PEEK_LAYOUT_KEY);
+    } catch {
+      // 저장할 수 없는 브라우저에서도 기본 구성을 적용한다.
+    }
+  };
+
+  const renderComponent = (key: PeekComponentKey): ReactNode => {
+    switch (key) {
+      case 'period':
+      case 'place': {
+        const property = props.find((item) => item.label === (key === 'period' ? '기간' : '장소'));
+        return property ? (
+          <div className="flex h-[30px] w-full items-center gap-[8.465px] py-[4.699px] text-xs text-fg-strong">
+            <div className="flex w-[71.653px] shrink-0 items-center gap-[8.223px]">
+              <img alt="" src={`${A}/${property.icon}.svg`} className="size-[14.108px]" />
+              <span className="whitespace-nowrap">{property.label}</span>
+            </div>
+            <span className="whitespace-nowrap">{property.value}</span>
+          </div>
+        ) : null;
+      }
+      case 'assignee':
+        return (
+          <div className="flex h-[30px] w-full items-center gap-[8.465px] py-[4.699px] text-xs text-fg-strong">
+            <div className="flex w-[71.653px] shrink-0 items-center gap-[8.223px]">
+              <img alt="" src={`${A}/dd62d.svg`} className="size-[14.108px]" />
+              <span className="whitespace-nowrap">담당자</span>
+            </div>
+            <div className="flex items-center gap-[8px]">
+              <div className="flex items-center gap-[4px]">
+                <span className="flex size-[20.691px] items-center justify-center rounded-lg bg-success-solid text-2xs font-bold text-fg-inverse">MN</span>
+                <span className="whitespace-nowrap">민준</span>
+              </div>
+              <button type="button" aria-label="담당자 추가" className="flex size-[18.81px] items-center justify-center rounded-md hover:bg-surface-chip">
+                <img alt="" src={`${A}/1d729.svg`} className="size-[9.405px]" />
+              </button>
+            </div>
+          </div>
+        );
+      case 'agenda': return agenda ? <AgendaSection items={agenda} /> : null;
+      case 'description':
+        return <SidePeekSection label="설명"><SidePeekTextBlock>{MEMO}</SidePeekTextBlock></SidePeekSection>;
+      case 'clientMemo':
+        return <SidePeekSection label="클라이언트 메모"><SidePeekTextBlock>{MEMO}</SidePeekTextBlock></SidePeekSection>;
+      case 'tasks': return <TaskSubtaskSection />;
+      case 'links':
+        return (
+          <SidePeekSection label="관련 링크 및 첨부">
+            <div className="flex w-full flex-col gap-[2px]">
+              {LINKS.map((link) => (
+                <a key={link.name} href="#" className="flex w-full items-center gap-[10.564px] rounded-md p-[8.217px] hover:bg-surface-muted">
+                  <img alt="" src={`${A}/${link.icon}.svg`} className="size-[15.26px]" />
+                  <span className="whitespace-nowrap text-md text-fg-strong">{link.name}</span>
+                  <span className="h-[1.174px] min-w-px flex-1" />
+                  <span className="whitespace-nowrap text-sm text-fg-tertiary">{link.meta}</span>
+                </a>
+              ))}
+            </div>
+          </SidePeekSection>
+        );
+    }
+  };
 
   return (
     <>
       <div className="fixed inset-0 z-30 bg-transparent" onClick={onClose} aria-hidden />
       <aside
         aria-label="일정 상세"
-        className="side-peek-in fixed right-[24px] top-[96px] z-40 flex h-[694px] max-h-[calc(100vh-112px)] w-[498px] max-w-full flex-col gap-[24px] rounded-2xl bg-surface p-[40px] leading-[normal] shadow-card"
+        className="side-peek-in fixed right-[24px] top-[24px] z-40 flex h-[900px] max-h-[calc(100vh-48px)] w-[540px] max-w-[calc(100vw-48px)] flex-col gap-[28px] rounded-2xl bg-surface p-[44px] leading-[normal] shadow-card max-md:right-[12px] max-md:top-[12px] max-md:h-[calc(100vh-24px)] max-md:max-h-[calc(100vh-24px)] max-md:max-w-[calc(100vw-24px)] max-md:gap-[16px] max-md:p-[24px]"
       >
         <div className="flex min-h-0 w-full flex-1 flex-col items-start gap-[32px] overflow-y-auto">
           <div className="flex flex-col gap-[4px]">
@@ -329,56 +491,83 @@ export function SidePeekPanel({
             {date ? <p className="text-sm text-fg-tertiary">{date}</p> : null}
           </div>
           <div className="flex w-full flex-col items-start gap-[24px]">
-            <div className="flex flex-col gap-[1.379px]">
-              {props.map((p) => (
-                <div key={p.label} className="flex h-[30px] w-full items-center gap-[8.465px] py-[4.699px] text-xs text-fg-strong">
-                  <div className="flex w-[71.653px] shrink-0 items-center gap-[8.223px]">
-                    <img alt="" src={`${A}/${p.icon}.svg`} className="size-[14.108px]" />
-                    <span className="whitespace-nowrap">{p.label}</span>
+            {componentOrder.map((key) => {
+              const component = PEEK_COMPONENTS.find((item) => item.key === key);
+              const content = renderComponent(key);
+              if (!component || content === null) return null;
+              return (
+                <div
+                  key={key}
+                  draggable={editingLayout}
+                  onDragStart={(event) => startComponentDrag(event, key)}
+                  onDragOver={(event) => overComponent(event, key)}
+                  onDrop={(event) => dropComponent(event, key)}
+                  onDragEnd={() => { setDraggedComponent(null); setDropTarget(null); }}
+                  onPointerEnter={() => enterPointerDropTarget(key)}
+                  onPointerUp={finishPointerDrag}
+                  onPointerCancel={finishPointerDrag}
+                  className={`w-full rounded-md ${editingLayout ? 'border border-dashed p-[8px]' : ''} ${
+                    draggedComponent === key ? 'border-brand bg-brand-tint opacity-60' : editingLayout ? 'border-border' : ''
+                  } ${dropTarget === key ? 'border-brand bg-brand-tint' : ''}`}
+                >
+                  {editingLayout ? (
+                    <div className="mb-[8px] flex items-center gap-[8px]">
+                      <span
+                        aria-hidden="true"
+                        onPointerDown={(event) => startPointerDrag(event, key)}
+                        className="cursor-grab touch-none text-fg-tertiary active:cursor-grabbing"
+                      >
+                        ⠿
+                      </span>
+                      <span className="flex-1 text-xs font-medium text-fg-secondary">{component.label}</span>
+                      <button
+                        type="button"
+                        aria-label={`${component.label} 구성요소 삭제`}
+                        onClick={() => saveComponentOrder(componentOrder.filter((item) => item !== key))}
+                        className="rounded-sm px-[6px] py-[3px] text-xs text-error-delay hover:bg-error-bg"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  ) : null}
+                  {content}
+                </div>
+              );
+            })}
+            {editingLayout ? (
+              <div className="flex w-full flex-col gap-[8px] border-t border-border pt-[12px]">
+                <button
+                  type="button"
+                  onClick={restoreDefaults}
+                  className="self-start rounded-sm px-[6px] py-[4px] text-xs text-fg-secondary hover:bg-surface-muted"
+                >
+                  기본 구성으로 초기화
+                </button>
+                <p className="m-0 text-xs font-semibold text-fg-secondary">숨긴 구성요소</p>
+                {PEEK_COMPONENTS.filter((component) => !componentOrder.includes(component.key)).length ? (
+                  <div className="flex flex-wrap gap-[6px]">
+                    {PEEK_COMPONENTS.filter((component) => !componentOrder.includes(component.key)).map((component) => (
+                      <button
+                        key={component.key}
+                        type="button"
+                        onClick={() => saveComponentOrder([...componentOrder, component.key])}
+                        className="rounded-sm border border-border px-[8px] py-[5px] text-xs text-fg hover:bg-surface-muted"
+                      >
+                        + {component.label}
+                      </button>
+                    ))}
                   </div>
-                  <span className="whitespace-nowrap">{p.value}</span>
-                </div>
-              ))}
-              <div className="flex h-[30px] w-full items-center gap-[8.465px] py-[4.699px] text-xs text-fg-strong">
-                <div className="flex w-[71.653px] shrink-0 items-center gap-[8.223px]">
-                  <img alt="" src={`${A}/dd62d.svg`} className="size-[14.108px]" />
-                  <span className="whitespace-nowrap">담당자</span>
-                </div>
-                <div className="flex items-center gap-[8px]">
-                  <div className="flex items-center gap-[4px]">
-                    <span className="flex size-[20.691px] items-center justify-center rounded-lg bg-success-solid text-2xs font-bold text-fg-inverse">MN</span>
-                    <span className="whitespace-nowrap">민준</span>
-                  </div>
-                  <button type="button" aria-label="담당자 추가" className="flex size-[18.81px] items-center justify-center rounded-md hover:bg-surface-chip">
-                    <img alt="" src={`${A}/1d729.svg`} className="size-[9.405px]" />
-                  </button>
-                </div>
+                ) : <p className="m-0 text-xs text-fg-tertiary">숨긴 구성요소가 없습니다.</p>}
               </div>
-            </div>
-            {agenda ? <AgendaSection items={agenda} /> : null}
-            <Section label="설명">
-              <TextBlock>{MEMO}</TextBlock>
-            </Section>
-            <Section label="클라이언트 메모">
-              <TextBlock>{MEMO}</TextBlock>
-            </Section>
-            <TaskSubtaskSection />
-            <Section label="관련 링크 및 첨부">
-              <div className="flex w-full flex-col gap-[2px]">
-                {LINKS.map((l) => (
-                  <a key={l.name} href="#" className="flex w-full items-center gap-[10.564px] rounded-md p-[8.217px] hover:bg-surface-muted">
-                    <img alt="" src={`${A}/${l.icon}.svg`} className="size-[15.26px]" />
-                    <span className="whitespace-nowrap text-md text-fg-strong">{l.name}</span>
-                    <span className="h-[1.174px] min-w-px flex-1" />
-                    <span className="whitespace-nowrap text-sm text-fg-tertiary">{l.meta}</span>
-                  </a>
-                ))}
-              </div>
-            </Section>
+            ) : null}
           </div>
         </div>
-        <button type="button" className="mt-auto flex h-[56px] w-full shrink-0 items-center justify-center rounded-xl bg-surface-muted text-lg font-bold text-fg-strong hover:bg-surface-cell">
-          편집
+        <button
+          type="button"
+          onClick={() => setEditingLayout((editing) => !editing)}
+          className="mt-auto flex h-[56px] w-full shrink-0 items-center justify-center rounded-xl bg-surface-muted text-lg font-bold text-fg-strong hover:bg-surface-cell"
+        >
+          {editingLayout ? '완료' : '편집'}
         </button>
       </aside>
     </>
