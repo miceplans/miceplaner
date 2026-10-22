@@ -1,4 +1,5 @@
-import { AppShell, MARCH_2025, MonthCalendar, SCHEDULE_TABS, Topbar, ViewTabs } from '@miceplans/ui';
+import { MARCH_2025, MonthCalendar, SCHEDULE_TABS, Topbar, ViewTabs } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 import { SidePeekPanel } from './side-peek-panel';
 
 export default function ScheduleCalendar2Page() {

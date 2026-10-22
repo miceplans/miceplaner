@@ -1,4 +1,5 @@
-import { AppShell, SCHEDULE_TABS, StatusPill, Topbar, ViewTabs, type StatusKey } from '@miceplans/ui';
+import { SCHEDULE_TABS, StatusPill, Topbar, ViewTabs, type StatusKey } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 
 const A = '/assets/schedule';
 
