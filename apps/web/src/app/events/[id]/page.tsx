@@ -1,4 +1,4 @@
-import { AppShell } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 import { EventDetailView } from './event-detail-view';
 
 const EVENT_IDS = ['e1', 'e2', 'e3', 'e4', 'e5'];

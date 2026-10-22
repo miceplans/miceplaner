@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { SidePeekPanel, StatusPill, type StatusKey } from '@miceplans/ui';
+import { SidePeekPanel, SegmentControl, StatusPill, TextTabs, Toggle, avatarPalette, type StatusKey } from '@miceplans/ui';
 import { Checklist, type CheckItem } from './event-checklist';
 import { ScheduleList } from './event-schedule-list';
 import { EventDocs } from './event-docs';
 import { EventStats } from './event-stats';
 import { InviteDialog, type Invitee, type InviteRole } from './invite-dialog';
 import { DesignRequestTable, ProgressTable, type Team } from './event-products';
+import { PART_FILTERS, type PartFilter } from './event-parts';
+import { CURRENT_USER, EventLeadMembers, EventStaffMembers, isEventMember } from './event-members';
 
 const A = '/assets/event-detail';
 
@@ -31,9 +33,6 @@ const EVENTS: Record<string, EventInfo> = {
   e4: { name: '제12회 프랜차이즈 엑스포', period: '2025. 05. 08 – 05. 10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', design: '강예린', place: '일산 킨텍스 Hall 1', status: '제출', dday: 'D-66', color: '#ff7a45' },
   e5: { name: '현대자동차 신차 발표회', period: '2025. 05. 22', client: '현대자동차', pm: '김도현', am: '한지우', design: '이하은', place: '잠실 롯데월드타워', status: '보류중', dday: 'D-80', color: '#ff4c50' },
 };
-
-// TODO: 인증 연동 전까지 현재 사용자를 고정한다. 초대는 해당 행사 PM(또는 Super Admin)만 가능.
-const VIEWER = '박서연';
 
 const CLIENTS = ['메디코리아', '글로벌AI서밋 조직위', '삼성전자', '한국프랜차이즈협회', '로진컴퍼니', '테크노웨이', '프랜차이즈협회', '현대자동차'];
 
@@ -72,11 +71,11 @@ function ClientSelect({ value, onChange }: { value: string; onChange: (v: string
 const c = (id: string, title: string, done = false): CheckItem => ({ id, title, done });
 
 const INITIAL_SCHEDULE: CheckItem[] = [
-  { id: 's1', title: '홈페이지 오픈', done: true, date: '02.24', owner: '박', children: [c('s1a', '디자인 확정', true), c('s1b', '퍼블리싱', true), c('s1c', '오픈 점검', true)] },
+  { id: 's1', title: '홈페이지 오픈', done: true, date: '02.24', owner: '박', part: '디자인', children: [c('s1a', '디자인 확정', true), c('s1b', '퍼블리싱', true), c('s1c', '오픈 점검', true)] },
   { id: 's2', title: '초청장 발송', done: true, date: '03.03', owner: '최', children: [c('s2a', '명단 확정', true), c('s2b', '시안 제작', true), c('s2c', '발송', true)] },
-  { id: 's3', title: '브로슈어 인쇄', done: false, late: true, date: '03.06', owner: '한', children: [c('s3a', '원고 확정', true), c('s3b', '인쇄소 발주', true), c('s3c', '최종 교정')] },
-  { id: 's4', title: '디자인 승인', done: true, date: '03.05', owner: '박' },
-  { id: 's5', title: '리허설', done: false, date: '03.12', owner: '최', children: [c('s5a', '동선 점검'), c('s5b', '음향 테스트')] },
+  { id: 's3', title: '브로슈어 인쇄', done: false, late: true, date: '03.06', owner: '한', part: '디자인', children: [c('s3a', '원고 확정', true), c('s3b', '인쇄소 발주', true), c('s3c', '최종 교정')] },
+  { id: 's4', title: '디자인 승인', done: true, date: '03.05', owner: '박', part: '디자인' },
+  { id: 's5', title: '리허설', done: false, date: '03.12', owner: '최', part: '영상', children: [c('s5a', '동선 점검'), c('s5b', '음향 테스트')] },
   { id: 's6', title: '행사 당일 운영', done: false, date: '03.13 – 03.16', owner: '박' },
 ];
 
@@ -88,22 +87,24 @@ const INITIAL_TASKS: CheckItem[] = [
 ];
 
 const TABS_BY_TEAM = {
-  planning: ['스케줄', '할 일', '문서', '통계', '제작물'],
-  design: ['스케줄', '할 일', '문서', '통계'],
+  planning: ['스케줄', '할 일', '문서', '통계', '제작물', '담당 인력', '지원 인력'],
+  design: ['스케줄', '할 일', '문서', '통계', '담당 인력', '지원 인력'],
 } as const;
 type TabName = (typeof TABS_BY_TEAM)['planning'][number];
+const MEMBER_TABS: TabName[] = ['담당 인력', '지원 인력'];
 const DEFAULT_TAB: Record<Team, TabName> = { planning: '제작물', design: '스케줄' };
+const PART_OPTIONS = PART_FILTERS.map((p) => ({ value: p, label: p }));
 
-type Person = { init: string; color: string };
+type Person = { init: string };
 type Task = { title: string; meta: string; people: Person[]; done?: boolean };
 
 const P = {
-  SJ: { init: 'SJ', color: 'bg-brand-blue' },
-  MK: { init: 'MK', color: 'bg-brand-green' },
-  TR: { init: 'TR', color: 'bg-brand-amber' },
-  AL: { init: 'AL', color: 'bg-brand' },
-  DN: { init: 'DN', color: 'bg-brand-pink' },
-  JP: { init: 'JP', color: 'bg-[#22b8c6]' },
+  SJ: { init: 'SJ' },
+  MK: { init: 'MK' },
+  TR: { init: 'TR' },
+  AL: { init: 'AL' },
+  DN: { init: 'DN' },
+  JP: { init: 'JP' },
 } satisfies Record<string, Person>;
 
 const COLUMNS: { title: string; dot: string; count: number; badge: string; more: string; moreTone: string; tasks: Task[] }[] = [
@@ -138,6 +139,12 @@ const COLUMNS: { title: string; dot: string; count: number; badge: string; more:
 ];
 
 const TODOS = ['연사자 정리', '연사자 정리', '연사자 정리'];
+
+const CAL_VIEWS = [
+  { value: 'Day', label: 'Day' },
+  { value: 'Week', label: 'Week' },
+  { value: 'Month', label: 'Month' },
+] as const;
 
 const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const BASE_MONDAY = new Date(2026, 9, 12); // 디자인 기준 주(10월 12~18)
@@ -197,8 +204,8 @@ function Avatars({ people }: { people: Person[] }) {
       {people.map((p, i) => (
         <span
           key={p.init}
-          style={{ left: i * 12 }}
-          className={`absolute top-0 flex size-[18px] items-center justify-center rounded-full border-2 border-solid border-surface text-[7px] font-bold text-fg-inverse ${p.color}`}
+          style={{ left: i * 12, backgroundColor: avatarPalette[i % avatarPalette.length] }}
+          className="absolute top-0 flex size-[18px] items-center justify-center rounded-full border-2 border-solid border-surface text-[7px] font-bold text-fg-inverse"
         >
           {p.init}
         </span>
@@ -224,12 +231,21 @@ export function EventDetailView({ eventId }: { eventId: string }) {
   // TODO: 팀 구분 기준(역할·소속)이 확정되면 인증 정보에서 가져온다. 그전에는 ?team=design 으로 디자인팀 화면을 본다.
   const [team, setTeam] = useState<Team>('planning');
   const [tab, setTab] = useState<TabName>(DEFAULT_TAB.planning);
+  const tabs = TABS_BY_TEAM[team];
+  const [part, setPart] = useState<PartFilter>('전체');
+  // TODO: 개발용 — '권한 없는 사용자로 미리보기'를 켜면 비멤버 화면(인력 탭 숨김)을 확인할 수 있다.
+  const [previewNoAccess, setPreviewNoAccess] = useState(false);
+  const isMember = !previewNoAccess && isEventMember(event, eventId, CURRENT_USER.name);
+  const visibleTabs = isMember ? tabs : tabs.filter((t) => !(MEMBER_TABS as readonly string[]).includes(t));
   useEffect(() => {
     const next: Team = new URLSearchParams(window.location.search).get('team') === 'design' ? 'design' : 'planning';
     setTeam(next);
     setTab(DEFAULT_TAB[next]);
   }, []);
-  const tabs = TABS_BY_TEAM[team];
+  // 멤버 탭을 보고 있을 때 권한이 사라지면(미리보기 토글 등) 기본 탭으로 돌아간다.
+  useEffect(() => {
+    if (!isMember && (tab === '담당 인력' || tab === '지원 인력')) setTab(DEFAULT_TAB[team]);
+  }, [isMember, tab, team]);
   const [schedule, setSchedule] = useState(INITIAL_SCHEDULE);
   const [tasks, setTasks] = useState(INITIAL_TASKS);
   const [listsLoaded, setListsLoaded] = useState(false);
@@ -267,7 +283,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
   const [peekId, setPeekId] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [invited, setInvited] = useState<(Invitee & { as: InviteRole })[]>([]);
-  const canInvite = VIEWER === event.pm;
+  const canInvite = CURRENT_USER.name === event.pm;
   const gridRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; x: number; y: number; origin: CalEvent; moved: boolean } | null>(null);
 
@@ -319,18 +335,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
       <button type="button" aria-label="다음 주" onClick={() => setWeekOffset((w) => w + 1)} className="flex size-[24px] items-center justify-center rounded-md hover:bg-surface-chip"><img alt="" src={`${A}/cal-next.svg`} className="size-[14px]" /></button>
       <button type="button" onClick={() => setWeekOffset(0)} className="h-[24px] rounded-md border border-solid border-border px-[8px] text-xs text-fg-secondary hover:bg-surface-sunken">오늘</button>
       <span className="flex-1" />
-      <div className="flex items-center rounded-full bg-surface-chip p-[4px]">
-        {(['Day', 'Week', 'Month'] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setCalView(v)}
-            className={`h-[24px] rounded-full px-[12px] text-xs ${calView === v ? 'bg-surface font-semibold text-fg shadow-segment' : 'text-fg-secondary'}`}
-          >
-            {v}
-          </button>
-        ))}
-      </div>
+      <SegmentControl options={CAL_VIEWS} value={calView} onChange={setCalView} size="sm" />
     </div>
 
     <div className="overflow-x-auto">
@@ -455,16 +460,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
               </button>
             )}
             <span className="whitespace-nowrap text-base text-fg-secondary">Client에게 공개</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isPublic}
-              aria-label="Client 공개 상태 변경"
-              onClick={() => setIsPublic((v) => !v)}
-              className={`relative h-[20px] w-[34px] shrink-0 rounded-full transition-colors ${isPublic ? 'bg-brand' : 'bg-border-placeholder'}`}
-            >
-              <span className={`absolute top-[2px] size-[16px] rounded-full bg-surface transition-all ${isPublic ? 'left-[16px]' : 'left-[2px]'}`} />
-            </button>
+            <Toggle checked={isPublic} onChange={setIsPublic} ariaLabel="Client 공개 상태 변경" />
           </div>
         </div>
 
@@ -477,9 +473,9 @@ export function EventDetailView({ eventId }: { eventId: string }) {
           {invited.length > 0 && (
             <Prop icon="prop-person" label="초대됨">
               <span className="flex items-center gap-[8px]">
-                {invited.map((p) => (
+                {invited.map((p, i) => (
                   <span key={p.id} className="flex items-center gap-[4px]">
-                    <span className={`flex size-[20px] items-center justify-center rounded-full text-[8px] font-bold text-fg-inverse ${p.color}`}>{p.init}</span>
+                    <span style={{ backgroundColor: avatarPalette[i % avatarPalette.length] }} className="flex size-[20px] items-center justify-center rounded-full text-[8px] font-bold text-fg-inverse">{p.init}</span>
                     <span className="text-sm">{p.name} · {p.as}</span>
                   </span>
                 ))}
@@ -490,40 +486,42 @@ export function EventDetailView({ eventId }: { eventId: string }) {
           <Prop icon="prop-place" label="장소">{event.place}</Prop>
         </div>
 
+        <div className="flex w-full items-center gap-[10px] pb-[4px]">
+          <span className="text-sm font-medium text-fg-secondary">파트</span>
+          <SegmentControl options={PART_OPTIONS} value={part} onChange={setPart} size="sm" />
+          <span className="flex-1" />
+          <label className="flex cursor-pointer items-center gap-[6px] text-xs text-fg-tertiary">
+            <input
+              type="checkbox"
+              checked={previewNoAccess}
+              onChange={(e) => setPreviewNoAccess(e.target.checked)}
+              className="size-[14px] accent-brand"
+            />
+            권한 없는 사용자로 미리보기
+          </label>
+        </div>
+
         {team === 'design' && (
           <div className="flex w-full flex-col gap-[16px] pb-[8px]">
-            <ProgressTable />
-            <DesignRequestTable team="design" />
+            <ProgressTable team="design" part={part} />
+            <DesignRequestTable team="design" part={part} eventName={event.name} />
           </div>
         )}
 
-        <div role="tablist" className="mt-[16px] flex h-[44px] w-full items-start border-0 border-b border-solid border-border-soft">
-          {tabs.map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className={`flex h-full items-center px-[12px] text-base first:pl-0 ${
-                tab === t ? 'border-0 border-b-2 border-solid border-brand font-medium text-brand' : 'text-fg-secondary'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        <TextTabs tabs={visibleTabs} active={tab} onChange={(t) => setTab(t as TabName)} className="mt-[16px]" />
 
-        {tab === '스케줄' && <ScheduleList items={schedule} onChange={(fn) => setSchedule(fn)} />}
+        {tab === '스케줄' && <ScheduleList items={schedule} onChange={(fn) => setSchedule(fn)} part={part} />}
         {tab === '할 일' && <Checklist items={tasks} onChange={(fn) => setTasks(fn)} label="할 일" />}
-        {tab === '문서' && <EventDocs eventId={eventId} />}
+        {tab === '문서' && <EventDocs eventId={eventId} part={part} canManage={event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />}
         {tab === '통계' && <EventStats schedule={schedule} tasks={tasks} />}
         {tab === '제작물' && (
           <div className="mt-[24px] flex w-full flex-col gap-[24px]">
-            <ProgressTable />
-            <DesignRequestTable team="planning" />
+            <ProgressTable team="planning" part={part} />
+            <DesignRequestTable team="planning" part={part} eventName={event.name} />
           </div>
         )}
+        {tab === '담당 인력' && isMember && <EventLeadMembers event={event} />}
+        {tab === '지원 인력' && isMember && <EventStaffMembers eventId={eventId} />}
       </div>
 
       <div className="grid grid-cols-4 gap-[24px] px-[5px] max-lg:grid-cols-2 max-sm:grid-cols-1">
@@ -543,7 +541,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
                       <img alt="" src={`${A}/check.svg`} className="size-[10px]" />
                     </span>
                   ) : (
-                    <span className="size-[17px] shrink-0 rounded-md border-[1.5px] border-solid border-[#c7cedf]" />
+                    <span className="size-[17px] shrink-0 rounded-md border-[1.5px] border-solid border-border-strong" />
                   )}
                   <span className={`min-w-0 flex-1 truncate text-sm font-semibold ${t.done ? 'text-fg-secondary' : 'text-fg'}`}>{t.title}</span>
                   <Avatars people={t.people} />
@@ -561,8 +559,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
 
       <div className="flex items-stretch gap-[20px] px-[5px] max-lg:flex-col">
         <div
-          className="relative flex h-[230px] w-[369px] shrink-0 items-end overflow-hidden rounded-[27px] border-[10px] border-solid border-[#f569a4] p-[24px] shadow-card max-lg:w-full"
-          style={{ backgroundImage: 'linear-gradient(180deg, #f2a95f 0%, #f46aa5 62%, #ff4a4a 100%)' }}
+          className="relative flex h-[230px] w-[369px] shrink-0 items-end overflow-hidden rounded-[27px] border-[10px] border-solid border-brand-pink bg-brand-gradient p-[24px] shadow-card max-lg:w-full"
           aria-label={`BIPC ${event.dday}`}
         >
           <span className="relative z-[2] mr-[-108px] shrink-0 whitespace-nowrap text-[56px] font-bold leading-none tracking-[-0.8px] text-fg-inverse">BIPC</span>

@@ -2,18 +2,20 @@
 
 import { useEffect, useState } from 'react';
 
+import { Button, Dialog, avatarPalette } from '@miceplans/ui';
+
 export const ROLES = ['AM', '스태프'] as const;
 export type InviteRole = (typeof ROLES)[number];
-export type Invitee = { id: string; name: string; init: string; color: string; role: string };
+export type Invitee = { id: string; name: string; init: string; role: string };
 
 /** PM이 행사에 초대할 수 있는 내부 사용자 후보. */
 export const INVITEES: Invitee[] = [
-  { id: 'SJ', name: '서준', init: 'SJ', color: 'bg-brand-blue', role: 'Member' },
-  { id: 'MK', name: '민기', init: 'MK', color: 'bg-brand-green', role: 'Member' },
-  { id: 'TR', name: '태리', init: 'TR', color: 'bg-brand-amber', role: 'Member' },
-  { id: 'AL', name: '아린', init: 'AL', color: 'bg-brand', role: 'Member' },
-  { id: 'DN', name: '다은', init: 'DN', color: 'bg-brand-pink', role: 'Member' },
-  { id: 'JP', name: '재필', init: 'JP', color: 'bg-[#22b8c6]', role: 'Member' },
+  { id: 'SJ', name: '서준', init: 'SJ', role: 'Member' },
+  { id: 'MK', name: '민기', init: 'MK', role: 'Member' },
+  { id: 'TR', name: '태리', init: 'TR', role: 'Member' },
+  { id: 'AL', name: '아린', init: 'AL', role: 'Member' },
+  { id: 'DN', name: '다은', init: 'DN', role: 'Member' },
+  { id: 'JP', name: '재필', init: 'JP', role: 'Member' },
 ];
 
 export function InviteDialog({
@@ -42,7 +44,7 @@ export function InviteDialog({
   const toggle = (id: string) => setPicked((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-[16px]" onClick={onClose}>
+    <Dialog onClose={onClose}>
       <form
         role="dialog"
         aria-modal="true"
@@ -70,13 +72,13 @@ export function InviteDialog({
         />
 
         <ul className="m-0 flex max-h-[240px] list-none flex-col gap-[2px] overflow-auto p-0">
-          {list.map((p) => {
+          {list.map((p, i) => {
             const on = picked.includes(p.id);
             return (
               <li key={p.id}>
                 <label className={`flex h-[40px] cursor-pointer items-center gap-[10px] rounded-md px-[8px] hover:bg-surface-subtle ${on ? 'bg-surface-muted' : ''}`}>
                   <input type="checkbox" checked={on} onChange={() => toggle(p.id)} className="size-[16px] accent-brand" />
-                  <span className={`flex size-[24px] items-center justify-center rounded-full text-[9px] font-bold text-fg-inverse ${p.color}`}>{p.init}</span>
+                  <span style={{ backgroundColor: avatarPalette[i % avatarPalette.length] }} className="flex size-[24px] items-center justify-center rounded-full text-[9px] font-bold text-fg-inverse">{p.init}</span>
                   <span className="text-base text-fg">{p.name}</span>
                   <span className="flex-1" />
                   <span className="text-xs text-fg-tertiary">{p.role}</span>
@@ -101,18 +103,14 @@ export function InviteDialog({
         </label>
 
         <div className="flex justify-end gap-[8px]">
-          <button type="button" onClick={onClose} className="h-[32px] rounded-sm border border-solid border-border px-[14px] text-base text-fg-secondary">
+          <Button variant="secondary" onClick={onClose}>
             취소
-          </button>
-          <button
-            type="submit"
-            disabled={!picked.length}
-            className="h-[32px] rounded-sm bg-brand px-[14px] text-base font-medium text-fg-inverse disabled:opacity-40"
-          >
+          </Button>
+          <Button type="submit" disabled={!picked.length}>
             {picked.length ? `${picked.length}명 초대` : '초대'}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }

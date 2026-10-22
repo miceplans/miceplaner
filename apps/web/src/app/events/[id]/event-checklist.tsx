@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { ConfirmDialog } from '@miceplans/ui';
+
+import type { ProductPart } from './event-parts';
 
 const A = '/assets/event-detail';
 
@@ -11,6 +14,8 @@ export type CheckItem = {
   date?: string;
   owner?: string;
   late?: boolean;
+  /** 제작 파트. 없으면 공통 일정으로 모든 파트 화면에 나온다. */
+  part?: ProductPart;
   children?: CheckItem[];
 };
 
@@ -74,7 +79,7 @@ function Checkbox({ state, label, onClick }: { state: 'on' | 'off' | 'mixed'; la
       aria-label={label}
       onClick={onClick}
       className={`flex size-[17px] shrink-0 items-center justify-center rounded-md ${
-        state === 'on' ? 'bg-success-solid' : state === 'mixed' ? 'bg-brand-tint ring-[1.5px] ring-inset ring-brand' : 'border-[1.5px] border-solid border-[#c7cedf] bg-surface'
+        state === 'on' ? 'bg-success-solid' : state === 'mixed' ? 'bg-brand-tint ring-[1.5px] ring-inset ring-brand' : 'border-[1.5px] border-solid border-border-strong bg-surface'
       }`}
     >
       {state === 'on' && <img alt="" src={`${A}/check.svg`} className="size-[10px]" />}
@@ -109,7 +114,7 @@ function NewItemInput({ placeholder, onSubmit, onCancel }: { placeholder: string
 function statusOf(item: CheckItem) {
   if (item.done) return { text: '완료', tone: 'text-fg-tertiary', dot: 'dot-done' };
   if (item.late) return { text: '지연', tone: 'text-error-delay', dot: 'dot-delay' };
-  return { text: '예정', tone: 'text-info', dot: 'dot-plan' };
+  return { text: '예정', tone: 'text-scheduled', dot: 'dot-plan' };
 }
 
 type RowProps = {
@@ -122,6 +127,7 @@ type RowProps = {
 function Row({ item, depth, showStatus, onChange }: RowProps) {
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const hasChildren = !!item.children?.length;
   const progress = hasChildren ? countLeaves([item]) : null;
   const state = hasChildren ? (progress!.done === progress!.total ? 'on' : progress!.done > 0 ? 'mixed' : 'off') : item.done ? 'on' : 'off';
@@ -165,7 +171,7 @@ function Row({ item, depth, showStatus, onChange }: RowProps) {
         <button
           type="button"
           aria-label={`${item.title} 삭제`}
-          onClick={() => onChange((items) => removeItem(items, item.id))}
+          onClick={() => setConfirming(true)}
           className="flex size-[22px] items-center justify-center rounded-md text-fg-tertiary opacity-0 hover:bg-surface-chip focus-visible:opacity-100 group-hover:opacity-100"
         >
           ×
@@ -173,6 +179,17 @@ function Row({ item, depth, showStatus, onChange }: RowProps) {
         {item.date && <span className="whitespace-nowrap text-base text-fg-secondary">{item.date}</span>}
         {item.owner && <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-brand-tint text-2xs font-semibold text-brand">{item.owner}</span>}
       </div>
+      {confirming && (
+        <ConfirmDialog
+          title={`'${item.title}'을(를) 삭제할까요?`}
+          body={hasChildren ? '하위 항목까지 모두 삭제되며 복구할 수 없습니다.' : '삭제한 항목은 복구할 수 없습니다.'}
+          onClose={() => setConfirming(false)}
+          onConfirm={() => {
+            onChange((items) => removeItem(items, item.id));
+            setConfirming(false);
+          }}
+        />
+      )}
       {open && (hasChildren || adding) && (
         <ul className="m-0 p-0">
           {item.children?.map((child) => (
