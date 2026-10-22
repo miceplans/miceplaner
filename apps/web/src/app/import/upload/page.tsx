@@ -1,4 +1,5 @@
-import { AppShell, FLOW_CARD_SHADOW, FlowButton, FlowTopbar, ImportStepper, PageFrame } from '@miceplans/ui';
+import { Button, FlowTopbar, ImportStepper, PageFrame } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 import { Dropzone } from './dropzone';
 
 export default function ImportUploadPage() {
@@ -11,16 +12,16 @@ export default function ImportUploadPage() {
               <h1 className="m-0 text-xl font-bold whitespace-nowrap text-fg">Excel에서 행사 가져오기</h1>
               <ImportStepper current={1} />
             </div>
-            <div className={`flex w-full flex-col items-start rounded-lg bg-surface p-[24px] ${FLOW_CARD_SHADOW}`}>
+            <div className="flex w-full flex-col items-start rounded-lg bg-surface p-[24px] shadow-card">
               <Dropzone />
             </div>
           </div>
           <div className="flex w-full items-center gap-[8px]">
-            <FlowButton href="/">취소</FlowButton>
+            <Button variant="secondary" href="/">취소</Button>
             <div className="h-px min-w-px flex-1" />
-            <FlowButton variant="primary" href="/import/sheet">
+            <Button variant="primary" href="/import/sheet">
               다음
-            </FlowButton>
+            </Button>
           </div>
         </div>
       </PageFrame>

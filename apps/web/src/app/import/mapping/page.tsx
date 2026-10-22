@@ -1,4 +1,5 @@
-import { AppShell, FlowButton, FlowTopbar, ImportStepper, PageFrame } from '@miceplans/ui';
+import { Button, FlowTopbar, ImportStepper, PageFrame } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 import { MappingForm } from './mapping-form';
 
 export default function ImportMappingPage() {
@@ -12,10 +13,10 @@ export default function ImportMappingPage() {
           </div>
           <MappingForm />
           <div className="flex h-[64px] w-[760px] shrink-0 items-center justify-between py-[16px]">
-            <FlowButton href="/import/sheet">이전</FlowButton>
-            <FlowButton variant="primary" href="/import/preview">
+            <Button variant="secondary" href="/import/sheet">이전</Button>
+            <Button variant="primary" href="/import/preview">
               다음
-            </FlowButton>
+            </Button>
           </div>
         </div>
       </PageFrame>

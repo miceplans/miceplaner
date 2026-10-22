@@ -1,4 +1,5 @@
-import { AppShell, FlowButton, FlowTopbar, ImportStepper, PageFrame } from '@miceplans/ui';
+import { Button, FlowTopbar, ImportStepper, PageFrame } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 import { SheetForm } from './sheet-form';
 
 export default function ImportSheetPage() {
@@ -14,11 +15,11 @@ export default function ImportSheetPage() {
             <SheetForm />
           </div>
           <div className="flex w-full items-center gap-[8px]">
-            <FlowButton href="/import/upload">취소</FlowButton>
+            <Button variant="secondary" href="/import/upload">취소</Button>
             <div className="h-px min-w-px flex-1" />
-            <FlowButton variant="primary" href="/import/mapping">
+            <Button variant="primary" href="/import/mapping">
               다음
-            </FlowButton>
+            </Button>
           </div>
         </div>
       </PageFrame>

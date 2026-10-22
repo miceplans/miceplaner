@@ -1,4 +1,5 @@
-import { AppShell, FLOW_CARD_SHADOW, FlowButton, FlowTopbar, ImportStepper, PageFrame } from '@miceplans/ui';
+import { Button, FlowTopbar, ImportStepper, PageFrame } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 
 const A = '/assets/import';
 
@@ -13,7 +14,7 @@ export default function ImportDonePage() {
           </div>
           <ImportStepper current={5} />
           <div className="flex flex-col items-center gap-[20px]">
-            <div className={`flex h-[313px] w-[760px] flex-col items-center rounded-lg bg-surface px-[24px] py-[44px] ${FLOW_CARD_SHADOW}`}>
+            <div className="flex h-[313px] w-[760px] flex-col items-center rounded-lg bg-surface px-[24px] py-[44px] shadow-card">
               <div className="flex w-[515px] flex-col items-center">
                 <div className="flex flex-col items-center">
                   <div className="flex size-[64px] items-center justify-center rounded-full bg-success-bg">
@@ -33,9 +34,9 @@ export default function ImportDonePage() {
                 </div>
               </div>
             </div>
-            <FlowButton variant="primary" href="/">
+            <Button variant="primary" href="/">
               행사 보기
-            </FlowButton>
+            </Button>
           </div>
         </div>
       </PageFrame>

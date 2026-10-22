@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { FLOW_CARD_SHADOW } from '@miceplans/ui';
 
 const A = '/assets/import';
 
@@ -19,7 +18,7 @@ const ROWS: { badge?: string; label: string; value: string }[] = [
 export function MappingForm() {
   const [values, setValues] = useState(ROWS.map((r) => r.value));
   return (
-    <div className={`flex w-[760px] shrink-0 flex-col items-start gap-[32px] rounded-lg bg-surface p-[24px] ${FLOW_CARD_SHADOW}`}>
+    <div className="flex w-[760px] shrink-0 flex-col items-start gap-[32px] rounded-lg bg-surface p-[24px] shadow-card">
       <p className="m-0 text-lg font-semibold whitespace-nowrap text-fg">2026 청렴 문화의 날</p>
       <div className="flex w-full flex-col items-start gap-[16px]">
         <div className="flex h-[24px] w-full items-start text-xs font-medium whitespace-nowrap text-fg-secondary">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FLOW_CARD_SHADOW } from '@miceplans/ui';
+import { Toggle } from '@miceplans/ui';
 
 const A = '/assets/import';
 
@@ -17,7 +17,7 @@ export function SheetForm() {
   const [useHeader, setUseHeader] = useState(true);
   const [row, setRow] = useState('1행');
   return (
-    <div className={`flex h-[398px] w-full flex-col items-start gap-[20px] rounded-lg bg-surface p-[24px] ${FLOW_CARD_SHADOW}`}>
+    <div className="flex h-[398px] w-full flex-col items-start gap-[20px] rounded-lg bg-surface p-[24px] shadow-card">
       <div className="flex h-[68px] w-full shrink-0 items-center gap-[12px] rounded-md bg-surface-subtle p-[14px]">
         <img alt="" src={`${A}/excel.png`} className="h-[26.648px] w-[25.899px] shrink-0 object-cover" />
         <div className="flex flex-col items-start gap-[2px] whitespace-nowrap">
@@ -59,15 +59,7 @@ export function SheetForm() {
           <p className="m-0 text-xs text-fg-secondary">열 이름이 담긴 행을 헤더로 사용합니다</p>
         </div>
         <div className="h-px min-w-px flex-1" />
-        <button type="button" role="switch" aria-checked={useHeader} aria-label="헤더 행 사용" onClick={() => setUseHeader((v) => !v)} className="flex h-[20px] w-[34px] shrink-0">
-          {useHeader ? (
-            <img alt="" src={`${A}/toggle-switch.svg`} className="h-[20px] w-[34px]" />
-          ) : (
-            <span className="relative block h-[20px] w-[34px] rounded-lg bg-border-placeholder">
-              <span className="absolute top-[2px] left-[2px] size-[16px] rounded-full bg-surface" />
-            </span>
-          )}
-        </button>
+        <Toggle checked={useHeader} onChange={setUseHeader} ariaLabel="헤더 행 사용" />
         <label className="relative flex h-[32px] shrink-0 items-center gap-[8px] rounded-sm border border-solid border-border bg-surface px-[10px] text-sm text-fg">
           <select
             value={row}

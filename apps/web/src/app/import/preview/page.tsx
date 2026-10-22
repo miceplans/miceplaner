@@ -1,4 +1,5 @@
-import { AppShell, FLOW_CARD_SHADOW, FlowButton, FlowTopbar, ImportStepper, PageFrame } from '@miceplans/ui';
+import { Button, FlowTopbar, ImportStepper, PageFrame, StatusPill } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 
 const A = '/assets/import';
 
@@ -21,25 +22,6 @@ const COLS: { label: string; w?: number }[] = [
   { label: '장소' },
   { label: '비고', w: 52 },
 ];
-
-function StatusPill({ status }: { status: Status }) {
-  if (status === '성공') {
-    return (
-      <span className="flex h-[24px] items-center gap-[4px] rounded-sm bg-success-bg px-[8px] py-[5px] text-xs font-bold whitespace-nowrap text-success">
-        <img alt="" src={`${A}/pill-success.svg`} className="size-[14.333px]" />
-        성공
-      </span>
-    );
-  }
-  return (
-    <span className="flex items-center gap-[4px] rounded-sm bg-info-bg px-[8px] py-[5px] text-xs font-bold whitespace-nowrap text-info">
-      <span className="relative size-[12px] shrink-0">
-        <img alt="" src={`${A}/pill-ellipse.svg`} className="absolute inset-[-5.83%] block max-w-none" style={{ width: '111.66%', height: '111.66%' }} />
-      </span>
-      진행중
-    </span>
-  );
-}
 
 function Cell({ w, className = '', children }: { w?: number; className?: string; children: React.ReactNode }) {
   return (
@@ -78,7 +60,7 @@ export default function ImportPreviewPage() {
             <h1 className="m-0 w-[209px] text-xl font-bold whitespace-nowrap text-fg">Excel에서 행사가져오기</h1>
             <div className="flex flex-col items-start gap-[28px]">
               <ImportStepper current={4} />
-              <div className={`flex h-[296px] w-[760px] flex-col items-start rounded-lg bg-surface p-[24px] ${FLOW_CARD_SHADOW}`}>
+              <div className="flex h-[296px] w-[760px] flex-col items-start rounded-lg bg-surface p-[24px] shadow-card">
                 <div className="flex w-full flex-col items-start" role="table" aria-label="가져오기 미리보기">
                   <div role="row" className="flex h-[32px] w-full items-start border-b border-solid border-border bg-surface">
                     {COLS.map((c) => (
@@ -112,10 +94,10 @@ export default function ImportPreviewPage() {
             </div>
           </div>
           <div className="flex w-[760px] items-center justify-between py-[16px]">
-            <FlowButton href="/import/mapping">취소</FlowButton>
-            <FlowButton variant="primary" href="/import/done">
+            <Button variant="secondary" href="/import/mapping">취소</Button>
+            <Button variant="primary" href="/import/done">
               가져오기 시작
-            </FlowButton>
+            </Button>
           </div>
         </div>
       </PageFrame>
