@@ -1,4 +1,4 @@
-import { AppShell } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 import { EventsByYearView } from './events-by-year-view';
 
 export default function EventsByYearPage() {
