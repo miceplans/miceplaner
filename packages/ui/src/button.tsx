@@ -4,24 +4,32 @@ import type { ReactNode } from 'react';
 export function Button({
   variant = 'primary',
   type = 'button',
+  href,
   onClick,
+  disabled = false,
+  className = '',
   children,
 }: {
   variant?: 'primary' | 'secondary';
   type?: 'button' | 'submit';
+  /** 지정하면 <a>로 렌더링한다. */
+  href?: string;
   onClick?: () => void;
+  disabled?: boolean;
+  className?: string;
   children: ReactNode;
 }): ReactNode {
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      className={`flex h-[32px] shrink-0 items-center justify-center gap-[6px] rounded-sm px-[14px] text-base font-medium ${
-        variant === 'primary'
-          ? 'bg-brand text-fg-inverse'
-          : 'border border-solid border-border bg-surface text-fg-secondary'
-      }`}
-    >
+  const cls = `flex h-[32px] shrink-0 items-center justify-center gap-[6px] rounded-sm px-[14px] text-base font-medium ${
+    variant === 'primary'
+      ? 'bg-brand text-fg-inverse'
+      : 'border border-solid border-border bg-surface text-fg-secondary'
+  } ${disabled ? 'cursor-not-allowed opacity-40' : ''} ${className}`;
+  return href ? (
+    <a href={href} className={cls}>
+      {children}
+    </a>
+  ) : (
+    <button type={type} onClick={onClick} disabled={disabled} className={cls}>
       {children}
     </button>
   );

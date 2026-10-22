@@ -86,6 +86,9 @@
   --color-submit-bg: #f0eaff;
   --color-expired: #7b7b7b;        /* 만료 상태 */
   --color-expired-bg: #f1f1f1;
+  --color-scheduled: #2e5fd8;      /* 예정 상태 */
+  --color-reject: #f53488;         /* 반려 상태 */
+  --color-reject-bg: #ffe4f0;
   --color-notice: #9a6e00;         /* 경고 배너(AI Warn) */
   --color-notice-bg: #fcf4dc;
 

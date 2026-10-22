@@ -27,7 +27,16 @@ export const brandGradient =
 /** 이벤트·워크스페이스 식별용 미니 아바타 팔레트(16px, 흰색 1.5px 테두리). */
 export const avatarPalette = ['#ffaf20', '#f567a5', '#4a8cff', '#2ebd85'] as const;
 
-export type StatusToneKey = 'progress' | 'success' | 'review' | 'hold' | 'submit' | 'error' | 'expired';
+export type StatusToneKey =
+  | 'progress'
+  | 'success'
+  | 'review'
+  | 'hold'
+  | 'submit'
+  | 'error'
+  | 'expired'
+  | 'scheduled'
+  | 'reject';
 
 /** 상태 필(알약) 배경·텍스트 쌍. 모두 rounded-sm, px-2 py-[5px] 규격. */
 export const statusTones: Record<StatusToneKey, { label: string; bg: string; fg: string }> = {
@@ -38,6 +47,8 @@ export const statusTones: Record<StatusToneKey, { label: string; bg: string; fg:
   submit: { label: '제출', bg: '#f0eaff', fg: '#783dff' },
   error: { label: '실패', bg: '#ffeeee', fg: '#fe525c' },
   expired: { label: '만료', bg: '#f1f1f1', fg: '#7b7b7b' },
+  scheduled: { label: '예정', bg: '#e2f4ff', fg: '#2e5fd8' },
+  reject: { label: '반려', bg: '#ffe4f0', fg: '#f53488' },
 };
 
 /** 레이아웃 표준 치수(px). */

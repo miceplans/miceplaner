@@ -80,28 +80,3 @@ export function PageFrame({
     </div>
   );
 }
-
-export function FlowButton({
-  variant = 'ghost',
-  href,
-  children,
-}: {
-  variant?: 'ghost' | 'primary';
-  href?: string;
-  children: ReactNode;
-}): ReactNode {
-  const cls = `flex h-[32px] shrink-0 cursor-pointer items-center justify-center rounded-sm px-[14px] text-base font-medium whitespace-nowrap ${
-    variant === 'primary' ? 'bg-brand text-fg-inverse' : 'border border-solid border-border bg-surface text-fg-secondary'
-  }`;
-  return href ? (
-    <a href={href} className={cls}>
-      {children}
-    </a>
-  ) : (
-    <button type="button" className={cls}>
-      {children}
-    </button>
-  );
-}
-
-export const FLOW_CARD_SHADOW = 'shadow-card';
