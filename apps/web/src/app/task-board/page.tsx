@@ -1,4 +1,4 @@
-import { AppShell } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 import { TaskBoard } from './task-board';
 
 export default function TaskBoardPage() {
