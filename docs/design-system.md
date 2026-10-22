@@ -57,6 +57,8 @@
 | 제출 | `#f0eaff` | `#783dff` | `*-submit` / `*-submit-bg` |
 | 만료 | `#f1f1f1` | `#7b7b7b` | `*-expired` / `*-expired-bg` |
 | 지연 | — | `#c4382e` | `text-error-delay` |
+| 예정 | `#e2f4ff` | `#2e5fd8` | `*-scheduled`(배경은 진행중과 동일) |
+| 반려 | `#ffe4f0` | `#f53488` | `*-reject` / `*-reject-bg` |
 | 경고 배너 | `#fcf4dc` | `#9a6e00` | `*-notice` / `*-notice-bg` |
 
 추가: 성공 도트·미니 아바타 `#2ebd85`(`*-success-solid`), 진한 그린 텍스트 `#157a50`(`*-success-deep`).
@@ -118,6 +120,10 @@ AI 기능은 브랜드 레드와 분리된 바이올렛 계열 액센트를 쓴�
 | Topbar | h56 · px 16 · gap 12 |
 | 테이블 행 | 헤더 h36 · 스케줄 h44 · 목록 h48 |
 | 앱 프레임 | 폭 1440 · 사이드바 240 · 콘텐츠 카드 최대 760 |
+| 토글(`Toggle`) | 트랙 h20·w34·rounded-full · 손잡이 16px · 켬 `bg-brand` |
+| 세그먼트(`SegmentControl`) | rounded-full 컨테이너 · 활성 항목 `bg-surface`+`shadow-segment` |
+| 텍스트 탭(`TextTabs`) | h44 · 활성 탭 `border-brand` 밑줄(아이콘 탭은 `ViewTabs`) |
+| 모달(`Dialog`) | `fixed inset-0` 오버레이 `bg-black/30` · 가울데 정렬 |
 
 ## 5. 사용 규칙
 

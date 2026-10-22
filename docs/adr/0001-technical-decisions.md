@@ -10,14 +10,14 @@ MICEPLANS는 행사 운영 데이터와 사내 지식을 다루며, 내부 직�
 
 ## 결정
 
-웹을 먼저 배포하고 Electron은 필요할 때 같은 코드를 감싸는 선택적 셸로 도입한다. 핵심 백엔드는 Next.js 서버 기능이 아닌 NestJS API로 제공한다. AI는 읽기와 제안까지만 수행하고 모든 변경은 사람이 승인한다.
+웹을 먼저 배포하고 Tauri는 필요할 때 같은 코드를 감싸는 선택적 셸로 도입한다. 핵심 백엔드는 Next.js 서버 기능이 아닌 NestJS API로 제공한다. AI는 읽기와 제안까지만 수행하고 모든 변경은 사람이 승인한다.
 
 ### 기술 구성
 
 | 영역 | 결정 | 비고 |
 | --- | --- | --- |
 | 웹 UI | Next.js와 TypeScript | 정적 export, 웹 우선 배포 |
-| 데스크톱 | Electron | 네이티브 알림·파일 드롭 필요 시 도입 |
+| 데스크톱 | Tauri 2 | 네이티브 알림·파일 드롭 필요 시 도입. 웹 정적 export를 웹뷰에 로드 |
 | UI | Tailwind CSS, Radix, TanStack Query, Zustand, React Hook Form, Zod | 웹과 포털의 공용 UI |
 | 업무 API | NestJS | REST와 OpenAPI |
 | 일반 실시간 | Socket.IO | 행사·태스크·일정·알림 갱신 |
@@ -35,7 +35,7 @@ MICEPLANS는 행사 운영 데이터와 사내 지식을 다루며, 내부 직�
 ### 시스템 경계
 
 ```text
-Internal Web / Client Portal / optional Electron
+Internal Web / Client Portal / optional Tauri
                  │ REST, SSE, Socket.IO
                  ▼
               NestJS API ───────── PostgreSQL with RLS and pgvector
@@ -68,7 +68,7 @@ Client 포털은 API만 호출한다. 협업 서버는 Client 연결을 받지 �
 - worker와 협업 서버도 처리 대상의 워크스페이스와 주체를 명시한다.
 - 협업 연결은 JWT와 문서 space 권한을 검증하고, 권한 회수 시 읽기 전용 전환 또는 연결 종료를 수행한다.
 - Client는 별도 주체 모델로 관리하고, 공개 전용 뷰 또는 모델에서 배정 및 공개 여부를 직접 필터한다. 공개 뷰의 소유자 권한 실행이 RLS를 우회할 수 있으므로 뷰 내부 조건은 필수다.
-- Electron 도입 시 `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`를 적용하고 제한된 preload API와 `safeStorage`를 사용한다.
+- Tauri 도입 시 capabilities·permissions를 최소 권한으로 선언하고, 허용한 Tauri command만 노출한다. 원격 URL 로드는 허용 목록으로 제한하고 CSP를 적용한다. 토큰 등 로컬 비밀은 OS keychain에 저장하며 DB·LLM·S3 자격 증명은 두지 않는다. Rust 코드는 셸 기능(트레이, 알림, 파일 드롭, 딥링크, 자동 업데이트)으로 제한하고 업무 규칙은 두지 않는다.
 
 ### 검색과 AI
 
@@ -102,13 +102,13 @@ packages/
 
 ## 결과
 
-이 결정은 RLS를 중심으로 권한을 한 곳에서 강제하고, Redis와 별도 벡터 DB 없이 초기 운영 복잡도를 낮춘다. 반면 정적 export 경로의 SPA fallback 또는 쿼리 기반 라우팅, PostgreSQL 중심 검색의 한국어 품질, 단일 협업 task의 짧은 배포 중단을 운영 제약으로 받아들인다.
+이 결정은 RLS를 중심으로 권한을 한 곳에서 강제하고, Redis와 별도 벡터 DB 없이 초기 운영 복잡도를 낮춘다. 반면 정적 export 경로의 SPA fallback 또는 쿼리 기반 라우팅, PostgreSQL 중심 검색의 한국어 품질, 단일 협업 task의 짧은 배포 중단, Tauri의 OS별 웹뷰 차이를 운영 제약으로 받아들인다.
 
 ## 대안과 선택 이유
 
 | 결정 | 선택 이유 | 배제한 대안 |
 | --- | --- | --- |
-| 웹 우선과 선택적 Electron | Client 포털은 웹이 필요하고, 필요 시 셸로 네이티브 기능을 추가 가능 | 데스크톱 우선, Tauri |
+| 웹 우선과 선택적 Tauri | Client 포털은 웹이 필요하고, 필요 시 같은 웹 코드를 가벼운 셸로 감싸 네이티브 기능을 추가 가능 | 데스크톱 우선, Electron |
 | NestJS | 모듈, DI, OpenAPI가 팀 확장에 유리 | Hono |
 | PostgreSQL 단일 저장소 | 정형 데이터, 위키, 벡터의 권한 정책을 한 번만 관리 | 별도 벡터 DB |
 | pg-boss | Redis 없이 PostgreSQL 위에서 작업 큐 운영 | BullMQ |
@@ -126,4 +126,4 @@ packages/
 | LLM | 초기 2주 평가에서 GLM 도구 호출 품질이 기준 미달일 때 |
 | Client 인증 | 첫 포털 연동 또는 고객사 SSO 요구가 있을 때 |
 | 전사 문서 space | 행사 외 문서 space 추가 직전 |
-| Electron | 네이티브 알림 또는 파일 드롭 요구가 확인될 때 |
+| Tauri | 네이티브 알림 또는 파일 드롭 요구가 확인될 때. 위키 에디터가 OS 웹뷰(WebKit·WebView2)에서 정상 동작하는지 도입 전 검증 |
