@@ -1,19 +1,38 @@
 'use client';
 
 import { useState } from 'react';
+import { SegmentControl, TextTabs, Toggle } from '@miceplans/ui';
 
 const A = '/assets/dashboard';
 const SHADOW = 'shadow-card';
+
+// 목업 기준일('오늘'): 2026-10-22. D-day 계산에 사용하는 고정 상수다.
+const MOCK_TODAY = new Date(2026, 9, 22);
+const BIPC_START = new Date(2026, 10, 5); // BIPC 행사 시작일(2026-11-05)
+
+function dDayLabel(start: Date): string {
+  const diff = Math.round((start.getTime() - MOCK_TODAY.getTime()) / 86400000);
+  if (diff === 0) return 'D-Day';
+  return diff > 0 ? `D-${diff}` : '종료';
+}
+
+const BIPC_DDAY = dDayLabel(BIPC_START);
 
 const PROPS: { icon: string; label: string; value: string }[] = [
   { icon: 'prop-icon1', label: 'Client', value: '메디코리아' },
   { icon: 'prop-icon2', label: 'PM', value: '박서연' },
   { icon: 'prop-icon2', label: 'AM', value: '최민준' },
-  { icon: 'prop-icon3', label: '기간', value: '2025. 03. 13 – 03. 16' },
+  { icon: 'prop-icon3', label: '기간', value: '2026. 03. 13 – 03. 16' },
   { icon: 'prop-icon4', label: '장소', value: '코엑스 Hall A·B' },
 ];
 
 const TABS = ['스케줄', '할 일', '문서', '통계'];
+
+const VIEW_OPTIONS: { value: 'Day' | 'Week' | 'Month'; label: string }[] = [
+  { value: 'Day', label: 'Day' },
+  { value: 'Week', label: 'Week' },
+  { value: 'Month', label: 'Month' },
+];
 
 const SCHEDULES: { dot: string; state: string; stateColor: string; title: string; date: string; who: string }[] = [
   { dot: 'status-dot', state: '완료', stateColor: 'text-fg-tertiary', title: '홈페이지 오픈', date: '02.24', who: '박' },
@@ -174,22 +193,7 @@ export function DashboardView() {
           <div className="h-px min-w-px flex-1" />
           <div className="flex items-center gap-[8px]">
             <span className="whitespace-nowrap text-base text-fg-secondary">Client에게 공개</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isPublic}
-              aria-label="Client에게 공개"
-              onClick={() => setIsPublic((v) => !v)}
-              className="relative h-[20px] w-[34px] shrink-0 cursor-pointer"
-            >
-              {isPublic ? (
-                <img alt="" src={`${A}/switch.svg`} className="absolute inset-0 block size-full max-w-none" />
-              ) : (
-                <span className="absolute inset-0 rounded-lg bg-border-placeholder">
-                  <span className="absolute left-[2px] top-[2px] size-[16px] rounded-full bg-surface" />
-                </span>
-              )}
-            </button>
+            <Toggle checked={isPublic} onChange={setIsPublic} ariaLabel="Client에게 공개" />
           </div>
         </div>
         <div className="flex w-full flex-col items-start pb-[18px] pt-[22px]">
@@ -213,22 +217,7 @@ export function DashboardView() {
         </div>
         <div className="h-px w-full bg-border-soft" />
         <div className="flex w-full flex-col items-start">
-          <div className="flex h-[44px] w-full items-start border-b border-solid border-border-soft" role="tablist">
-            {TABS.map((t, i) => (
-              <button
-                key={t}
-                type="button"
-                role="tab"
-                aria-selected={tab === t}
-                onClick={() => setTab(t)}
-                className={`flex h-full items-center ${i === 0 ? 'pr-[12px]' : 'px-[12px]'} ${
-                  tab === t ? 'border-b-2 border-solid border-brand text-base font-medium text-brand' : 'text-base text-fg-secondary'
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+          <TextTabs tabs={TABS} active={tab} onChange={setTab} />
           <div className="flex w-full flex-col items-start py-[8px]">
             {tabRows.map((s) => (
               <div key={s.title} className="flex h-[36px] w-full items-center gap-[10px]">
@@ -273,7 +262,7 @@ export function DashboardView() {
         >
           <div className="absolute inset-[24px] isolate flex items-end whitespace-nowrap font-bold">
             <span className="relative z-[2] mr-[-108px] shrink-0 text-3xl leading-[normal] tracking-[-0.7878px] text-fg-inverse">BIPC</span>
-            <span className="relative z-[1] shrink-0 text-3xl leading-[168.583px] tracking-[-0.878px] text-fg-inverse/60">D-14</span>
+            <span className="relative z-[1] shrink-0 text-3xl leading-[168.583px] tracking-[-0.878px] text-fg-inverse/60">{BIPC_DDAY}</span>
           </div>
         </div>
         <div className={`flex shrink-0 flex-col items-start rounded-md bg-surface p-[24px] ${SHADOW}`}>
@@ -304,20 +293,7 @@ export function DashboardView() {
             <img alt="" src={`${A}/icon1.svg`} className="size-[14px]" />
           </button>
           <div className="h-px min-w-px flex-1" />
-          <div className="flex items-center gap-[2px] self-stretch rounded-full bg-surface-muted p-[3px]">
-            {(['Day', 'Week', 'Month'] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setView(v)}
-                className={`flex h-full items-center justify-center rounded-full px-[13px] py-[6px] text-2xs ${
-                  view === v ? 'bg-surface font-bold text-fg shadow-segment' : 'font-semibold text-fg-secondary'
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
+          <SegmentControl size="md" options={VIEW_OPTIONS} value={view} onChange={setView} />
         </div>
         <div className="flex w-full items-start">
           <div className="h-[42px] w-[56px] shrink-0" />

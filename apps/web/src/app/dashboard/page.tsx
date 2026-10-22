@@ -1,4 +1,4 @@
-import { AppShell } from '@miceplans/ui';
+import { AppShell } from '@miceplans/ui/sidebar';
 import { DashboardView } from './dashboard-view';
 
 export default function DashboardPage() {
