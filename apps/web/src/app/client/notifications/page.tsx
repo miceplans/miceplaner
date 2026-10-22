@@ -1,5 +1,5 @@
 import { ClientHeader } from '@miceplans/ui';
-import { CHIP, GROUPS } from './data';
+import { CHIP, GROUPS, formatNotifyDate } from './data';
 
 const A = '/assets/client/inbox';
 
@@ -28,7 +28,10 @@ export default function ClientNotificationsPage() {
                         i < g.rows.length - 1 ? 'h-[58px] border-b' : ''
                       }`}
                     >
-                      <div className={`flex size-[34px] shrink-0 items-center justify-center rounded-md ${CHIP[r.tone]}`}>
+                      <div
+                        className={`flex size-[34px] shrink-0 items-center justify-center rounded-md ${CHIP[r.tone].className}`}
+                        style={CHIP[r.tone].hex ? { background: CHIP[r.tone].hex } : undefined}
+                      >
                         <img alt="" src={`${A}/${r.icon}.svg`} className="size-[16px]" />
                       </div>
                       <div className="flex h-full min-w-px flex-1 flex-col items-start gap-[4px]">
@@ -38,7 +41,9 @@ export default function ClientNotificationsPage() {
                         <div className="flex items-center gap-[7px] whitespace-nowrap text-xs leading-[normal]">
                           <span className="text-fg-secondary">{r.event}</span>
                           <span className="text-fg-tertiary">·</span>
-                          <span className="text-fg-tertiary">{r.when}</span>
+                          <span className="text-fg-secondary">{r.when}</span>
+                          <span className="text-fg-tertiary">·</span>
+                          <span className="text-fg-tertiary">{formatNotifyDate(r.at)}</span>
                         </div>
                       </div>
                       <div className="h-px w-[2px] shrink-0" />

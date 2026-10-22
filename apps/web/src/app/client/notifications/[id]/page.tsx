@@ -1,5 +1,5 @@
 import { ClientHeader } from '@miceplans/ui';
-import { GROUPS } from '../data';
+import { GROUPS, formatNotifyDate } from '../data';
 
 const A = '/assets/client/inbox-detail';
 
@@ -48,7 +48,7 @@ export default function ClientNotificationDetailPage() {
                     <img alt="" src={`${A}/pill-dot.svg`} className="size-[5px]" />
                     <span className="whitespace-nowrap text-2xs font-medium text-notice">일정 변경</span>
                   </span>
-                  <p className="whitespace-nowrap text-2xs leading-[normal] text-fg-tertiary">오늘 오후 1:24</p>
+                  <p className="whitespace-nowrap text-2xs leading-[normal] text-fg-tertiary">오늘 오후 1:24 · {formatNotifyDate('2026-10-22T13:24')}</p>
                 </div>
                 <div className="h-px w-[173px] shrink-0" />
                 <img alt="안 읽음" src={`${A}/unread.svg`} className="size-[7px] shrink-0" />
@@ -65,7 +65,7 @@ export default function ClientNotificationDetailPage() {
                   <p className={INFO_LABEL}>이전 마감</p>
                   <div className="h-px min-w-px flex-1" />
                   <span className="flex h-[24px] shrink-0 items-center justify-center rounded-sm bg-surface-section px-[10px] text-sm font-medium text-fg-secondary">
-                    03.12 (수)
+                    03.12 (목)
                   </span>
                 </div>
                 <div className="flex w-full items-start justify-center">
@@ -75,7 +75,7 @@ export default function ClientNotificationDetailPage() {
                   <p className={INFO_LABEL}>변경 마감</p>
                   <div className="h-px min-w-px flex-1" />
                   <span className="flex h-[24px] shrink-0 items-center justify-center rounded-sm bg-notice-bg px-[10px] text-sm font-semibold text-notice">
-                    03.10 (월)
+                    03.10 (화)
                   </span>
                 </div>
               </div>

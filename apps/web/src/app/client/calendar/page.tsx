@@ -110,11 +110,16 @@ export default function ClientCalendarPage() {
                     } ${day ? 'bg-surface' : 'bg-surface-subtle'}`}
                   >
                     {day === TODAY ? (
-                      <span className="flex size-[22px] shrink-0 items-center justify-center rounded-lg bg-brand text-xs font-semibold text-fg-inverse">
-                        {day}
+                      <span className="flex shrink-0 items-center gap-[4px]">
+                        <span className="flex size-[22px] items-center justify-center rounded-lg bg-brand text-xs font-semibold text-fg-inverse">
+                          {day}
+                        </span>
+                        <span className="text-2xs font-medium text-fg-tertiary">({WEEKDAYS[i]})</span>
                       </span>
                     ) : day ? (
-                      <p className="shrink-0 whitespace-nowrap text-sm text-fg-secondary">{day}</p>
+                      <p className="shrink-0 whitespace-nowrap text-sm text-fg-secondary">
+                        {day} <span className="text-2xs text-fg-tertiary">({WEEKDAYS[i]})</span>
+                      </p>
                     ) : null}
                     {chips.map(([label, tone]) => {
                       const t = TONE[tone];
