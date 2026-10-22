@@ -10,3 +10,7 @@ export * from './view-toggle';
 export * from './client-portal';
 export * from './agent-fab';
 export * from './side-peek';
+export * from './toggle';
+export * from './segment';
+export * from './dialog';
+export * from './tabs';
