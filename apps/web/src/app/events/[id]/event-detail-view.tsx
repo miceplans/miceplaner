@@ -1,15 +1,18 @@
 'use client';
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { SidePeekPanel, SegmentControl, StatusPill, TextTabs, Toggle, avatarPalette, type StatusKey } from '@miceplans/ui';
-import { Checklist, type CheckItem } from './event-checklist';
+import { ItemAccessContext, resolveOwners, type CheckItem } from './event-checklist';
 import { ScheduleList } from './event-schedule-list';
+import { EventTasks } from './event-tasks';
 import { EventDocs } from './event-docs';
 import { EventStats } from './event-stats';
 import { InviteDialog, type Invitee, type InviteRole } from './invite-dialog';
 import { DesignRequestTable, ProgressTable, type Team } from './event-products';
 import { PART_FILTERS, type PartFilter } from './event-parts';
-import { CURRENT_USER, EventLeadMembers, EventStaffMembers, isEventMember } from './event-members';
+import { CURRENT_USER, EventMembers, getAssignableNames, isEventMember } from './event-members';
+import { VideoSection } from './event-video';
+import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event-filter';
 
 const A = '/assets/event-detail';
 
@@ -70,28 +73,22 @@ function ClientSelect({ value, onChange }: { value: string; onChange: (v: string
 
 const c = (id: string, title: string, done = false): CheckItem => ({ id, title, done });
 
+/** 스케줄의 children은 할 일, 할 일의 children은 하위 할 일이다. 할 일 탭에서 계층으로 다룬다. */
 const INITIAL_SCHEDULE: CheckItem[] = [
   { id: 's1', title: '홈페이지 오픈', done: true, date: '02.24', owner: '박', part: '디자인', children: [c('s1a', '디자인 확정', true), c('s1b', '퍼블리싱', true), c('s1c', '오픈 점검', true)] },
-  { id: 's2', title: '초청장 발송', done: true, date: '03.03', owner: '최', children: [c('s2a', '명단 확정', true), c('s2b', '시안 제작', true), c('s2c', '발송', true)] },
-  { id: 's3', title: '브로슈어 인쇄', done: false, late: true, date: '03.06', owner: '한', part: '디자인', children: [c('s3a', '원고 확정', true), c('s3b', '인쇄소 발주', true), c('s3c', '최종 교정')] },
+  { id: 's2', title: '초청장 발송', done: true, date: '03.03', owner: '최', children: [c('s2a', '명단 확정', true), c('s2b', '시안 제작', true), c('s2c', '발송', true), { id: 't3', title: '초청장 발송 대상 검토', done: true, date: '3월 8일', owner: '김' }] },
+  { id: 's3', title: '브로슈어 인쇄', done: false, late: true, date: '03.06', owner: '한', part: '디자인', children: [c('s3a', '원고 확정', true), c('s3b', '인쇄소 발주', true), c('s3c', '최종 교정'), { id: 't1', title: '브로슈어 인쇄 최종 확인', done: false, date: '오늘', owner: '박', children: [c('t1a', '색상 교정', true), c('t1b', '사이즈 확인', true), c('t1c', '입고 일정 확인')] }] },
   { id: 's4', title: '디자인 승인', done: true, date: '03.05', owner: '박', part: '디자인' },
   { id: 's5', title: '리허설', done: false, date: '03.12', owner: '최', part: '영상', children: [c('s5a', '동선 점검'), c('s5b', '음향 테스트')] },
-  { id: 's6', title: '행사 당일 운영', done: false, date: '03.13 – 03.16', owner: '박' },
-];
-
-const INITIAL_TASKS: CheckItem[] = [
-  { id: 't1', title: '브로슈어 인쇄 최종 확인', done: false, date: '오늘', owner: '박', children: [c('t1a', '색상 교정', true), c('t1b', '사이즈 확인', true), c('t1c', '입고 일정 확인')] },
-  { id: 't2', title: '참가 업체 부스 배치 확정', done: false, date: '3월 7일', owner: '최', children: [c('t2a', '업체 의견 취합', true), c('t2b', '도면 수정'), c('t2c', '최종 승인')] },
-  { id: 't3', title: '초청장 발송 대상 검토', done: true, date: '3월 8일', owner: '김' },
-  { id: 't4', title: '운영 인력 배치표 공유', done: false, date: '3월 10일', owner: '박' },
+  { id: 's6', title: '행사 당일 운영', done: false, date: '03.13 – 03.16', owner: '박', children: [{ id: 't2', title: '참가 업체 부스 배치 확정', done: false, date: '3월 7일', owner: '최', children: [c('t2a', '업체 의견 취합', true), c('t2b', '도면 수정'), c('t2c', '최종 승인')] }, { id: 't4', title: '운영 인력 배치표 공유', done: false, date: '3월 10일', owner: '박' }] },
 ];
 
 const TABS_BY_TEAM = {
-  planning: ['스케줄', '할 일', '문서', '통계', '제작물', '담당 인력', '지원 인력'],
-  design: ['스케줄', '할 일', '문서', '통계', '담당 인력', '지원 인력'],
+  planning: ['스케줄', '할 일', '문서', '통계', '제작물', '인력'],
+  design: ['스케줄', '할 일', '문서', '통계', '인력'],
 } as const;
 type TabName = (typeof TABS_BY_TEAM)['planning'][number];
-const MEMBER_TABS: TabName[] = ['담당 인력', '지원 인력'];
+const MEMBER_TABS: TabName[] = ['인력'];
 const DEFAULT_TAB: Record<Team, TabName> = { planning: '제작물', design: '스케줄' };
 const PART_OPTIONS = PART_FILTERS.map((p) => ({ value: p, label: p }));
 
@@ -233,6 +230,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
   const [tab, setTab] = useState<TabName>(DEFAULT_TAB.planning);
   const tabs = TABS_BY_TEAM[team];
   const [part, setPart] = useState<PartFilter>('전체');
+  const [filter, setFilter] = useState<ItemFilter>(DEFAULT_FILTER);
   // TODO: 개발용 — '권한 없는 사용자로 미리보기'를 켜면 비멤버 화면(인력 탭 숨김)을 확인할 수 있다.
   const [previewNoAccess, setPreviewNoAccess] = useState(false);
   const isMember = !previewNoAccess && isEventMember(event, eventId, CURRENT_USER.name);
@@ -244,10 +242,15 @@ export function EventDetailView({ eventId }: { eventId: string }) {
   }, []);
   // 멤버 탭을 보고 있을 때 권한이 사라지면(미리보기 토글 등) 기본 탭으로 돌아간다.
   useEffect(() => {
-    if (!isMember && (tab === '담당 인력' || tab === '지원 인력')) setTab(DEFAULT_TAB[team]);
+    if (!isMember && tab === '인력') setTab(DEFAULT_TAB[team]);
   }, [isMember, tab, team]);
-  const [schedule, setSchedule] = useState(INITIAL_SCHEDULE);
-  const [tasks, setTasks] = useState(INITIAL_TASKS);
+  // 현재 탭이 보이는 탭 목록에 없으면(탭 이름 변경 직후 등) 기본 탭으로 돌아간다.
+  useEffect(() => {
+    if (!(visibleTabs as readonly string[]).includes(tab)) setTab(DEFAULT_TAB[team]);
+  }, [visibleTabs, tab, team]);
+  const assignable = useMemo(() => getAssignableNames({ pm: event.pm, am: event.am, design: event.design }, eventId), [event.pm, event.am, event.design, eventId]);
+  const [schedule, setSchedule] = useState(() => resolveOwners(INITIAL_SCHEDULE, assignable));
+  const access = useMemo(() => ({ me: CURRENT_USER.name, members: assignable }), [assignable]);
   const [listsLoaded, setListsLoaded] = useState(false);
   const listsKey = `miceplans.event-lists.${eventId}`;
 
@@ -256,24 +259,23 @@ export function EventDetailView({ eventId }: { eventId: string }) {
     try {
       const raw = window.localStorage.getItem(listsKey);
       if (raw) {
-        const saved = JSON.parse(raw) as { schedule?: CheckItem[]; tasks?: CheckItem[] };
-        if (saved.schedule) setSchedule(saved.schedule);
-        if (saved.tasks) setTasks(saved.tasks);
+        const saved = JSON.parse(raw) as { schedule?: CheckItem[] };
+        if (saved.schedule) setSchedule(resolveOwners(saved.schedule, assignable));
       }
     } catch {
       // 저장소를 쓸 수 없으면 기본 데이터로 시작한다.
     }
     setListsLoaded(true);
-  }, [listsKey]);
+  }, [listsKey, assignable]);
 
   useEffect(() => {
     if (!listsLoaded) return;
     try {
-      window.localStorage.setItem(listsKey, JSON.stringify({ schedule, tasks }));
+      window.localStorage.setItem(listsKey, JSON.stringify({ schedule }));
     } catch {
       // 저장 실패는 화면 상태에만 영향을 주므로 무시한다.
     }
-  }, [schedule, tasks, listsLoaded, listsKey]);
+  }, [schedule, listsLoaded, listsKey]);
   const [todos, setTodos] = useState(TODOS.map(() => false));
   const [calView, setCalView] = useState<'Day' | 'Week' | 'Month'>('Week');
   const [calEvents, setCalEvents] = useState(INITIAL_EVENTS);
@@ -503,25 +505,31 @@ export function EventDetailView({ eventId }: { eventId: string }) {
 
         {team === 'design' && (
           <div className="flex w-full flex-col gap-[16px] pb-[8px]">
-            <ProgressTable team="design" part={part} />
-            <DesignRequestTable team="design" part={part} eventName={event.name} />
+            <ProgressTable team="design" part={part} eventId={eventId} />
+            <DesignRequestTable team="design" part={part} eventId={eventId} eventName={event.name} />
+            <VideoSection eventId={eventId} />
           </div>
         )}
 
         <TextTabs tabs={visibleTabs} active={tab} onChange={(t) => setTab(t as TabName)} className="mt-[16px]" />
 
-        {tab === '스케줄' && <ScheduleList items={schedule} onChange={(fn) => setSchedule(fn)} part={part} />}
-        {tab === '할 일' && <Checklist items={tasks} onChange={(fn) => setTasks(fn)} label="할 일" />}
+        <ItemAccessContext.Provider value={access}>
+        {(tab === '스케줄' || tab === '할 일') && (
+          <FilterBar filter={filter} onChange={setFilter} shown={applyFilter(schedule, filter, access.me).length} total={schedule.length} />
+        )}
+        {tab === '스케줄' && <ScheduleList items={schedule} onChange={(fn) => setSchedule(fn)} part={part} filter={filter} />}
+        {tab === '할 일' && <EventTasks schedules={schedule} onChange={(fn) => setSchedule(fn)} part={part} filter={filter} />}
+        </ItemAccessContext.Provider>
         {tab === '문서' && <EventDocs eventId={eventId} part={part} canManage={event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />}
-        {tab === '통계' && <EventStats schedule={schedule} tasks={tasks} />}
+        {tab === '통계' && <EventStats schedule={schedule} tasks={schedule.flatMap((s) => s.children ?? [])} />}
         {tab === '제작물' && (
           <div className="mt-[24px] flex w-full flex-col gap-[24px]">
-            <ProgressTable team="planning" part={part} />
-            <DesignRequestTable team="planning" part={part} eventName={event.name} />
+            <ProgressTable team="planning" part={part} eventId={eventId} />
+            <DesignRequestTable team="planning" part={part} eventId={eventId} eventName={event.name} />
+            <VideoSection eventId={eventId} />
           </div>
         )}
-        {tab === '담당 인력' && isMember && <EventLeadMembers event={event} />}
-        {tab === '지원 인력' && isMember && <EventStaffMembers eventId={eventId} />}
+        {tab === '인력' && isMember && <EventMembers event={event} eventId={eventId} />}
       </div>
 
       <div className="grid grid-cols-4 gap-[24px] px-[5px] max-lg:grid-cols-2 max-sm:grid-cols-1">

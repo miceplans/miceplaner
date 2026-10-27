@@ -28,7 +28,6 @@ const MIN_VISIBLE = 1;
 const NAV: { key: SidebarKey; label: string; icon: string; size: number; href: string; badge?: number }[] = [
   { key: 'events', label: '행사', icon: 'events', size: 16, href: '/' },
   { key: 'years', label: '년도 별 보기', icon: 'schedules', size: 16, href: '/events-by-year-2' },
-  { key: 'calendar', label: '캘린더', icon: 'calendar', size: 16, href: '/schedule-calendar' },
   { key: 'tasks', label: '할 일', icon: 'tasks', size: 16, href: '/task-board' },
   { key: 'leave', label: '연차', icon: 'leave', size: 16, href: '/leave' },
   { key: 'clients', label: '고객사', icon: 'clients', size: 17, href: '/client-list' },

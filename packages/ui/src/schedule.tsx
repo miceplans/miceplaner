@@ -2,6 +2,7 @@
 
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { SidePeekPanel, type AgendaItem } from './side-peek';
+import { MARCH_TODOS, type PersonalTodo } from './personal-todo';
 import { statusTones, type StatusToneKey } from './tokens';
 
 const A = '/assets/schedule';
@@ -83,10 +84,10 @@ export function Topbar(): ReactNode {
         />
         <span className="flex h-[20px] items-center justify-center rounded-xs bg-surface px-[5px] text-2xs text-fg-secondary">⌘K</span>
       </label>
-      <button type="button" className="flex h-[30px] shrink-0 items-center gap-[6px] rounded-sm bg-brand px-[12px] text-base font-semibold text-fg-inverse hover:bg-brand max-md:hidden">
+      <a href="/import/upload" className="flex h-[30px] shrink-0 items-center gap-[6px] rounded-sm bg-brand px-[12px] text-base font-semibold text-fg-inverse hover:bg-brand max-md:hidden">
         <img alt="" src={`${A}/05c58.svg`} className="size-[14px]" />
         <span className="whitespace-nowrap">New 행사</span>
-      </button>
+      </a>
       <span className="flex size-[26px] shrink-0 items-center justify-center rounded-xl bg-brand-tint text-2xs font-semibold text-brand">JY</span>
     </div>
   );
@@ -160,19 +161,17 @@ export const MARCH_2025: CalCell[][] = [
   [c(30), c(31), BLANK, BLANK, BLANK, BLANK, BLANK],
 ];
 
-/** 2025년 3월 날짜별 내 할 일·프로그램·태스크·서브태스크 */
-const MARCH_AGENDA: Record<number, AgendaItem[]> = {
+/** 2025년 3월 날짜별 프로그램·태스크·서브태스크 (내 할 일은 MARCH_TODOS에서 파생) */
+const MARCH_AGENDA_BASE: Record<number, AgendaItem[]> = {
   3: [
     { kind: 'program', title: '초청장 발송', meta: 'KIMES' },
     { kind: 'task', title: '초청장 수신처 리스트 정리', meta: '최' },
   ],
   5: [
-    { kind: 'todo', title: '디자인 시안 최종 확인' },
     { kind: 'task', title: 'KIMES 부스 3D 렌더링 수정', meta: '박' },
     { kind: 'subtask', title: '조명 재질 수정', meta: '박', done: true },
   ],
   6: [
-    { kind: 'todo', title: '인쇄 업체 견적 회신 확인' },
     { kind: 'program', title: '브로슈어 인쇄', meta: 'KIMES' },
     { kind: 'task', title: '브로슈어 인쇄 견적 3사 비교', meta: '한' },
     { kind: 'subtask', title: '견적서 3부 수집', meta: '한', done: true },
@@ -183,7 +182,6 @@ const MARCH_AGENDA: Record<number, AgendaItem[]> = {
     { kind: 'task', title: 'AI서밋 발표 자료 템플릿', meta: '김' },
   ],
   12: [
-    { kind: 'todo', title: '리허설 동선 점검' },
     { kind: 'program', title: '리허설', meta: 'KIMES' },
     { kind: 'task', title: '리허설 장비 체크리스트 작성', meta: '최' },
     { kind: 'subtask', title: '음향 장비 목록 확인' },
@@ -195,16 +193,44 @@ const MARCH_AGENDA: Record<number, AgendaItem[]> = {
   24: [{ kind: 'program', title: 'KIMES 홈페이지', meta: 'KIMES' }],
 };
 
+/** 내 할 일을 범위의 각 날(바) 또는 마감일(동그라미)에 넣어 사이드 피크 agenda를 만든다 */
+function buildMarchAgenda(todos: PersonalTodo[]): Record<number, AgendaItem[]> {
+  const agenda: Record<number, AgendaItem[]> = {};
+  const push = (day: number, item: AgendaItem) => {
+    (agenda[day] ??= []).push(item);
+  };
+  for (const todo of todos) {
+    const item: AgendaItem = { kind: 'todo', title: todo.title, done: todo.done };
+    if (todo.start !== undefined && todo.end !== undefined) {
+      for (let d = todo.start; d <= todo.end; d++) push(d, item);
+    } else if (todo.due !== undefined) {
+      push(todo.due, item);
+    }
+  }
+  for (const [day, items] of Object.entries(MARCH_AGENDA_BASE)) {
+    for (const item of items) push(Number(day), item);
+  }
+  return agenda;
+}
+
+const MARCH_AGENDA = buildMarchAgenda(MARCH_TODOS);
+
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 type Segment = { k: ChipKey; start: number; end: number; lane: number; contFrom: boolean; contTo: boolean };
+type TodoBarSeg = { kind: 'todoBar'; todo: PersonalTodo; start: number; end: number; lane: number; contFrom: boolean; contTo: boolean };
+type TodoDotSeg = { kind: 'todoDot'; todo: PersonalTodo; start: number; end: number; lane: number };
+type LaneEntry = ({ kind: 'chip' } & Segment) | TodoBarSeg | TodoDotSeg;
 
-/** 한 주 안에서 같은 행사 칩이 연속된 날짜를 하나의 바로 묶고, 겹치지 않게 줄(lane)을 배정한다. */
-function buildSegments(week: CalCell[], prevWeek?: CalCell[], nextWeek?: CalCell[]): Segment[] {
+/**
+ * 한 주의 레인 항목을 모은다. 행사 칩의 연속 날짜, 기간이 있는 내 할 일(빗금 바), 마감일만 있는 내 할 일(빗금 동그라미)을
+ * 하나의 목록으로 겹치지 않게 줄(lane)을 배정한다.
+ */
+function buildLaneEntries(week: CalCell[], prevWeek: CalCell[] | undefined, nextWeek: CalCell[] | undefined, todos: PersonalTodo[]): LaneEntry[] {
   const has = (cell: CalCell | undefined, k: ChipKey) => !!cell?.chips?.includes(k);
   const keys: ChipKey[] = [];
   week.forEach((cell) => cell.chips?.forEach((k) => { if (!keys.includes(k)) keys.push(k); }));
-  const raw: Omit<Segment, 'lane'>[] = [];
+  const raw: ((Omit<Segment, 'lane'> & { kind: 'chip' }) | Omit<TodoBarSeg, 'lane'> | Omit<TodoDotSeg, 'lane'>)[] = [];
   for (const k of keys) {
     let i = 0;
     while (i < 7) {
@@ -212,6 +238,7 @@ function buildSegments(week: CalCell[], prevWeek?: CalCell[], nextWeek?: CalCell
       let j = i;
       while (j + 1 < 7 && has(week[j + 1], k)) j++;
       raw.push({
+        kind: 'chip',
         k,
         start: i,
         end: j,
@@ -221,13 +248,38 @@ function buildSegments(week: CalCell[], prevWeek?: CalCell[], nextWeek?: CalCell
       i = j + 1;
     }
   }
+  const dayOf = (cell: CalCell | undefined) => cell?.d;
+  for (const todo of todos) {
+    if (todo.start !== undefined && todo.end !== undefined) {
+      const { start, end } = todo;
+      const inRange = (d: number | undefined) => d !== undefined && d >= start && d <= end;
+      let i = 0;
+      while (i < 7) {
+        if (!inRange(dayOf(week[i]))) { i++; continue; }
+        let j = i;
+        while (j + 1 < 7 && inRange(dayOf(week[j + 1]))) j++;
+        raw.push({
+          kind: 'todoBar',
+          todo,
+          start: i,
+          end: j,
+          contFrom: i === 0 ? inRange(dayOf(prevWeek?.[6])) : false,
+          contTo: j === 6 ? inRange(dayOf(nextWeek?.[0])) : false,
+        });
+        i = j + 1;
+      }
+    } else if (todo.due !== undefined) {
+      const idx = week.findIndex((cell) => cell.d === todo.due);
+      if (idx >= 0) raw.push({ kind: 'todoDot', todo, start: idx, end: idx });
+    }
+  }
   raw.sort((x, y) => x.start - y.start || y.end - x.end);
   const laneEnd: number[] = [];
   return raw.map((seg) => {
     let lane = laneEnd.findIndex((e) => e < seg.start);
     if (lane === -1) lane = laneEnd.length;
     laneEnd[lane] = seg.end;
-    return { ...seg, lane };
+    return { ...seg, lane } as LaneEntry;
   });
 }
 
@@ -252,6 +304,49 @@ function Bar({ seg, striped, onClick }: { seg: Segment; striped?: boolean; onCli
   );
 }
 
+/** 빗금 동그라미 표시 마커 */
+function TodoStripeDot(): ReactNode {
+  return <span aria-hidden className="size-[7px] shrink-0 rounded-full bg-surface-chip bg-stripes-dark ring-1 ring-border-strong" />;
+}
+
+/** 기간이 있는 내 할 일: 항상 빗금을 입힌 바로 표시한다 */
+function TodoBar({ seg, onClick }: { seg: TodoBarSeg; onClick: (e: MouseEvent<HTMLButtonElement>) => void }): ReactNode {
+  const done = !!seg.todo.done;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={seg.todo.title}
+      title={seg.todo.title}
+      style={{ gridColumn: `${seg.start + 1} / ${seg.end + 2}`, gridRow: seg.lane + 1 }}
+      className={`pointer-events-auto flex h-[20px] min-w-0 cursor-pointer items-center gap-[4px] bg-surface-chip bg-stripes-dark px-[6px] text-2xs font-medium text-fg-secondary hover:opacity-80 ${
+        seg.contFrom ? 'ml-0 rounded-l-none' : 'ml-[4px] rounded-l-xs'
+      } ${seg.contTo ? 'mr-0 rounded-r-none' : 'mr-[4px] rounded-r-xs'} ${done ? 'opacity-60' : ''}`}
+    >
+      {seg.contFrom ? null : <TodoStripeDot />}
+      <span className={`truncate whitespace-nowrap ${done ? 'line-through' : ''}`}>{seg.contFrom ? '' : seg.todo.title}</span>
+    </button>
+  );
+}
+
+/** 마감일만 있는 내 할 일: 바 배경 없이 빗금 동그라미와 제목만 표시한다 */
+function TodoDot({ seg, onClick }: { seg: TodoDotSeg; onClick: (e: MouseEvent<HTMLButtonElement>) => void }): ReactNode {
+  const done = !!seg.todo.done;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={seg.todo.title}
+      title={seg.todo.title}
+      style={{ gridColumn: `${seg.start + 1} / ${seg.end + 2}`, gridRow: seg.lane + 1 }}
+      className={`pointer-events-auto flex h-[20px] min-w-0 cursor-pointer items-center gap-[4px] px-[6px] text-2xs font-medium text-fg-secondary hover:bg-surface-muted ${done ? 'opacity-60' : ''}`}
+    >
+      <TodoStripeDot />
+      <span className={`truncate whitespace-nowrap ${done ? 'line-through' : ''}`}>{seg.todo.title}</span>
+    </button>
+  );
+}
+
 export function MonthCalendar({
   title,
   weeks,
@@ -261,6 +356,7 @@ export function MonthCalendar({
   firstRowTopBorder = true,
   padX = 24,
   personal = false,
+  todos = [],
 }: {
   title: string;
   weeks: CalCell[][];
@@ -274,6 +370,8 @@ export function MonthCalendar({
   padX?: number;
   /** 개인 일정(내 일정) 모드: 칩 배경에 빗금을 입힌다 */
   personal?: boolean;
+  /** 달력에 함께 표시할 내 할 일. 기간이 있으면 빗금 바, 마감일만 있으면 빗금 동그라미 항목으로 표시한다 */
+  todos?: PersonalTodo[];
 }): ReactNode {
   const last = weeks.length - 1;
   const [peek, setPeek] = useState<{ title: string; date: string; day: number } | null>(null);
@@ -338,14 +436,24 @@ export function MonthCalendar({
               );
             })}
             <div className="pointer-events-none absolute inset-x-0 top-[38px] grid grid-cols-7 auto-rows-[20px] gap-y-[4px]">
-              {buildSegments(week, weeks[wi - 1], weeks[wi + 1]).map((seg) => {
-                const day = week[seg.start].d!;
+              {buildLaneEntries(week, weeks[wi - 1], weeks[wi + 1], todos).map((entry) => {
+                const day = week[entry.start].d!;
+                const openPeek = (itemTitle: string) => (e: MouseEvent<HTMLButtonElement>) => {
+                  e.stopPropagation();
+                  setPeek({ title: itemTitle, date: `${title} ${day}일`, day });
+                };
+                if (entry.kind === 'todoBar') {
+                  return <TodoBar key={`todo-${entry.todo.id}-${entry.start}`} seg={entry} onClick={openPeek(entry.todo.title)} />;
+                }
+                if (entry.kind === 'todoDot') {
+                  return <TodoDot key={`todo-${entry.todo.id}-${entry.start}`} seg={entry} onClick={openPeek(entry.todo.title)} />;
+                }
                 return (
                   <Bar
-                    key={`${seg.k}-${seg.start}`}
-                    seg={seg}
+                    key={`${entry.k}-${entry.start}`}
+                    seg={entry}
                     striped={personal}
-                    onClick={(e) => { e.stopPropagation(); setPeek({ title: CHIPS[seg.k].label, date: `${title} ${day}일`, day }); }}
+                    onClick={openPeek(CHIPS[entry.k].label)}
                   />
                 );
               })}

@@ -37,3 +37,43 @@ export function remainingOf(emp: LeaveEmployee): number {
 export function usageRateOf(emp: LeaveEmployee): number {
   return emp.used / emp.total;
 }
+
+/** 휴가 형태. 아이콘은 Figma 마이스플래너 > 연차 아이콘 섹션에서 가져온다. */
+export type LeaveKind = 'full' | 'comp' | 'am-half' | 'pm-half' | 'am-quarter' | 'pm-quarter';
+
+export const LEAVE_KINDS: { kind: LeaveKind; label: string; days: number; icon: string }[] = [
+  { kind: 'full', label: '연차', days: 1, icon: '/assets/leave/full.svg' },
+  { kind: 'comp', label: '대휴', days: 1, icon: '/assets/leave/comp.svg' },
+  { kind: 'am-half', label: '오전 반차', days: 0.5, icon: '/assets/leave/am-half.svg' },
+  { kind: 'pm-half', label: '오후 반차', days: 0.5, icon: '/assets/leave/pm-half.svg' },
+  { kind: 'am-quarter', label: '오전 반반차', days: 0.25, icon: '/assets/leave/am-quarter.svg' },
+  { kind: 'pm-quarter', label: '오후 반반차', days: 0.25, icon: '/assets/leave/pm-quarter.svg' },
+];
+
+export type LeaveRecord = { date: string; employeeId: string; kind: LeaveKind };
+
+/** 목업 기준 오늘. */
+export const LEAVE_TODAY = '2026-10-22';
+
+/** 일자별 휴가 사용 내역 목업(date는 YYYY-MM-DD). */
+export const LEAVE_RECORDS: LeaveRecord[] = [
+  { date: '2026-09-03', employeeId: 'e2', kind: 'full' },
+  { date: '2026-09-10', employeeId: 'e3', kind: 'am-half' },
+  { date: '2026-09-10', employeeId: 'e6', kind: 'full' },
+  { date: '2026-09-17', employeeId: 'e3', kind: 'pm-half' },
+  { date: '2026-09-18', employeeId: 'e7', kind: 'full' },
+  { date: '2026-09-24', employeeId: 'e4', kind: 'full' },
+  { date: '2026-09-25', employeeId: 'e6', kind: 'full' },
+  { date: '2026-09-28', employeeId: 'e7', kind: 'full' },
+  { date: '2026-09-30', employeeId: 'e8', kind: 'full' },
+  { date: '2026-10-08', employeeId: 'e1', kind: 'full' },
+  { date: '2026-10-14', employeeId: 'e4', kind: 'full' },
+  { date: '2026-10-14', employeeId: 'e2', kind: 'pm-half' },
+  { date: '2026-10-21', employeeId: 'e6', kind: 'full' },
+  { date: '2026-10-22', employeeId: 'e5', kind: 'am-quarter' },
+  { date: '2026-10-22', employeeId: 'e3', kind: 'pm-quarter' },
+  { date: '2026-10-16', employeeId: 'e8', kind: 'comp' },
+  { date: '2026-10-29', employeeId: 'e7', kind: 'full' },
+  { date: '2026-11-12', employeeId: 'e5', kind: 'full' },
+  { date: '2026-11-19', employeeId: 'e2', kind: 'am-half' },
+];

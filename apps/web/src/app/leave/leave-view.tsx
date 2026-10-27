@@ -1,7 +1,6 @@
-import { FlowTopbar, PageFrame } from '@miceplans/ui';
-import { LEAVE_EMPLOYEES, LOW_REMAINING_DAYS, MONTH_LABELS, remainingOf, usageRateOf } from './data';
-
-const SHADOW = 'shadow-card';
+import { Button, FlowTopbar, PageFrame } from '@miceplans/ui';
+import { LeaveCalendar } from './leave-calendar';
+import { LEAVE_EMPLOYEES, LOW_REMAINING_DAYS, MONTH_LABELS, remainingOf } from './data';
 
 const AVATAR_BG = ['bg-brand-tint text-brand', 'bg-notice-bg text-notice', 'bg-success-bg text-success-deep', 'bg-info-bg text-brand-blue', 'bg-surface-chip text-fg-secondary'];
 
@@ -11,37 +10,11 @@ function formatDays(value: number): string {
 
 export function LeaveView() {
   const employees = LEAVE_EMPLOYEES;
-  const totalCount = employees.length;
-  const avgRemaining = employees.reduce((sum, e) => sum + remainingOf(e), 0) / totalCount;
-  const avgUsageRate = employees.reduce((sum, e) => sum + usageRateOf(e), 0) / totalCount;
-  const lowRemainingCount = employees.filter((e) => remainingOf(e) <= LOW_REMAINING_DAYS).length;
-
   return (
     <PageFrame topbar={<FlowTopbar showToggle title="연차 사용 현황" />} mainClassName="bg-surface">
       <div className="flex min-h-px flex-1 flex-col items-start gap-[16px] px-[24px] py-[20px]">
-        <div className="flex w-full items-start gap-[12px]">
-          <div className={`flex h-[76px] min-w-px flex-1 flex-col justify-center gap-[6px] rounded-lg bg-surface px-[14px] ${SHADOW}`}>
-            <span className="whitespace-nowrap text-2xs text-fg-tertiary">전체 직원</span>
-            <span className="whitespace-nowrap text-xl font-semibold text-fg">{totalCount}명</span>
-          </div>
-          <div className={`flex h-[76px] min-w-px flex-1 flex-col justify-center gap-[6px] rounded-lg bg-surface px-[14px] ${SHADOW}`}>
-            <span className="whitespace-nowrap text-2xs text-fg-tertiary">평균 잔여 연차</span>
-            <div className="flex items-end gap-[5px]">
-              <span className="text-xl font-semibold leading-[97.22%] text-fg">{avgRemaining.toFixed(1)}일</span>
-              <span className="whitespace-nowrap text-2xs text-fg-tertiary">/ 전체 인원 기준</span>
-            </div>
-          </div>
-          <div className={`flex h-[76px] min-w-px flex-1 flex-col justify-center gap-[6px] rounded-lg bg-surface px-[14px] ${SHADOW}`}>
-            <span className="whitespace-nowrap text-2xs text-fg-tertiary">평균 사용률</span>
-            <span className="whitespace-nowrap text-xl font-semibold text-fg">{Math.round(avgUsageRate * 100)}%</span>
-          </div>
-          <div className={`flex h-[76px] min-w-px flex-1 flex-col justify-center gap-[6px] rounded-lg bg-surface px-[14px] ${SHADOW}`}>
-            <span className="whitespace-nowrap text-2xs text-fg-tertiary">잔여 {LOW_REMAINING_DAYS}일 이하</span>
-            <div className="flex items-end gap-[5px]">
-              <span className={`text-xl font-semibold leading-[97.22%] ${lowRemainingCount > 0 ? 'text-error' : 'text-fg'}`}>{lowRemainingCount}명</span>
-              {lowRemainingCount > 0 ? <span className="whitespace-nowrap text-2xs text-error">관리 필요</span> : null}
-            </div>
-          </div>
+        <div className="flex w-full justify-end">
+          <Button href="/leave/request">휴무계 작성</Button>
         </div>
 
         <div className="flex w-full flex-col items-start rounded-lg border border-solid border-border">
@@ -93,6 +66,7 @@ export function LeaveView() {
             );
           })}
         </div>
+        <LeaveCalendar />
         <p className="m-0 text-2xs text-fg-tertiary">잔여 연차가 {LOW_REMAINING_DAYS}일 이하인 직원은 빨간색으로 표시됩니다. 목업 데이터 기준: 2026년 10월 현재.</p>
       </div>
     </PageFrame>

@@ -2,14 +2,15 @@
 
 import { useState } from 'react';
 import { EventTable } from './event-table';
+import { NoticeList } from './notice-list';
 import { ViewTabs, type CalCell, type ChipKey, type StatusKey, type ViewTab } from '@miceplans/ui';
 import { AppShell } from '@miceplans/ui/sidebar';
 import { ScheduleViewCalendar } from './schedule-calendar/schedule-view-calendar';
 
 const TABS: ViewTab[] = [
   { label: '전체 행사', icon: '10b86', activeIcon: '753c4', href: '/' },
+  { label: '공지', icon: '/assets/sidebar/notifications.svg' },
   { label: '내 행사', icon: '10b86' },
-  { label: '캘린더', icon: 'b0b49', href: '/schedule-calendar' },
 ];
 
 const EVENTS: { id: string; name: string; dot: string; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; status: StatusKey; place: string; budget?: string }[] = [
@@ -62,15 +63,19 @@ const WORK_WEEKS: CalCell[][] = WEEKS.map((week) =>
 
 export default function HomePage() {
   const [tab, setTab] = useState(0);
-  const events = tab === 1 ? EVENTS.filter((event) => event.pm === '박서연' || event.am === '박서연') : EVENTS;
+  const events = tab === 2 ? EVENTS.filter((event) => event.pm === '박서연' || event.am === '박서연') : EVENTS;
   return (
     <AppShell active="events">
       <div className="flex min-h-screen flex-col leading-[normal]">
         <ViewTabs tabs={TABS} active={tab} onChange={setTab} bordered />
-        <div className="flex w-full flex-col gap-[24px]">
-          <EventTable key={tab} initial={events} />
-          <ScheduleViewCalendar eventWeeks={WEEKS} workWeeks={WORK_WEEKS} gridGap={19} padX={20} />
-        </div>
+        {tab === 1 ? (
+          <NoticeList />
+        ) : (
+          <div className="flex w-full flex-col gap-[24px]">
+            <EventTable key={tab} initial={events} />
+            <ScheduleViewCalendar eventWeeks={WEEKS} workWeeks={WORK_WEEKS} gridGap={19} padX={20} />
+          </div>
+        )}
       </div>
     </AppShell>
   );

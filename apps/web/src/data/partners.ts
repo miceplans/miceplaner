@@ -1,6 +1,6 @@
-export const PARTNER_FIELDS = ['디자인', '영상', '3D', '출력·인쇄', '음향·조명', '물류', '부스 시공'] as const;
+export const PARTNER_FIELDS: string[] = ['디자인', '영상', '3D', '출력·인쇄', '음향·조명', '물류', '부스 시공'];
 
-export type PartnerField = (typeof PARTNER_FIELDS)[number];
+export type PartnerField = string;
 
 export type Partner = {
   id: string;

@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react';
 
 import { ConfirmDialog, StatusPill, type StatusKey } from '@miceplans/ui';
+import { AddPropertyButton, PROP_COL_WIDTH, PropCell, PropHeaderCell, useCustomProps } from './custom-props';
 import { ProductNameCombobox } from './product-name-combobox';
 import { matchPart, type PartFilter, type ProductPart } from './event-parts';
 import type { ProductCatalogItem } from './product-catalog';
@@ -109,8 +110,9 @@ function sortProgress(rows: ProgressRow[], sort: ProgressSort): ProgressRow[] {
 }
 
 /** 진행상황: 행사 전체 제작물의 현재 상태를 보여준다. 디자인팀은 행마다 의견을 별낼 수 있다. */
-export function ProgressTable({ team, part = '전체' }: { team: Team; part?: PartFilter }) {
+export function ProgressTable({ team, part = '전체', eventId = 'default' }: { team: Team; part?: PartFilter; eventId?: string }) {
   const design = team === 'design';
+  const cp = useCustomProps(`${eventId}:progress`);
   const [sort, setSort] = useState<ProgressSort>('완료일순');
   const [commentFor, setCommentFor] = useState<string | null>(null);
   const [comment, setComment] = useState('');
@@ -128,6 +130,7 @@ export function ProgressTable({ team, part = '전체' }: { team: Team; part?: Pa
     <section className="flex w-full flex-col gap-[12px]">
       <div className="flex items-center gap-[12px]">
         <TableTitle>진행상황</TableTitle>
+        <AddPropertyButton onAdd={cp.addProp} />
         <span className="flex-1" />
         <label className="flex items-center gap-[6px] text-sm text-fg-secondary">
           정렬
@@ -146,7 +149,7 @@ export function ProgressTable({ team, part = '전체' }: { team: Team; part?: Pa
         </label>
       </div>
       <div className="overflow-x-auto">
-        <div className="flex min-w-[1240px] flex-col">
+        <div className="flex flex-col" style={{ minWidth: 1240 + cp.props.length * PROP_COL_WIDTH }}>
           <div className={`flex items-center gap-[12px] rounded-t-lg px-[14px] py-[8px] ${HEAD}`}>
             <span className={`${CELL} w-[120px]`}>품명</span>
             <span className={`${CELL} w-[70px]`}>파트</span>
@@ -160,6 +163,9 @@ export function ProgressTable({ team, part = '전체' }: { team: Team; part?: Pa
             <span className={`${CELL} w-[140px]`}>발주업체</span>
             <span className={`${CELL} w-[180px]`}>업체 담당자(연락처)</span>
             <span className={`${CELL} w-[120px]`}>비고</span>
+            {cp.props.map((p) => (
+              <PropHeaderCell key={p.id} prop={p} className={CELL} onRename={(n) => cp.renameProp(p.id, n)} onRemove={() => cp.removeProp(p.id)} />
+            ))}
             {design && <span className={`${CELL} w-[90px]`}>의견</span>}
           </div>
           <div className={`flex flex-col gap-[10px] rounded-b-lg border border-solid bg-surface px-[14px] py-[10px] ${LINE}`}>
@@ -179,6 +185,9 @@ export function ProgressTable({ team, part = '전체' }: { team: Team; part?: Pa
                   <span className={`${CELL} w-[140px]`}>{r.vendor}</span>
                   <span className={`${CELL} w-[180px]`}>{r.contact}</span>
                   <span className={`${CELL} w-[120px]`}>{r.note}</span>
+                  {cp.props.map((p) => (
+                    <PropCell key={p.id} prop={p} value={cp.getValue(r.id, p.id)} onChange={(v) => cp.setValue(r.id, p.id, v)} />
+                  ))}
                   {design && (
                     <button
                       type="button"
@@ -279,7 +288,8 @@ function MoreMenu() {
 }
 
 /** 디자인 요청: 기획팀은 항목을 추가·편집하고, 디자인팀은 요청을 승인·반려한다. */
-export function DesignRequestTable({ team, part = '전체', eventName = '행사' }: { team: Team; part?: PartFilter; eventName?: string }) {
+export function DesignRequestTable({ team, part = '전체', eventName = '행사', eventId = 'default' }: { team: Team; part?: PartFilter; eventName?: string; eventId?: string }) {
+  const cp = useCustomProps(`${eventId}:design-request`);
   const [rows, setRows] = useState(INITIAL_ROWS[team]);
   const planning = team === 'planning';
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -300,6 +310,7 @@ export function DesignRequestTable({ team, part = '전체', eventName = '행사'
     <section className="flex w-full flex-col gap-[12px]">
       <div className="flex items-center gap-[12px]">
         <TableTitle>디자인 요청</TableTitle>
+        <AddPropertyButton onAdd={cp.addProp} />
         <span className="flex-1" />
         {canDownload && (
           <button
@@ -322,7 +333,7 @@ export function DesignRequestTable({ team, part = '전체', eventName = '행사'
         )}
       </div>
       <div className="overflow-x-auto">
-        <div className="flex min-w-[1180px] flex-col">
+        <div className="flex flex-col" style={{ minWidth: 1180 + cp.props.length * PROP_COL_WIDTH }}>
           <div className={`flex items-center gap-[12px] rounded-t-lg px-[14px] py-[8px] ${HEAD}`}>
             <span className={`${CELL} w-[120px]`}>품명</span>
             <span className={`${CELL} w-[70px]`}>파트</span>
@@ -334,6 +345,9 @@ export function DesignRequestTable({ team, part = '전체', eventName = '행사'
             <span className={`${CELL} w-[180px]`}>업체 담당자(연락처)</span>
             <span className={`${CELL} w-[120px]`}>비고</span>
             <span className={`${CELL} w-[80px]`}>협의중</span>
+            {cp.props.map((p) => (
+              <PropHeaderCell key={p.id} prop={p} className={CELL} onRename={(n) => cp.renameProp(p.id, n)} onRemove={() => cp.removeProp(p.id)} />
+            ))}
             <span className={`${CELL} w-[84px]`}>{planning ? '상태/기능' : '승인'}</span>
           </div>
           {visible.map((r, i) => {
@@ -397,6 +411,9 @@ export function DesignRequestTable({ team, part = '전체', eventName = '행사'
                     className="size-[16px] accent-brand"
                   />
                 </span>
+                {cp.props.map((p) => (
+                  <PropCell key={p.id} prop={p} value={cp.getValue(r.id, p.id)} onChange={(v) => cp.setValue(r.id, p.id, v)} />
+                ))}
                 <span className="flex shrink-0 items-center gap-[5.5px]">
                   {r.status === 'reject' && (
                     <span className="flex h-[24px] shrink-0 items-center gap-[4px] rounded-md px-[8px] text-xs font-bold bg-reject-bg text-reject">

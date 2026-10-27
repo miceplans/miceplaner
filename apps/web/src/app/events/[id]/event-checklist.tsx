@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { ConfirmDialog } from '@miceplans/ui';
 
 import type { ProductPart } from './event-parts';
@@ -11,13 +11,48 @@ export type CheckItem = {
   id: string;
   title: string;
   done: boolean;
+  /** 완료 처리한 시각(ms). 완료일 순 정렬에 쓴다. 없으면 마감일로 대신한다. */
+  completedAt?: number;
   date?: string;
+  /** 표시용 담당자 이니셜. assignee가 있으면 assignee의 첫 글자를 쓴다. */
   owner?: string;
+  /** 담당자 이름. 지정된 업무는 담당자만 완료할 수 있다. */
+  assignee?: string;
+  /** 만든 사람. 만든 사람만 수정·삭제·담당자 지정을 할 수 있다. */
+  createdBy?: string;
   late?: boolean;
   /** 제작 파트. 없으면 공통 일정으로 모든 파트 화면에 나온다. */
   part?: ProductPart;
   children?: CheckItem[];
 };
+
+/** 현재 사용자와 담당자로 지정할 수 있는 행사 인력. 목록 컴포넌트가 권한 판정에 쓴다. */
+export type ItemAccess = { me: string; members: string[] };
+export const ItemAccessContext = createContext<ItemAccess>({ me: '', members: [] });
+
+/** 만든 사람 기록이 없는 기존 항목은 제한 없이 수정할 수 있다. */
+export function canEditItem(item: CheckItem, me: string): boolean {
+  return !item.createdBy || item.createdBy === me;
+}
+
+/** 담당자가 있으면 담당자만, 없으면 만든 사람이 완료할 수 있다. 하위 항목이 함께 바뀌므로 모두 통과해야 한다. */
+export function canToggleItem(item: CheckItem, me: string): boolean {
+  const own = item.assignee ? item.assignee === me : canEditItem(item, me);
+  return own && (item.children ?? []).every((c) => canToggleItem(c, me));
+}
+
+/** 이니셜만 있는 기존 데이터에 담당자 이름과 만든 사람(=담당자)을 채운다. */
+export function resolveOwners(items: CheckItem[], members: string[]): CheckItem[] {
+  return items.map((item) => {
+    const assignee = item.assignee ?? (item.owner ? members.find((m) => m.startsWith(item.owner!)) : undefined);
+    return {
+      ...item,
+      assignee,
+      createdBy: item.createdBy ?? assignee,
+      children: item.children ? resolveOwners(item.children, members) : undefined,
+    };
+  });
+}
 
 export type Progress = { done: number; total: number };
 
@@ -47,20 +82,28 @@ function mapTree(items: CheckItem[], id: string, fn: (item: CheckItem) => CheckI
 }
 
 function setAll(item: CheckItem, done: boolean): CheckItem {
-  return { ...item, done, children: item.children?.map((c) => setAll(c, done)) };
+  return { ...item, done, completedAt: done ? Date.now() : undefined, children: item.children?.map((c) => setAll(c, done)) };
 }
 
 export function toggleItem(items: CheckItem[], id: string): CheckItem[] {
   return mapTree(items, id, (item) => setAll(item, !item.done)).map(normalize);
 }
 
-export function addChild(items: CheckItem[], parentId: string, title: string): CheckItem[] {
-  const child: CheckItem = { id: `n${Date.now()}${Math.random().toString(36).slice(2, 6)}`, title, done: false };
+export function addChild(items: CheckItem[], parentId: string, title: string, createdBy?: string): CheckItem[] {
+  const child: CheckItem = { id: `n${Date.now()}${Math.random().toString(36).slice(2, 6)}`, title, done: false, createdBy };
   return mapTree(items, parentId, (item) => ({ ...item, children: [...(item.children ?? []), child] })).map(normalize);
 }
 
-export function addRoot(items: CheckItem[], title: string): CheckItem[] {
-  return [...items, { id: `n${Date.now()}${Math.random().toString(36).slice(2, 6)}`, title, done: false }];
+export function addRoot(items: CheckItem[], title: string, createdBy?: string): CheckItem[] {
+  return [...items, { id: `n${Date.now()}${Math.random().toString(36).slice(2, 6)}`, title, done: false, createdBy }];
+}
+
+export function assignItem(items: CheckItem[], id: string, assignee: string | undefined): CheckItem[] {
+  return mapTree(items, id, (item) => ({ ...item, assignee, owner: assignee?.slice(0, 1) }));
+}
+
+export function renameItem(items: CheckItem[], id: string, title: string): CheckItem[] {
+  return mapTree(items, id, (item) => ({ ...item, title }));
 }
 
 export function removeItem(items: CheckItem[], id: string): CheckItem[] {
@@ -70,7 +113,88 @@ export function removeItem(items: CheckItem[], id: string): CheckItem[] {
     .map(normalize);
 }
 
-function Checkbox({ state, label, onClick }: { state: 'on' | 'off' | 'mixed'; label: string; onClick: () => void }) {
+/** 더블클릭하면 입력창으로 바뀌는 제목. Enter·포커스 이탈로 저장하고 Esc로 취소한다. 빈 값은 저장하지 않는다. */
+export function EditableTitle({ title, onSave, className, readOnly = false }: { title: string; onSave: (title: string) => void; className?: string; readOnly?: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(title);
+
+  if (!editing) {
+    if (readOnly) return <span className={className}>{title}</span>;
+    return (
+      <span title="더블클릭하여 수정" onDoubleClick={() => { setValue(title); setEditing(true); }} className={className}>
+        {title}
+      </span>
+    );
+  }
+
+  const commit = () => {
+    const next = value.trim();
+    if (next && next !== title) onSave(next);
+    setEditing(false);
+  };
+  return (
+    <input
+      autoFocus
+      value={value}
+      aria-label={`${title} 이름 수정`}
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.nativeEvent.isComposing) commit();
+        if (e.key === 'Escape') setEditing(false);
+      }}
+      onBlur={commit}
+      className="h-[26px] min-w-[120px] rounded-md border border-solid border-brand bg-surface px-[6px] text-base text-fg outline-none"
+    />
+  );
+}
+
+/** 담당자 아바타. 수정 권한이 있으면 눌러서 행사 인력 중 담당자를 지정·해제한다. */
+export function AssigneeBadge({ item, onAssign }: { item: CheckItem; onAssign: (assignee: string | undefined) => void }) {
+  const { me, members } = useContext(ItemAccessContext);
+  const [open, setOpen] = useState(false);
+  const editable = canEditItem(item, me);
+  const name = item.assignee;
+  const avatar = name ? (
+    <span title={name} className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-brand-tint text-[10px] font-semibold text-brand">{name.slice(0, 1)}</span>
+  ) : item.owner ? (
+    <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-brand-tint text-[10px] font-semibold text-brand">{item.owner}</span>
+  ) : (
+    <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full border border-dashed border-border-strong text-[10px] text-fg-tertiary">+</span>
+  );
+  if (!editable) return avatar;
+  return (
+    <span className="relative shrink-0" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}>
+      <button type="button" aria-label={`${item.title} 담당자 지정`} aria-expanded={open} onClick={() => setOpen((v) => !v)} className="flex rounded-full">
+        {avatar}
+      </button>
+      {open && (
+        <ul className="absolute right-0 top-[26px] z-20 m-0 flex w-[140px] list-none flex-col gap-px rounded-md border border-solid border-border bg-surface p-[4px] shadow-md">
+          {members.map((m) => (
+            <li key={m}>
+              <button
+                type="button"
+                onClick={() => { onAssign(m); setOpen(false); }}
+                className={`w-full rounded-md px-[8px] py-[5px] text-left text-base hover:bg-surface-subtle ${m === name ? 'font-medium text-brand' : 'text-fg'}`}
+              >
+                {m}
+              </button>
+            </li>
+          ))}
+          {name && (
+            <li>
+              <button type="button" onClick={() => { onAssign(undefined); setOpen(false); }} className="w-full rounded-md px-[8px] py-[5px] text-left text-base text-fg-tertiary hover:bg-surface-subtle">
+                담당자 해제
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+    </span>
+  );
+}
+
+function Checkbox({ state, label, onClick, disabled = false }: { state: 'on' | 'off' | 'mixed'; label: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
@@ -78,7 +202,9 @@ function Checkbox({ state, label, onClick }: { state: 'on' | 'off' | 'mixed'; la
       aria-checked={state === 'mixed' ? 'mixed' : state === 'on'}
       aria-label={label}
       onClick={onClick}
-      className={`flex size-[17px] shrink-0 items-center justify-center rounded-md ${
+      disabled={disabled}
+      title={disabled ? '담당자만 완료할 수 있습니다' : undefined}
+      className={`flex size-[17px] shrink-0 items-center justify-center rounded-md ${disabled ? 'cursor-not-allowed opacity-50' : ''} ${
         state === 'on' ? 'bg-success-solid' : state === 'mixed' ? 'bg-brand-tint ring-[1.5px] ring-inset ring-brand' : 'border-[1.5px] border-solid border-border-strong bg-surface'
       }`}
     >
@@ -132,6 +258,8 @@ function Row({ item, depth, showStatus, onChange }: RowProps) {
   const progress = hasChildren ? countLeaves([item]) : null;
   const state = hasChildren ? (progress!.done === progress!.total ? 'on' : progress!.done > 0 ? 'mixed' : 'off') : item.done ? 'on' : 'off';
   const status = statusOf(item);
+  const { me } = useContext(ItemAccessContext);
+  const editable = canEditItem(item, me);
 
   return (
     <li className="list-none">
@@ -146,38 +274,43 @@ function Row({ item, depth, showStatus, onChange }: RowProps) {
         >
           <span className={`inline-block transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
         </button>
-        <Checkbox state={state} label={`${item.title} 완료 표시`} onClick={() => onChange((items) => toggleItem(items, item.id))} />
+        <Checkbox state={state} label={`${item.title} 완료 표시`} disabled={!canToggleItem(item, me)} onClick={() => onChange((items) => toggleItem(items, item.id))} />
         {showStatus && depth === 0 && (
           <span className={`flex w-[40px] shrink-0 items-center gap-[6px] text-sm ${status.tone}`}>
             <img alt="" src={`${A}/${status.dot}.svg`} className="size-[7px]" />
             {status.text}
           </span>
         )}
-        <span className={`min-w-0 truncate text-base ${item.done ? 'text-fg-tertiary line-through' : depth === 0 ? 'font-medium text-fg' : 'text-fg'}`}>{item.title}</span>
+        <EditableTitle
+          title={item.title}
+          onSave={(title) => onChange((items) => renameItem(items, item.id, title))}
+          readOnly={!editable}
+          className={`min-w-0 truncate text-base ${item.done ? 'text-fg-tertiary line-through' : depth === 0 ? 'font-medium text-fg' : 'text-fg'}`}
+        />
         {progress && (
           <span className={`shrink-0 rounded-full px-[7px] py-px text-2xs font-semibold tabular-nums ${progress.done === progress.total ? 'bg-success-bg text-success-deep' : 'bg-surface-chip text-fg-secondary'}`}>
             {progress.done}/{progress.total}
           </span>
         )}
         <span className="min-w-px flex-1" />
-        <button
+        {editable && <button
           type="button"
           aria-label={`${item.title} 하위 항목 추가`}
           onClick={() => { setOpen(true); setAdding(true); }}
           className="flex h-[22px] items-center rounded-md px-[6px] text-xs text-fg-tertiary opacity-0 hover:bg-surface-chip focus-visible:opacity-100 group-hover:opacity-100"
         >
           + 하위
-        </button>
-        <button
+        </button>}
+        {editable && <button
           type="button"
           aria-label={`${item.title} 삭제`}
           onClick={() => setConfirming(true)}
           className="flex size-[22px] items-center justify-center rounded-md text-fg-tertiary opacity-0 hover:bg-surface-chip focus-visible:opacity-100 group-hover:opacity-100"
         >
           ×
-        </button>
+        </button>}
         {item.date && <span className="whitespace-nowrap text-base text-fg-secondary">{item.date}</span>}
-        {item.owner && <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-brand-tint text-2xs font-semibold text-brand">{item.owner}</span>}
+        <AssigneeBadge item={item} onAssign={(a) => onChange((items) => assignItem(items, item.id, a))} />
       </div>
       {confirming && (
         <ConfirmDialog
@@ -199,7 +332,7 @@ function Row({ item, depth, showStatus, onChange }: RowProps) {
             <li className="flex min-h-[36px] list-none items-center pr-[4px]" style={{ paddingLeft: (depth + 1) * 24 + 26 }}>
               <NewItemInput
                 placeholder="하위 할 일 입력 후 Enter"
-                onSubmit={(title) => { onChange((items) => addChild(items, item.id, title)); setAdding(false); }}
+                onSubmit={(title) => { onChange((items) => addChild(items, item.id, title, me)); setAdding(false); }}
                 onCancel={() => setAdding(false)}
               />
             </li>
@@ -222,6 +355,7 @@ export function Checklist({
   showStatus?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
+  const { me } = useContext(ItemAccessContext);
   const { done, total } = countLeaves(items);
   const pct = total ? Math.round((done / total) * 100) : 0;
 
@@ -244,7 +378,7 @@ export function Checklist({
           {adding ? (
             <NewItemInput
               placeholder={`새 ${label} 입력 후 Enter`}
-              onSubmit={(title) => { onChange((list) => addRoot(list, title)); setAdding(false); }}
+              onSubmit={(title) => { onChange((list) => addRoot(list, title, me)); setAdding(false); }}
               onCancel={() => setAdding(false)}
             />
           ) : (

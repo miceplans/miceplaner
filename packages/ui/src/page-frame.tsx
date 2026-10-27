@@ -46,10 +46,10 @@ export function FlowTopbar({
           <div className="flex h-[20px] items-center justify-center rounded-xs bg-surface px-[5px] text-2xs text-fg-secondary">⌘K</div>
         ) : null}
       </div>
-      <button type="button" className="flex h-[30px] shrink-0 items-center gap-[6px] rounded-sm bg-brand px-[12px]">
+      <a href="/import/upload" className="flex h-[30px] shrink-0 items-center gap-[6px] rounded-sm bg-brand px-[12px]">
         <img alt="" src={`${A}/plus-icon.svg`} className="size-[14px]" />
         <span className="whitespace-nowrap text-base font-semibold text-fg-inverse">New 행사</span>
-      </button>
+      </a>
       <div className="flex size-[26px] shrink-0 items-center justify-center rounded-xl bg-brand-tint text-2xs font-semibold text-brand">
         JY
       </div>

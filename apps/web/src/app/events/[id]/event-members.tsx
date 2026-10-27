@@ -37,6 +37,11 @@ export function isEventMember(event: { pm: string; am: string }, eventId: string
   return event.pm === userName || event.am === userName || getEventStaff(eventId).some((m) => m.name === userName);
 }
 
+/** 업무 담당자로 지정할 수 있는 이름: 담당 인력(PM·AM·Design)과 지원 인력. 중복은 한 번만 센다. */
+export function getAssignableNames(event: EventLeads, eventId: string): string[] {
+  return [...new Set([event.pm, event.am, event.design, ...getEventStaff(eventId).map((m) => m.name)])];
+}
+
 function MemberRow({ member, index }: { member: MemberInfo; index: number }) {
   const me = member.name === CURRENT_USER.name;
   return (
@@ -72,32 +77,35 @@ function MemberList({ members }: { members: MemberInfo[] }) {
   );
 }
 
-/** 행사 담당 인력: PM·AM·Design 담당자의 연락처 목록. */
-export function EventLeadMembers({ event }: { event: EventLeads }) {
+function MemberGroup({ title, members, fallback }: { title: string; members: MemberInfo[]; fallback?: string }) {
+  return (
+    <div className="flex w-full flex-col gap-[6px]">
+      <h3 className="m-0 px-[8px] pt-[12px] text-base font-semibold text-fg-secondary">{title}</h3>
+      {members.length ? (
+        <MemberList members={members} />
+      ) : (
+        <p className="m-0 px-[8px] py-[12px] text-base text-fg-tertiary">{fallback}</p>
+      )}
+    </div>
+  );
+}
+
+/** 행사 인력: 담당 인력(PM·AM·Design)과 지원 인력(스태프) 명단을 한 탭에 보여준다. */
+export function EventMembers({ event, eventId }: { event: EventLeads; eventId: string }) {
   const leads: MemberInfo[] = [
     { name: event.pm, role: 'PM', phone: '010-4821-3390', email: 'pm@miceplans.kr', note: '행사 총괄' },
     { name: event.am, role: 'AM', phone: '010-9931-2745', email: 'am@miceplans.kr', note: '현장 운영' },
     { name: event.design, role: 'Design', phone: '010-5517-8023', email: 'design@miceplans.kr', note: '제작 총괄' },
   ];
-  return (
-    <div className="flex w-full flex-col gap-[6px] py-[12px]">
-      <MemberList members={leads} />
-    </div>
-  );
-}
-
-/** 행사 지원 인력: 배정된 스태프 명단. */
-export function EventStaffMembers({ eventId }: { eventId: string }) {
   const staff = getEventStaff(eventId);
   return (
     <div className="flex w-full flex-col gap-[6px] py-[12px]">
-      {staff.length ? (
-        <MemberList members={staff} />
-      ) : (
-        <p className="m-0 px-[8px] py-[12px] text-base text-fg-tertiary">
-          배정된 지원 인력이 없습니다. 상단의 &lsquo;+ 멤버 초대&rsquo;로 스태프를 초대해 보세요.
-        </p>
-      )}
+      <MemberGroup title="담당 인력" members={leads} />
+      <MemberGroup
+        title="지원 인력"
+        members={staff}
+        fallback="배정된 지원 인력이 없습니다. 상단의 &lsquo;+ 멤버 초대&rsquo;로 스태프를 초대해 보세요."
+      />
     </div>
   );
 }

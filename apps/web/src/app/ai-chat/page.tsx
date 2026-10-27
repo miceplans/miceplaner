@@ -56,10 +56,10 @@ export default function AiChatPage() {
               <div className="flex-1" />
               <span className="flex h-[20px] items-center justify-center rounded-xs bg-surface px-[5px] text-2xs text-fg-secondary">⌘K</span>
             </div>
-            <button type="button" className="flex h-[30px] items-center gap-[6px] rounded-sm bg-brand px-[12px]">
+            <a href="/import/upload" className="flex h-[30px] items-center gap-[6px] rounded-sm bg-brand px-[12px]">
               <img alt="" src={`${A}/plus-icon.svg`} className="size-[14px]" />
               <span className="whitespace-nowrap text-base font-semibold text-fg-inverse">New 행사</span>
-            </button>
+            </a>
             <span className="flex size-[26px] items-center justify-center rounded-xl bg-brand-tint text-2xs font-semibold text-brand">JY</span>
           </div>
           <div className="flex h-[52px] shrink-0 items-center border-b border-solid border-border px-[24px]">

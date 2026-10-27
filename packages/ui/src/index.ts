@@ -6,6 +6,7 @@ export * from './sidebar';
 export * from './page-frame';
 export * from './import-stepper';
 export * from './schedule';
+export * from './personal-todo';
 export * from './view-toggle';
 export * from './client-portal';
 export * from './agent-fab';

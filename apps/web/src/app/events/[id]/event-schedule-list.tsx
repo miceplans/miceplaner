@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { ConfirmDialog } from '@miceplans/ui';
 
-import { addRoot, removeItem, toggleItem, type CheckItem } from './event-checklist';
+import { AssigneeBadge, EditableTitle, ItemAccessContext, addRoot, assignItem, canEditItem, canToggleItem, removeItem, renameItem, toggleItem, type CheckItem } from './event-checklist';
 import { matchPart, type PartFilter } from './event-parts';
+import { DEFAULT_FILTER, applyFilter, isFilterActive, type ItemFilter } from './event-filter';
 
 const A = '/assets/event-detail';
 
-function statusOf(item: CheckItem) {
+/** 스케줄 상태(완료/지연/예정) 표시. 스케줄 목록과 할 일 탭의 스케줄 헤더가 함께 쓴다. */
+export function statusOf(item: CheckItem) {
   if (item.done) return { text: '완료', tone: 'text-fg-tertiary', dot: 'dot-done' };
   if (item.late) return { text: '지연', tone: 'text-error-delay', dot: 'dot-delay' };
   return { text: '예정', tone: 'text-scheduled', dot: 'dot-plan' };
@@ -19,21 +21,24 @@ export function ScheduleList({
   items,
   onChange,
   part = '전체',
+  filter = DEFAULT_FILTER,
 }: {
   items: CheckItem[];
   onChange: (next: (items: CheckItem[]) => CheckItem[]) => void;
   part?: PartFilter;
+  filter?: ItemFilter;
 }) {
+  const { me } = useContext(ItemAccessContext);
   const [adding, setAdding] = useState(false);
   const [value, setValue] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const visible = matchPart(items, part);
+  const visible = applyFilter(matchPart(items, part), filter, me);
   const deletingItem = deletingId ? (visible.find((x) => x.id === deletingId) ?? null) : null;
 
   const submit = () => {
     const title = value.trim();
-    if (title) onChange((list) => addRoot(list, title));
+    if (title) onChange((list) => addRoot(list, title, me));
     setValue('');
     setAdding(false);
   };
@@ -47,34 +52,39 @@ export function ScheduleList({
             <button
               type="button"
               aria-label={`${item.title} ${item.done ? '완료 취소' : '완료 표시'}`}
+              disabled={!canToggleItem(item, me)}
+              title={canToggleItem(item, me) ? undefined : '담당자만 완료할 수 있습니다'}
               onClick={() => onChange((list) => toggleItem(list, item.id))}
-              className="flex size-[16px] shrink-0 items-center justify-center"
+              className="flex size-[16px] shrink-0 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
             >
               <img alt="" src={`${A}/${status.dot}.svg`} className="size-[7px]" />
             </button>
             <span className={`w-[24px] shrink-0 whitespace-nowrap text-xs ${status.tone}`}>{status.text}</span>
-            <span className="whitespace-nowrap text-md text-fg">{item.title}</span>
+            <EditableTitle
+              title={item.title}
+              onSave={(title) => onChange((list) => renameItem(list, item.id, title))}
+              readOnly={!canEditItem(item, me)}
+              className="whitespace-nowrap text-md text-fg"
+            />
             {item.part && (
               <span className="shrink-0 rounded-md bg-surface-chip px-[6px] py-px text-2xs font-semibold text-fg-secondary">{item.part}</span>
             )}
             <span className="min-w-px flex-1" />
-            <button
+            {canEditItem(item, me) && <button
               type="button"
               aria-label={`${item.title} 삭제`}
               onClick={() => setDeletingId(item.id)}
               className="flex size-[20px] shrink-0 items-center justify-center rounded-md text-fg-tertiary opacity-0 hover:bg-surface-chip focus-visible:opacity-100 group-hover:opacity-100"
             >
               ×
-            </button>
+            </button>}
             {item.date && <span className="whitespace-nowrap text-base text-fg-secondary">{item.date}</span>}
-            {item.owner && (
-              <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-brand-tint text-[10px] font-semibold text-brand">{item.owner}</span>
-            )}
+            <AssigneeBadge item={item} onAssign={(a) => onChange((list) => assignItem(list, item.id, a))} />
           </li>
         );
       })}
       {!visible.length && (
-        <li className="flex h-[36px] items-center px-[17px] text-base text-fg-tertiary">해당 파트의 일정이 없습니다.</li>
+        <li className="flex h-[36px] items-center px-[17px] text-base text-fg-tertiary">{isFilterActive(filter) ? '조건에 맞는 항목이 없습니다.' : '해당 파트의 일정이 없습니다.'}</li>
       )}
       <li className="flex h-[36px] items-center px-[17px]">
         {adding ? (

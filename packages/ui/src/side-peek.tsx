@@ -485,11 +485,26 @@ export function SidePeekPanel({
         aria-label="일정 상세"
         className="side-peek-in fixed right-[24px] top-[24px] z-40 flex h-[900px] max-h-[calc(100vh-48px)] w-[540px] max-w-[calc(100vw-48px)] flex-col gap-[28px] rounded-2xl bg-surface p-[44px] leading-[normal] shadow-card max-md:right-[12px] max-md:top-[12px] max-md:h-[calc(100vh-24px)] max-md:max-h-[calc(100vh-24px)] max-md:max-w-[calc(100vw-24px)] max-md:gap-[16px] max-md:p-[24px]"
       >
-        <div className="flex min-h-0 w-full flex-1 flex-col items-start gap-[32px] overflow-y-auto">
-          <div className="flex flex-col gap-[4px]">
+        <div className="flex w-full shrink-0 items-start gap-[12px]">
+          <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
             <h2 className="text-3xl font-bold text-fg-strong">{title}</h2>
             {date ? <p className="text-sm text-fg-tertiary">{date}</p> : null}
           </div>
+          <button
+            type="button"
+            aria-label="구성 편집"
+            aria-pressed={editingLayout}
+            onClick={() => setEditingLayout((editing) => !editing)}
+            className={`flex size-[32px] shrink-0 items-center justify-center rounded-md text-fg-secondary hover:bg-surface-chip ${editingLayout ? 'bg-surface-chip' : ''}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <circle cx="2.5" cy="8" r="1.4" />
+              <circle cx="8" cy="8" r="1.4" />
+              <circle cx="13.5" cy="8" r="1.4" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex min-h-0 w-full flex-1 flex-col items-start gap-[32px] overflow-y-auto">
           <div className="flex w-full flex-col items-start gap-[24px]">
             {componentOrder.map((key) => {
               const component = PEEK_COMPONENTS.find((item) => item.key === key);
@@ -562,13 +577,15 @@ export function SidePeekPanel({
             ) : null}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setEditingLayout((editing) => !editing)}
-          className="mt-auto flex h-[56px] w-full shrink-0 items-center justify-center rounded-xl bg-surface-muted text-lg font-bold text-fg-strong hover:bg-surface-cell"
-        >
-          {editingLayout ? '완료' : '편집'}
-        </button>
+        {editingLayout ? (
+          <button
+            type="button"
+            onClick={() => setEditingLayout(false)}
+            className="mt-auto flex h-[56px] w-full shrink-0 items-center justify-center rounded-xl bg-surface-muted text-lg font-bold text-fg-strong hover:bg-surface-cell"
+          >
+            완료
+          </button>
+        ) : null}
       </aside>
     </>
   );

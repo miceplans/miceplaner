@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { CHIPS, MARCH_2025, MonthCalendar, type CalCell, type ChipKey } from '@miceplans/ui';
+import { CHIPS, MARCH_2025, MARCH_TODOS, MonthCalendar, type CalCell, type ChipKey } from '@miceplans/ui';
 
 type CalendarView = 'event' | 'work';
 
@@ -88,6 +88,18 @@ const CHIP_KEYS = Object.keys(CHIPS) as ChipKey[];
 
 const LS_EVENTS = 'miceplans:schedule-calendar:events';
 const LS_KINDS = 'miceplans:schedule-calendar:chip-kinds';
+const LS_TODOS = 'miceplans:schedule-calendar:todo';
+
+/** 저장된 내 할 일 표시 여부를 읽는다. 저장값이 없거나 깨지면 표시한다. */
+function loadTodoPref(): boolean {
+  try {
+    const raw = window.localStorage.getItem(LS_TODOS);
+    if (raw) return JSON.parse(raw) !== false;
+  } catch {
+    // 깨진 저장값은 무시하고 기본값(표시)을 쓴다
+  }
+  return true;
+}
 
 const allOn = <T extends string>(keys: readonly T[], value = true): Record<T, boolean> =>
   Object.fromEntries(keys.map((k) => [k, value])) as Record<T, boolean>;
@@ -144,21 +156,25 @@ function FilterGroup({ label, onAll, children }: { label: string; onAll: (on: bo
   );
 }
 
-/** 행사별·일정 종류별 표시 필터 팝오버 (보기 전환 옆에 배치) */
+/** 행사별·일정 종류별·내 할 일 표시 필터 팝오버 (보기 전환 옆에 배치) */
 function FilterMenu({
   eventsOn,
   kindsOn,
+  todosOn,
   onToggleEvent,
   onSetAllEvents,
   onToggleKind,
   onSetAllKinds,
+  onSetTodos,
 }: {
   eventsOn: Record<EventKey, boolean>;
   kindsOn: Record<ChipKey, boolean>;
+  todosOn: boolean;
   onToggleEvent: (key: EventKey) => void;
   onSetAllEvents: (on: boolean) => void;
   onToggleKind: (key: ChipKey) => void;
   onSetAllKinds: (on: boolean) => void;
+  onSetTodos: (on: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -188,6 +204,15 @@ function FilterMenu({
                 <ToggleRow key={k} dotClass={CHIPS[k].bg} label={CHIPS[k].label} on={kindsOn[k] !== false} onToggle={() => onToggleKind(k)} />
               ))}
             </FilterGroup>
+            <div className="my-[2px] h-px shrink-0 bg-border" />
+            <FilterGroup label="내 할 일 표시" onAll={onSetTodos}>
+              <ToggleRow
+                dotClass="bg-surface-chip bg-stripes-dark"
+                label="내 할 일 (캘린더에 함께 표시)"
+                on={todosOn}
+                onToggle={() => onSetTodos(!todosOn)}
+              />
+            </FilterGroup>
           </div>
         </>
       ) : null}
@@ -213,11 +238,13 @@ export function ScheduleViewCalendar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [eventsOn, setEventsOn] = useState<Record<EventKey, boolean>>(() => allOn(EVENT_KEYS));
   const [kindsOn, setKindsOn] = useState<Record<ChipKey, boolean>>(() => allOn(CHIP_KEYS));
+  const [todosOn, setTodosOn] = useState(true);
 
   /* 새로고침 후에도 필터를 유지한다 (hydration 직후 저장값 적용) */
   useEffect(() => {
     setEventsOn(loadPrefs(LS_EVENTS, EVENT_KEYS));
     setKindsOn(loadPrefs(LS_KINDS, CHIP_KEYS));
+    setTodosOn(loadTodoPref());
   }, []);
   useEffect(() => {
     try {
@@ -233,6 +260,13 @@ export function ScheduleViewCalendar({
       // 저장 실패는 무시한다
     }
   }, [kindsOn]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(LS_TODOS, JSON.stringify(todosOn));
+    } catch {
+      // 저장 실패는 무시한다
+    }
+  }, [todosOn]);
 
   const visibleWeeks = (weeks: CalCell[][]): CalCell[][] => filterVisible(weeks, eventsOn, kindsOn);
 
@@ -249,6 +283,7 @@ export function ScheduleViewCalendar({
         gridGap={gridGap}
         padX={padX}
         personal
+        todos={MARCH_TODOS}
       />
     );
   }
@@ -259,15 +294,18 @@ export function ScheduleViewCalendar({
       weeks={visibleWeeks(view === 'event' ? eventWeeks : workWeeks)}
       gridGap={gridGap}
       padX={padX}
+      todos={todosOn ? MARCH_TODOS : []}
       headerAddon={
         <div className="relative ml-[6px] flex items-center gap-[6px]">
           <FilterMenu
             eventsOn={eventsOn}
             kindsOn={kindsOn}
+            todosOn={todosOn}
             onToggleEvent={(key) => setEventsOn((prev) => ({ ...prev, [key]: !prev[key] }))}
             onSetAllEvents={(on) => setEventsOn(allOn(EVENT_KEYS, on))}
             onToggleKind={(key) => setKindsOn((prev) => ({ ...prev, [key]: !prev[key] }))}
             onSetAllKinds={(on) => setKindsOn(allOn(CHIP_KEYS, on))}
+            onSetTodos={setTodosOn}
           />
           <div className="relative">
             <button

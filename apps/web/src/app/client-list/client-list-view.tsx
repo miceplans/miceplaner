@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
 import { StatusPill, type StatusKey } from '@miceplans/ui';
 
 const A = '/assets/client-list';
@@ -34,7 +34,6 @@ function reorder<T>(list: T[], from: number, to: number): T[] {
 const ORDER_KEY = 'miceplans.client-list.order';
 
 function loadOrder(): Client[] {
-  if (typeof window === 'undefined') return CLIENTS;
   try {
     const raw = window.localStorage.getItem(ORDER_KEY);
     if (!raw) return CLIENTS;
@@ -56,7 +55,9 @@ function saveOrder(list: Client[]) {
 }
 
 export function ClientListView() {
-  const [clients, setClients] = useState<Client[]>(loadOrder);
+  const [clients, setClients] = useState<Client[]>(CLIENTS);
+  // 저장된 순서는 hydration 이후에 적용해 서버 렌더 결과와 맞춘다.
+  useEffect(() => { setClients(loadOrder()); }, []);
   const [query, setQuery] = useState('');
   const [drag, setDrag] = useState<{ from: string; over: string } | null>(null);
   const q = query.trim().toLowerCase();
