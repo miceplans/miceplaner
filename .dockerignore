@@ -1,0 +1,11 @@
+**/node_modules
+**/.next
+**/out
+**/.turbo
+**/*.tsbuildinfo
+.git
+.local
+.DS_Store
+apps/web
+packages/ui
+docs
