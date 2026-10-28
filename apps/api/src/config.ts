@@ -9,7 +9,10 @@ export const config = {
     return url;
   },
   get jwtSecret(): string {
-    return process.env.JWT_SECRET ?? 'dev-only-insecure-secret-change-me';
+    const secret = process.env.JWT_SECRET;
+    if (secret) return secret;
+    if (process.env.NODE_ENV === 'production') throw new Error('JWT_SECRET이 필요하다 (운영 환경에서는 기본값을 쓸 수 없다)');
+    return 'dev-only-insecure-secret-change-me';
   },
   get googleClientId(): string {
     return process.env.GOOGLE_CLIENT_ID ?? '';
