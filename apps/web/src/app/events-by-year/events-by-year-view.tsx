@@ -39,18 +39,18 @@ export function EventsByYearView() {
             <a
               key={y.year}
               href={y.year === 2025 ? '/events-by-year/2025' : undefined}
-              className={`flex w-full shrink-0 items-center gap-[16px] border-solid border-border ${view === 'folder' ? 'h-[104px] border-b' : 'h-[148px] flex-col justify-center rounded-xl border bg-surface-sunken p-[16px]'}`}
+              className={`flex w-full shrink-0 items-center gap-[16px] border-solid border-border ${view === 'folder' ? 'h-[104px] border-b py-[20px]' : 'h-auto flex-wrap content-start rounded-xl border bg-surface-sunken p-[16px]'}`}
             >
-              <div className={`flex shrink-0 flex-col items-start gap-[5px] whitespace-nowrap ${view === 'folder' ? 'h-full w-[70px]' : 'h-auto w-full'}`}>
+              <div className={`flex shrink-0 flex-col items-start gap-[5px] whitespace-nowrap ${view === 'folder' ? 'h-full w-[70px] justify-center' : 'h-auto min-w-0 flex-1'}`}>
                 <span className={`text-2xl font-bold tracking-[-0.5px] ${y.current ? 'text-brand' : 'text-fg'}`}>{y.year}</span>
                 <span className="text-base text-fg-disabled">행사 {y.count}건</span>
               </div>
-              <div className="flex h-full items-start gap-[8px]">
+              <div className={`flex gap-[8px] ${view === 'folder' ? 'h-full items-center' : 'order-last w-full min-w-0'}`}>
                 {[0, 1, 2].map((n) => (
-                  <div key={n} className="h-[64px] w-[96px] shrink-0 rounded-md bg-expired" />
+                  <div key={n} className={`h-[64px] rounded-md bg-expired ${view === 'folder' ? 'w-[96px] shrink-0' : 'min-w-0 flex-1'}`} />
                 ))}
               </div>
-              <div className="h-px min-w-px flex-1" />
+              {view === 'folder' ? <div className="h-px min-w-px flex-1" /> : null}
               {y.current ? (
                 <span className="flex h-[24px] items-center justify-center whitespace-nowrap rounded-md bg-brand-tint px-[8px] text-xs font-semibold text-error-delay">올해</span>
               ) : null}
