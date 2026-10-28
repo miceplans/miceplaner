@@ -173,24 +173,22 @@ export function EditableTitle({ title, onSave, className, readOnly = false }: { 
   );
 }
 
-/** 담당자 아바타. 수정 권한이 있으면 눌러서 행사 인력 중 담당자를 지정·해제한다. */
+/** 담당자 표시. 수정 권한이 있으면 눌러서 행사 인력 중 담당자를 지정·해제한다. */
 export function AssigneeBadge({ item, onAssign }: { item: CheckItem; onAssign: (assignee: string | undefined) => void }) {
   const { me, members } = useContext(ItemAccessContext);
   const [open, setOpen] = useState(false);
   const editable = canEditItem(item, me);
-  const name = item.assignee;
-  const avatar = name ? (
-    <span title={name} className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-brand-tint text-[10px] font-semibold text-brand">{name.slice(0, 1)}</span>
-  ) : item.owner ? (
-    <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-brand-tint text-[10px] font-semibold text-brand">{item.owner}</span>
+  const name = item.assignee ?? item.owner;
+  const label = name ? (
+    <span className="whitespace-nowrap text-base text-fg-secondary">{name}</span>
   ) : (
-    <span className="flex size-[22px] shrink-0 items-center justify-center rounded-full border border-dashed border-border-strong text-[10px] text-fg-tertiary">+</span>
+    <span className="whitespace-nowrap text-base text-fg-tertiary">+ 담당자</span>
   );
-  if (!editable) return avatar;
+  if (!editable) return name ? label : null;
   return (
     <span className="relative shrink-0" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}>
-      <button type="button" aria-label={`${item.title} 담당자 지정`} aria-expanded={open} onClick={() => setOpen((v) => !v)} className="flex rounded-full">
-        {avatar}
+      <button type="button" aria-label={`${item.title} 담당자 지정`} aria-expanded={open} onClick={() => setOpen((v) => !v)} className="flex rounded-md px-[4px] hover:bg-surface-chip">
+        {label}
       </button>
       {open && (
         <ul className="absolute right-0 top-[26px] z-20 m-0 flex w-[140px] list-none flex-col gap-px rounded-md border border-solid border-border bg-surface p-[4px] shadow-md">

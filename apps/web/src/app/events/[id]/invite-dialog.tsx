@@ -2,20 +2,20 @@
 
 import { useEffect, useState } from 'react';
 
-import { Button, Dialog, avatarPalette } from '@miceplans/ui';
+import { Button, Dialog } from '@miceplans/ui';
 
 export const ROLES = ['AM', '스태프'] as const;
 export type InviteRole = (typeof ROLES)[number];
-export type Invitee = { id: string; name: string; init: string; role: string };
+export type Invitee = { id: string; name: string; role: string };
 
 /** PM이 행사에 초대할 수 있는 내부 사용자 후보. */
 export const INVITEES: Invitee[] = [
-  { id: 'SJ', name: '서준', init: 'SJ', role: 'Member' },
-  { id: 'MK', name: '민기', init: 'MK', role: 'Member' },
-  { id: 'TR', name: '태리', init: 'TR', role: 'Member' },
-  { id: 'AL', name: '아린', init: 'AL', role: 'Member' },
-  { id: 'DN', name: '다은', init: 'DN', role: 'Member' },
-  { id: 'JP', name: '재필', init: 'JP', role: 'Member' },
+  { id: 'SJ', name: '서준', role: 'Member' },
+  { id: 'MK', name: '민기', role: 'Member' },
+  { id: 'TR', name: '태리', role: 'Member' },
+  { id: 'AL', name: '아린', role: 'Member' },
+  { id: 'DN', name: '다은', role: 'Member' },
+  { id: 'JP', name: '재필', role: 'Member' },
 ];
 
 export function InviteDialog({
@@ -40,7 +40,7 @@ export function InviteDialog({
   }, [onClose]);
 
   const q = query.trim().toLowerCase();
-  const list = INVITEES.filter((p) => !q || p.name.toLowerCase().includes(q) || p.init.toLowerCase().includes(q));
+  const list = INVITEES.filter((p) => !q || p.name.toLowerCase().includes(q));
   const toggle = (id: string) => setPicked((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]));
 
   return (
@@ -72,13 +72,12 @@ export function InviteDialog({
         />
 
         <ul className="m-0 flex max-h-[240px] list-none flex-col gap-[2px] overflow-auto p-0">
-          {list.map((p, i) => {
+          {list.map((p) => {
             const on = picked.includes(p.id);
             return (
               <li key={p.id}>
                 <label className={`flex h-[40px] cursor-pointer items-center gap-[10px] rounded-md px-[8px] hover:bg-surface-subtle ${on ? 'bg-surface-muted' : ''}`}>
                   <input type="checkbox" checked={on} onChange={() => toggle(p.id)} className="size-[16px] accent-brand" />
-                  <span style={{ backgroundColor: avatarPalette[i % avatarPalette.length] }} className="flex size-[24px] items-center justify-center rounded-full text-[9px] font-bold text-fg-inverse">{p.init}</span>
                   <span className="text-base text-fg">{p.name}</span>
                   <span className="flex-1" />
                   <span className="text-xs text-fg-tertiary">{p.role}</span>
