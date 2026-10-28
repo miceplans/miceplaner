@@ -122,30 +122,33 @@ export function AddPropertyButton({ onAdd }: { onAdd: (name: string, type: PropT
               onAdd(name, type);
               close();
             }}
-            className="flex w-[320px] max-w-full flex-col gap-[14px] rounded-lg bg-surface p-[20px] shadow-card"
+            className="flex w-[400px] max-w-full flex-col overflow-hidden rounded-xl border border-solid border-border bg-surface shadow-card"
           >
-            <h2 className="m-0 text-lg font-semibold text-fg">속성 추가</h2>
-            <input autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder="속성 이름" className={INPUT} />
-            <div role="radiogroup" aria-label="속성 유형" className="grid grid-cols-2 gap-[6px]">
-              {PROP_TYPES.map((t) => (
-                <button
-                  key={t.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={type === t.value}
-                  onClick={() => setType(t.value)}
-                  className={`flex h-[32px] items-center gap-[8px] rounded-sm border border-solid px-[10px] text-base ${type === t.value ? 'border-brand bg-brand-tint text-brand' : 'border-border text-fg-secondary hover:bg-surface-subtle'}`}
-                >
-                  <span className="w-[18px] text-center text-xs">{t.mark}</span>
-                  {t.label}
-                </button>
-              ))}
+            <div className="border-b border-solid border-border px-[20px] py-[17px]">
+              <p className="m-0 text-xs font-medium text-fg-tertiary">표 설정</p>
+              <h2 className="m-[3px_0_0] text-lg font-semibold text-fg">새 속성</h2>
             </div>
-            <div className="flex justify-end gap-[8px]">
-              <button type="button" onClick={close} className="h-[32px] rounded-sm border border-solid border-border bg-surface px-[14px] text-base font-medium text-fg-secondary">
+            <div className="flex flex-col gap-[16px] px-[20px] py-[18px]">
+              <label className="flex flex-col gap-[7px] text-sm font-medium text-fg">
+                속성 이름
+                <input autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 작업 우선순위" className="h-[40px] w-full rounded-md border border-solid border-border bg-surface px-[11px] text-base font-normal text-fg outline-none placeholder:text-fg-tertiary focus:border-brand focus:ring-2 focus:ring-brand/15" />
+              </label>
+              <fieldset className="m-0 border-0 p-0">
+                <legend className="mb-[7px] text-sm font-medium text-fg">유형</legend>
+                <div role="radiogroup" aria-label="속성 유형" className="grid grid-cols-2 gap-[8px]">
+                  {PROP_TYPES.map((t) => {
+                    const selected = type === t.value;
+                    return <button key={t.value} type="button" role="radio" aria-checked={selected} onClick={() => setType(t.value)} className={`flex h-[42px] items-center gap-[8px] rounded-md border px-[10px] text-sm font-medium ${selected ? 'border-brand bg-brand-tint text-brand' : 'border-border text-fg hover:bg-surface-subtle'}`}><span className="w-[18px] text-center text-xs">{t.mark}</span>{t.label}</button>;
+                  })}
+                </div>
+              </fieldset>
+              <p className="m-0 text-xs leading-[18px] text-fg-tertiary">추가한 뒤에는 속성 유형을 바꿀 수 없습니다.</p>
+            </div>
+            <div className="flex justify-end gap-[8px] border-t border-solid border-border px-[20px] py-[14px]">
+              <button type="button" onClick={close} className="h-[34px] rounded-md px-[13px] text-sm font-medium text-fg-secondary hover:bg-surface-subtle">
                 취소
               </button>
-              <button type="submit" className="h-[32px] rounded-sm bg-brand px-[14px] text-base font-medium text-fg-inverse">
+              <button type="submit" className="h-[34px] rounded-md bg-brand px-[14px] text-sm font-semibold text-fg-inverse hover:opacity-90">
                 추가
               </button>
             </div>
