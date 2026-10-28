@@ -44,10 +44,10 @@ function dDayOf(start: Date): string {
   return diff > 0 ? `D-${diff}` : '종료';
 }
 
-const RECENT: { name: string; dot: string; start?: Date; avatars: readonly (readonly [string, string])[] }[] = [
-  { name: 'BIPC', dot: 'dot-pink', start: new Date(2026, 10, 5), avatars: [['bg-brand-amber', 'M'], ['bg-brand-pink', 'A']] },
-  { name: '창업 AI 경진대회', dot: 'dot-red', start: new Date(2026, 9, 20), avatars: [['bg-brand-blue', 'S'], ['bg-brand-green', 'J']] },
-  { name: '청령문화의날', dot: 'dot-red', start: new Date(2026, 9, 20), avatars: [['bg-brand-blue', 'S'], ['bg-brand-green', 'J']] },
+const RECENT: { name: string; dot: string; start?: Date }[] = [
+  { name: 'BIPC', dot: 'dot-pink', start: new Date(2026, 10, 5) },
+  { name: '창업 AI 경진대회', dot: 'dot-red', start: new Date(2026, 9, 20) },
+  { name: '청령문화의날', dot: 'dot-red', start: new Date(2026, 9, 20) },
 ] as const;
 
 function isSidebarKey(value: unknown): value is SidebarKey {
@@ -212,24 +212,12 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
               <img alt="" src={`${A}/${r.dot}.svg`} className="size-[8px]" />
               <span className="whitespace-nowrap text-base font-medium text-fg-secondary">{r.name}</span>
               {r.start && <span className="rounded-sm bg-brand-tint px-[5px] py-px text-2xs font-semibold text-brand">{dDayOf(r.start)}</span>}
-              <span className="flex-1" />
-              <span className="relative h-[16px] w-[34px]">
-                {r.avatars.map(([c, t], i) => (
-                  <span
-                    key={t}
-                    className={`absolute top-0 flex size-[16px] items-center justify-center rounded-md border-[1.5px] border-solid border-surface text-2xs font-bold text-fg-inverse ${c}`}
-                    style={{ left: i * 10 }}
-                  >
-                    {t}
-                  </span>
-                ))}
-              </span>
             </div>
           ))}
         </div>
       </div>
       <div className="flex h-[52px] shrink-0 items-center gap-[10px] border-t border-solid border-border px-[14px] max-md:hidden">
-        <span className="flex size-[24px] items-center justify-center rounded-md bg-brand-tint text-2xs font-semibold text-brand">황</span>
+        <span className="flex size-[24px] items-center justify-center rounded-md bg-brand-tint text-2xs font-semibold text-brand">지영</span>
         <span className="whitespace-nowrap text-sm font-semibold text-fg">황지영</span>
         <span className="flex-1" />
         <button

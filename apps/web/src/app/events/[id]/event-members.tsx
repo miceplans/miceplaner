@@ -42,6 +42,12 @@ export function getAssignableNames(event: EventLeads, eventId: string): string[]
   return [...new Set([event.pm, event.am, event.design, ...getEventStaff(eventId).map((m) => m.name)])];
 }
 
+/** 흔한 한 글자 성으로 시작하는 3글자 이상 이름은 이름만 뽑는다. 서준처럼 이름만 있는 2글자 이름은 그대로 둔다. */
+const FAMILY_NAMES = new Set(
+  '김 이 박 최 정 강 조 윤 장 한 오 서 신 권 황 안 송 류 홍 전 고 문 양 배 백 허 유 남 심 노 하 곽 성 차 주 우 구 라 민 진 엄 채 원 천 방 공 현 함 변 염 여 추 도 소 설 마 길 봉 표 명 기'.split(' '),
+);
+const givenName = (name: string) => (name.length >= 3 && FAMILY_NAMES.has(name.charAt(0)) ? name.slice(1) : name);
+
 function MemberRow({ member, index }: { member: MemberInfo; index: number }) {
   const me = member.name === CURRENT_USER.name;
   return (
@@ -50,7 +56,7 @@ function MemberRow({ member, index }: { member: MemberInfo; index: number }) {
         style={{ backgroundColor: avatarPalette[index % avatarPalette.length] }}
         className="flex size-[34px] shrink-0 items-center justify-center rounded-full text-2xs font-bold text-fg-inverse"
       >
-        {member.name.slice(0, 1)}
+        {givenName(member.name)}
       </span>
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="flex items-center gap-[6px] text-base font-medium text-fg">

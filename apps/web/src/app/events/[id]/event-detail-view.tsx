@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { SidePeekPanel, SegmentControl, StatusPill, TextTabs, Toggle, avatarPalette, type StatusKey } from '@miceplans/ui';
+import { SidePeekPanel, SegmentControl, StatusPill, TextTabs, Toggle, type StatusKey } from '@miceplans/ui';
 import { ItemAccessContext, resolveOwners, type CheckItem } from './event-checklist';
 import { ScheduleList } from './event-schedule-list';
 import { EventTasks } from './event-tasks';
@@ -92,45 +92,35 @@ const MEMBER_TABS: TabName[] = ['인력'];
 const DEFAULT_TAB: Record<Team, TabName> = { planning: '제작물', design: '스케줄' };
 const PART_OPTIONS = PART_FILTERS.map((p) => ({ value: p, label: p }));
 
-type Person = { init: string };
-type Task = { title: string; meta: string; people: Person[]; done?: boolean };
-
-const P = {
-  SJ: { init: 'SJ' },
-  MK: { init: 'MK' },
-  TR: { init: 'TR' },
-  AL: { init: 'AL' },
-  DN: { init: 'DN' },
-  JP: { init: 'JP' },
-} satisfies Record<string, Person>;
+type Task = { title: string; meta: string; done?: boolean };
 
 const COLUMNS: { title: string; dot: string; count: number; badge: string; more: string; moreTone: string; tasks: Task[] }[] = [
   {
     title: '진행', dot: 'bg-brand-blue', count: 5, badge: 'bg-info-bg text-info', more: '+ 3 more', moreTone: 'text-error-delay',
     tasks: [
-      { title: 'Onboarding flow v2', meta: 'Due Today · 4 comments', people: [P.SJ, P.MK, P.TR] },
-      { title: 'Mobile navigation', meta: 'Due Wednesday', people: [P.DN, P.JP] },
+      { title: 'Onboarding flow v2', meta: 'Due Today · 4 comments' },
+      { title: 'Mobile navigation', meta: 'Due Wednesday' },
     ],
   },
   {
     title: '편집', dot: 'bg-brand-pink', count: 2, badge: 'bg-error-bg text-error', more: '+ 2 more', moreTone: 'text-error-delay',
     tasks: [
-      { title: 'Brand guidelines', meta: 'Due Today', people: [P.MK, P.AL] },
-      { title: 'Case study · Acme', meta: 'Due Monday', people: [P.TR] },
+      { title: 'Brand guidelines', meta: 'Due Today' },
+      { title: 'Case study · Acme', meta: 'Due Monday' },
     ],
   },
   {
     title: '완료', dot: 'bg-success-solid', count: 8, badge: 'bg-success-bg text-success-deep', more: '+ 6 more', moreTone: 'text-success-deep',
     tasks: [
-      { title: 'Pricing page revamp', meta: 'Shipped May 12', people: [P.SJ, P.MK], done: true },
-      { title: 'Design tokens v1.2', meta: 'Shipped May 10', people: [P.AL], done: true },
+      { title: 'Pricing page revamp', meta: 'Shipped May 12', done: true },
+      { title: 'Design tokens v1.2', meta: 'Shipped May 10', done: true },
     ],
   },
   {
     title: '보류', dot: 'bg-fg-tertiary', count: 3, badge: 'bg-surface-chip text-fg-secondary', more: '+ 5 more', moreTone: 'text-fg-secondary',
     tasks: [
-      { title: 'Website copy rewrite', meta: 'Due Tomorrow', people: [P.SJ, P.MK] },
-      { title: 'Q3 research plan', meta: 'Due Friday', people: [P.AL] },
+      { title: 'Website copy rewrite', meta: 'Due Tomorrow' },
+      { title: 'Q3 research plan', meta: 'Due Friday' },
     ],
   },
 ];
@@ -194,22 +184,6 @@ function formatRange(start: number, end: number) {
 }
 
 const CARD = 'rounded-xl bg-surface shadow-card';
-
-function Avatars({ people }: { people: Person[] }) {
-  return (
-    <div className="relative h-[18px] shrink-0" style={{ width: 18 + (people.length - 1) * 12 }}>
-      {people.map((p, i) => (
-        <span
-          key={p.init}
-          style={{ left: i * 12, backgroundColor: avatarPalette[i % avatarPalette.length] }}
-          className="absolute top-0 flex size-[18px] items-center justify-center rounded-full border-2 border-solid border-surface text-[7px] font-bold text-fg-inverse"
-        >
-          {p.init}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 function Prop({ icon, label, children }: { icon: string; label: string; children: ReactNode }) {
   return (
@@ -475,10 +449,9 @@ export function EventDetailView({ eventId }: { eventId: string }) {
           {invited.length > 0 && (
             <Prop icon="prop-person" label="초대됨">
               <span className="flex items-center gap-[8px]">
-                {invited.map((p, i) => (
-                  <span key={p.id} className="flex items-center gap-[4px]">
-                    <span style={{ backgroundColor: avatarPalette[i % avatarPalette.length] }} className="flex size-[20px] items-center justify-center rounded-full text-[8px] font-bold text-fg-inverse">{p.init}</span>
-                    <span className="text-sm">{p.name} · {p.as}</span>
+                {invited.map((p) => (
+                  <span key={p.id} className="text-sm">
+                    {p.name} · {p.as}
                   </span>
                 ))}
               </span>
@@ -552,7 +525,6 @@ export function EventDetailView({ eventId }: { eventId: string }) {
                     <span className="size-[17px] shrink-0 rounded-md border-[1.5px] border-solid border-border-strong" />
                   )}
                   <span className={`min-w-0 flex-1 truncate text-sm font-semibold ${t.done ? 'text-fg-secondary' : 'text-fg'}`}>{t.title}</span>
-                  <Avatars people={t.people} />
                 </div>
                 <p className="m-0 flex items-center gap-[5px] text-[10.5px] text-fg-muted">
                   <span className="size-[3px] rounded-full bg-fg-muted" />

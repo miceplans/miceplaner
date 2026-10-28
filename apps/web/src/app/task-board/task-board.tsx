@@ -532,7 +532,9 @@ function TaskDialog({
             담당자
             <select value={who} onChange={(e) => setWho(e.target.value as Avatar)} className={field}>
               {(Object.keys(AVATAR) as Avatar[]).map((a) => (
-                <option key={a}>{a}</option>
+                <option key={a} value={a}>
+                  {AVATAR_NAME[a]}
+                </option>
               ))}
             </select>
           </label>

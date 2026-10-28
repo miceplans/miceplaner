@@ -34,84 +34,65 @@ const VIEW_OPTIONS: { value: 'Day' | 'Week' | 'Month'; label: string }[] = [
   { value: 'Month', label: 'Month' },
 ];
 
-const SCHEDULES: { dot: string; state: string; stateColor: string; title: string; date: string; who: string }[] = [
-  { dot: 'status-dot', state: '완료', stateColor: 'text-fg-tertiary', title: '홈페이지 오픈', date: '02.24', who: '박' },
-  { dot: 'status-dot', state: '완료', stateColor: 'text-fg-tertiary', title: '초청장 발송', date: '03.03', who: '최' },
-  { dot: 'status-dot1', state: '지연', stateColor: 'text-error-delay', title: '브로슈어 인쇄', date: '03.06', who: '한' },
-  { dot: 'status-dot', state: '완료', stateColor: 'text-fg-tertiary', title: '디자인 승인', date: '03.05', who: '박' },
-  { dot: 'status-dot2', state: '예정', stateColor: 'text-brand-blue', title: '리허설', date: '03.12', who: '최' },
-  { dot: 'status-dot2', state: '예정', stateColor: 'text-brand-blue', title: '행사 당일 운영', date: '03.13 – 03.16', who: '박' },
+const SCHEDULES: { dot: string; state: string; stateColor: string; title: string; date: string }[] = [
+  { dot: 'status-dot', state: '완료', stateColor: 'text-fg-tertiary', title: '홈페이지 오픈', date: '02.24' },
+  { dot: 'status-dot', state: '완료', stateColor: 'text-fg-tertiary', title: '초청장 발송', date: '03.03' },
+  { dot: 'status-dot1', state: '지연', stateColor: 'text-error-delay', title: '브로슈어 인쇄', date: '03.06' },
+  { dot: 'status-dot', state: '완료', stateColor: 'text-fg-tertiary', title: '디자인 승인', date: '03.05' },
+  { dot: 'status-dot2', state: '예정', stateColor: 'text-brand-blue', title: '리허설', date: '03.12' },
+  { dot: 'status-dot2', state: '예정', stateColor: 'text-brand-blue', title: '행사 당일 운영', date: '03.13 – 03.16' },
 ];
 
 const TAB_ROWS: Record<string, typeof SCHEDULES> = {
   스케줄: SCHEDULES,
   '할 일': [
-    { dot: 'status-dot1', state: '지연', stateColor: 'text-error-delay', title: '브로슈어 인쇄 견적 3사 비교', date: '03.06', who: '한' },
-    { dot: 'status-dot2', state: '진행', stateColor: 'text-brand-blue', title: '리허설 장비 체크리스트 작성', date: '03.10', who: '최' },
+    { dot: 'status-dot1', state: '지연', stateColor: 'text-error-delay', title: '브로슈어 인쇄 견적 3사 비교', date: '03.06' },
+    { dot: 'status-dot2', state: '진행', stateColor: 'text-brand-blue', title: '리허설 장비 체크리스트 작성', date: '03.10' },
   ],
   문서: [
-    { dot: 'status-dot2', state: '최근', stateColor: 'text-brand-blue', title: '행사 운영 매뉴얼 v2', date: '오늘', who: '박' },
-    { dot: 'status-dot', state: '완료', stateColor: 'text-fg-tertiary', title: '부스 설치 도면.pdf', date: '어제', who: '최' },
+    { dot: 'status-dot2', state: '최근', stateColor: 'text-brand-blue', title: '행사 운영 매뉴얼 v2', date: '오늘' },
+    { dot: 'status-dot', state: '완료', stateColor: 'text-fg-tertiary', title: '부스 설치 도면.pdf', date: '어제' },
   ],
   통계: [
-    { dot: 'status-dot2', state: '진행', stateColor: 'text-brand-blue', title: '준비 항목 완료율 68%', date: '12 / 18', who: '박' },
-    { dot: 'status-dot1', state: '주의', stateColor: 'text-error-delay', title: '마감 임박 항목 2건', date: '이번 주', who: '한' },
+    { dot: 'status-dot2', state: '진행', stateColor: 'text-brand-blue', title: '준비 항목 완료율 68%', date: '12 / 18' },
+    { dot: 'status-dot1', state: '주의', stateColor: 'text-error-delay', title: '마감 임박 항목 2건', date: '이번 주' },
   ],
 };
 
-type Av = [string, string];
-type Task = { title: string; meta: string; avatars: Av[]; done?: boolean };
-const AV: Record<string, string> = { SJ: 'bg-brand-blue', MK: 'bg-brand-green', TR: 'bg-brand-amber', DN: 'bg-brand-pink', JP: 'bg-brand-green', AL: 'bg-brand' };
-const av = (...k: string[]): Av[] => k.map((x) => [x, AV[x]!]);
+type Task = { title: string; meta: string; done?: boolean };
 
 const COLUMNS: { dot: string; title: string; count: number; pill: string; pillText: string; more: string; tasks: Task[] }[] = [
   {
     dot: 'dot', title: '진행', count: 5, pill: 'bg-info-bg', pillText: 'text-error-delay', more: '+ 3 more',
     tasks: [
-      { title: 'Onboarding flow v2', meta: 'Due Today · 4 comments', avatars: av('SJ', 'MK', 'TR') },
-      { title: 'Mobile navigation', meta: 'Due Wednesday', avatars: av('DN', 'JP') },
+      { title: 'Onboarding flow v2', meta: 'Due Today · 4 comments' },
+      { title: 'Mobile navigation', meta: 'Due Wednesday' },
     ],
   },
   {
     dot: 'dot1', title: '편집', count: 2, pill: 'bg-brand-tint', pillText: 'text-brand-deep', more: '+ 2 more',
     tasks: [
-      { title: 'Brand guidelines', meta: 'Due Today', avatars: av('MK', 'AL') },
-      { title: 'Case study · Acme', meta: 'Due Monday', avatars: av('TR') },
+      { title: 'Brand guidelines', meta: 'Due Today' },
+      { title: 'Case study · Acme', meta: 'Due Monday' },
     ],
   },
   {
     dot: 'dot2', title: '완료', count: 8, pill: 'bg-success-bg', pillText: 'text-success-deep', more: '+ 6 more',
     tasks: [
-      { title: 'Pricing page revamp', meta: 'Shipped May 12', avatars: av('SJ', 'MK'), done: true },
-      { title: 'Design tokens v1.2', meta: 'Shipped May 10', avatars: av('AL'), done: true },
+      { title: 'Pricing page revamp', meta: 'Shipped May 12', done: true },
+      { title: 'Design tokens v1.2', meta: 'Shipped May 10', done: true },
     ],
   },
   {
     dot: 'dot3', title: '보류', count: 3, pill: 'bg-surface-section', pillText: 'text-fg-secondary', more: '+ 5 more',
     tasks: [
-      { title: 'Website copy rewrite', meta: 'Due Tomorrow', avatars: av('SJ', 'MK') },
-      { title: 'Q3 research plan', meta: 'Due Friday', avatars: av('AL') },
+      { title: 'Website copy rewrite', meta: 'Due Tomorrow' },
+      { title: 'Q3 research plan', meta: 'Due Friday' },
     ],
   },
 ];
 
 const MORE_COLOR = ['text-error-delay', 'text-brand-deep', 'text-success-deep', 'text-fg-secondary'];
-
-function AvatarStack({ avatars }: { avatars: Av[] }) {
-  return (
-    <div className="relative h-[18px] shrink-0" style={{ width: avatars.length === 1 ? 18 : 18 + (avatars.length - 1) * 12 }}>
-      {avatars.map(([t, c], i) => (
-        <div
-          key={t}
-          className={`absolute top-0 flex size-[18px] items-center justify-center rounded-md border-2 border-solid border-surface text-2xs font-bold text-fg-inverse ${c}`}
-          style={{ left: i * 12 }}
-        >
-          <span className="relative -top-px">{t}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function TaskCard({ task }: { task: Task }) {
   return (
@@ -125,8 +106,6 @@ function TaskCard({ task }: { task: Task }) {
           <div className="size-[17px] shrink-0 rounded-sm border-[1.5px] border-solid border-border-placeholder" />
         )}
         <span className={`whitespace-nowrap text-xs font-semibold ${task.done ? 'text-fg-secondary' : 'text-fg'}`}>{task.title}</span>
-        <div className="h-px min-w-px flex-1" />
-        <AvatarStack avatars={task.avatars} />
       </div>
       <div className="flex w-full items-center gap-[5px]">
         <img alt="" src={`${A}/meta-dot.svg`} className="size-[3px]" />
@@ -226,7 +205,6 @@ export function DashboardView() {
                 <span className="whitespace-nowrap text-md text-fg">{s.title}</span>
                 <div className="h-px min-w-px flex-1" />
                 <span className="whitespace-nowrap text-base text-fg-secondary">{s.date}</span>
-                <span className="flex size-[22px] items-center justify-center rounded-lg bg-brand-tint text-2xs font-semibold text-brand">{s.who}</span>
               </div>
             ))}
             <div className="flex h-[36px] w-full items-center gap-[8px] px-[17px]">

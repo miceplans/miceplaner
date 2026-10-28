@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 
 /** 행사 표의 사용자 정의 속성(컬럼). 모든 행사 표가 이 레지스트리를 공유한다. */
-export type EventAttrColumn = { id: string; label: string };
+/** 노션식 표 속성 유형. 기존 저장 컬럼은 text로 해석한다. */
+export type EventAttrType = 'text' | 'number' | 'date' | 'checkbox';
+export type EventAttrColumn = { id: string; label: string; type?: EventAttrType };
 
 const COLUMNS_KEY = 'miceplans.event-attrs.columns';
 const VALUES_KEY = 'miceplans.event-attrs.values';
@@ -13,7 +15,7 @@ export const EMPTY_ATTR = '—';
 const CHANGE_EVENT = 'miceplans:event-attrs:change';
 
 /** 기본 속성. 예산 컬럼은 처음부터 제공된다. */
-const DEFAULT_COLUMNS: EventAttrColumn[] = [{ id: 'budget', label: '예산' }];
+const DEFAULT_COLUMNS: EventAttrColumn[] = [{ id: 'budget', label: '예산', type: 'number' }];
 
 function readColumns(): EventAttrColumn[] {
   try {
@@ -64,10 +66,10 @@ export function useEventAttrs() {
   const notify = () => window.dispatchEvent(new Event(CHANGE_EVENT));
 
   const addColumn = useCallback(
-    (label: string) => {
+    (label: string, type: EventAttrType = 'text') => {
       const trimmed = label.trim();
       if (!trimmed) return;
-      const next = [...readColumns(), { id: `attr-${Date.now()}`, label: trimmed }];
+      const next = [...readColumns(), { id: `attr-${Date.now()}`, label: trimmed, type }];
       try {
         window.localStorage.setItem(COLUMNS_KEY, JSON.stringify(next));
       } catch {

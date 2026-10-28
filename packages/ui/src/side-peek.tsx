@@ -106,12 +106,12 @@ function AgendaSection({ items }: { items: AgendaItem[] }) {
 
 type AssigneeKey = '한' | '최' | '박' | '이' | '김';
 
-const ASSIGNEE: Record<AssigneeKey, { cls: string; name: string }> = {
-  한: { cls: 'bg-notice-bg text-notice', name: '한지우' },
-  최: { cls: 'bg-success-bg text-success-deep', name: '최민준' },
-  박: { cls: 'bg-info-bg text-brand-blue', name: '박서연' },
-  이: { cls: 'bg-surface-chip text-fg-secondary', name: '이준호' },
-  김: { cls: 'bg-submit-bg text-brand-soft', name: '김도현' },
+const ASSIGNEE: Record<AssigneeKey, { name: string }> = {
+  한: { name: '한지우' },
+  최: { name: '최민준' },
+  박: { name: '박서연' },
+  이: { name: '이준호' },
+  김: { name: '김도현' },
 };
 
 type SubtaskItem = { id: string; title: string; who: AssigneeKey; done: boolean };
@@ -136,10 +136,10 @@ const INITIAL_TASKS: TaskItem[] = [
 ];
 
 function AssigneeAvatar({ who, size = 'md' }: { who: AssigneeKey; size?: 'md' | 'sm' }): React.ReactNode {
-  const cls = size === 'sm' ? 'size-[18px]' : 'size-[20.691px]';
+  const cls = size === 'sm' ? 'text-2xs' : 'text-xs';
   return (
-    <span aria-label={ASSIGNEE[who].name} className={`flex ${cls} shrink-0 items-center justify-center rounded-lg text-2xs font-semibold ${ASSIGNEE[who].cls}`}>
-      {who}
+    <span aria-label={ASSIGNEE[who].name} className={`whitespace-nowrap text-fg-secondary ${cls}`}>
+      {ASSIGNEE[who].name}
     </span>
   );
 }
@@ -222,7 +222,6 @@ export function TaskSubtaskSection(): React.ReactNode {
           <div key={task.id} className="flex w-full flex-col gap-[6px] rounded-md bg-surface-subtle p-[10px]">
             <div className="flex w-full items-center gap-[8px]">
               <span className="min-w-0 flex-1 truncate text-md font-bold text-fg-strong">{task.title}</span>
-              <AssigneeAvatar who={task.who} />
               <span className="whitespace-nowrap text-xs text-fg-secondary">{ASSIGNEE[task.who].name}</span>
               <button
                 type="button"
@@ -445,7 +444,6 @@ export function SidePeekPanel({
             </div>
             <div className="flex items-center gap-[8px]">
               <div className="flex items-center gap-[4px]">
-                <span className="flex size-[20.691px] items-center justify-center rounded-lg bg-success-solid text-2xs font-bold text-fg-inverse">MN</span>
                 <span className="whitespace-nowrap">민준</span>
               </div>
               <button type="button" aria-label="담당자 추가" className="flex size-[18.81px] items-center justify-center rounded-md hover:bg-surface-chip">

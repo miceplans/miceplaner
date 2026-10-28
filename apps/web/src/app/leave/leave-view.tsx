@@ -2,8 +2,6 @@ import { Button, FlowTopbar, PageFrame } from '@miceplans/ui';
 import { LeaveCalendar } from './leave-calendar';
 import { LEAVE_EMPLOYEES, LOW_REMAINING_DAYS, MONTH_LABELS, remainingOf } from './data';
 
-const AVATAR_BG = ['bg-brand-tint text-brand', 'bg-notice-bg text-notice', 'bg-success-bg text-success-deep', 'bg-info-bg text-brand-blue', 'bg-surface-chip text-fg-secondary'];
-
 function formatDays(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
@@ -34,10 +32,7 @@ export function LeaveView() {
                 key={e.id}
                 className={`flex w-full shrink-0 items-center gap-[12px] px-[16px] ${i < employees.length - 1 ? 'border-b border-solid border-border' : ''}`}
               >
-                <div className="flex h-[48px] w-[140px] shrink-0 items-center gap-[8px]">
-                  <span className={`flex size-[24px] items-center justify-center rounded-md text-2xs font-semibold ${AVATAR_BG[i % AVATAR_BG.length]}`}>
-                    {e.name.charAt(0)}
-                  </span>
+                <div className="flex h-[48px] w-[140px] shrink-0 items-center">
                   <span className="whitespace-nowrap text-base font-medium text-fg">{e.name}</span>
                 </div>
                 <span className="w-[120px] shrink-0 whitespace-nowrap text-base text-fg-secondary">{e.role}</span>

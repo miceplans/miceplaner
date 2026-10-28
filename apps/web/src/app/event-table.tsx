@@ -2,7 +2,7 @@
 
 import { useState, type DragEvent, type FormEvent } from 'react';
 import { Dialog, StatusPill, type StatusKey } from '@miceplans/ui';
-import { EMPTY_ATTR, useEventAttrs } from './event-attrs';
+import { EMPTY_ATTR, type EventAttrType, useEventAttrs } from './event-attrs';
 
 const A = '/assets/schedule';
 
@@ -24,6 +24,15 @@ const COL_DEFS: Record<ColKey, { label: string; icon: string; w: string }> = {
 };
 
 const STATUSES: StatusKey[] = ['진행중', '성공', '확인중', '만료', '제출', '보류중'];
+
+const ATTR_TYPES: { value: EventAttrType; label: string; mark: string }[] = [
+  { value: 'text', label: '텍스트', mark: 'Aa' },
+  { value: 'number', label: '숫자', mark: '#' },
+  { value: 'date', label: '날짜', mark: '□' },
+  { value: 'checkbox', label: '체크박스', mark: '✓' },
+];
+
+const attrType = (type?: EventAttrType) => ATTR_TYPES.find((item) => item.value === (type ?? 'text'))!;
 
 function reorder<T>(list: T[], from: number, to: number): T[] {
   if (from === to || from < 0 || to < 0) return list;
@@ -61,6 +70,13 @@ export function EventTable({ initial }: { initial: EventRow[] }) {
   const attrs = useEventAttrs();
   const [attrAdding, setAttrAdding] = useState(false);
   const [attrLabel, setAttrLabel] = useState('');
+  const [attrTypeValue, setAttrTypeValue] = useState<EventAttrType>('text');
+
+  const closeAttrDialog = () => {
+    setAttrAdding(false);
+    setAttrLabel('');
+    setAttrTypeValue('text');
+  };
 
   const cell = (e: EventRow, key: ColKey) => {
     if (key === 'status') return <StatusPill status={e.status} />;
@@ -164,6 +180,7 @@ export function EventTable({ initial }: { initial: EventRow[] }) {
         })}
         {attrs.columns.map((col) => (
           <div key={col.id} className="flex h-full w-[110px] items-center px-[16px]">
+            <span className="mr-[5px] text-[11px] text-fg-tertiary">{attrType(col.type).mark}</span>
             <span className="whitespace-nowrap">{col.label}</span>
           </div>
         ))}
@@ -227,6 +244,7 @@ export function EventTable({ initial }: { initial: EventRow[] }) {
               {attrs.columns.map((col) => (
                 <div key={col.id} className="flex h-full w-[110px] items-center px-[16px]">
                   <AttrCell
+                    type={col.type}
                     value={attrs.getValue(e.id, col.id) ?? (e as unknown as Record<string, string | undefined>)[col.id]}
                     onSave={(v) => attrs.setValue(e.id, col.id, v)}
                   />
@@ -242,32 +260,41 @@ export function EventTable({ initial }: { initial: EventRow[] }) {
         <Dialog onClose={() => setAttrAdding(false)}>
           <form
             role="dialog"
-            aria-label="속성 추가"
+            aria-label="새 속성"
             onClick={(e) => e.stopPropagation()}
             onSubmit={(e) => {
               e.preventDefault();
               if (!attrLabel.trim()) return;
-              attrs.addColumn(attrLabel);
-              setAttrLabel('');
-              setAttrAdding(false);
+              attrs.addColumn(attrLabel, attrTypeValue);
+              closeAttrDialog();
             }}
-            className="flex w-[320px] max-w-full flex-col gap-[14px] rounded-lg bg-surface p-[20px] shadow-card"
+            className="flex w-[400px] max-w-full flex-col overflow-hidden rounded-xl border border-solid border-border bg-surface shadow-card"
           >
-            <h2 className="m-0 text-lg font-semibold text-fg">속성 추가</h2>
-            <p className="m-0 text-base text-fg-secondary">모든 행사 표에 같은 속성이 추가됩니다.</p>
-            <input
-              autoFocus
-              required
-              value={attrLabel}
-              onChange={(e) => setAttrLabel(e.target.value)}
-              placeholder="예: 규모, 담당 부서, 계약 상태"
-              className="h-[36px] w-full rounded-sm border border-solid border-border bg-surface px-[10px] text-base text-fg outline-none focus:border-fg-secondary"
-            />
-            <div className="flex justify-end gap-[8px]">
-              <button type="button" onClick={() => setAttrAdding(false)} className="h-[32px] rounded-sm border border-solid border-border bg-surface px-[14px] text-base font-medium text-fg-secondary">
+            <div className="border-b border-solid border-border px-[20px] py-[17px]">
+              <p className="m-0 text-xs font-medium text-fg-tertiary">행사 데이터베이스</p>
+              <h2 className="m-[3px_0_0] text-lg font-semibold text-fg">새 속성</h2>
+            </div>
+            <div className="flex flex-col gap-[16px] px-[20px] py-[18px]">
+              <label className="flex flex-col gap-[7px] text-sm font-medium text-fg">
+                속성 이름
+                <input autoFocus required value={attrLabel} onChange={(e) => setAttrLabel(e.target.value)} placeholder="예: 계약 상태" className="h-[40px] rounded-md border border-solid border-border bg-surface px-[11px] text-base font-normal text-fg outline-none placeholder:text-fg-tertiary focus:border-brand focus:ring-2 focus:ring-brand/15" />
+              </label>
+              <fieldset className="m-0 border-0 p-0">
+                <legend className="mb-[7px] text-sm font-medium text-fg">유형</legend>
+                <div role="radiogroup" aria-label="속성 유형" className="grid grid-cols-2 gap-[8px]">
+                  {ATTR_TYPES.map((item) => {
+                    const selected = item.value === attrTypeValue;
+                    return <button key={item.value} type="button" role="radio" aria-checked={selected} onClick={() => setAttrTypeValue(item.value)} className={`flex h-[42px] items-center gap-[8px] rounded-md border px-[10px] text-sm font-medium ${selected ? 'border-brand bg-brand-tint text-brand' : 'border-border text-fg hover:bg-surface-subtle'}`}><span className="w-[18px] text-center text-xs">{item.mark}</span>{item.label}</button>;
+                  })}
+                </div>
+              </fieldset>
+              <p className="m-0 text-xs leading-[18px] text-fg-tertiary">추가한 속성은 모든 행사 표에 표시됩니다.</p>
+            </div>
+            <div className="flex justify-end gap-[8px] border-t border-solid border-border px-[20px] py-[14px]">
+              <button type="button" onClick={closeAttrDialog} className="h-[34px] rounded-md px-[13px] text-sm font-medium text-fg-secondary hover:bg-surface-subtle">
                 취소
               </button>
-              <button type="submit" className="h-[32px] rounded-sm bg-brand px-[14px] text-base font-medium text-fg-inverse">
+              <button type="submit" className="h-[34px] rounded-md bg-brand px-[14px] text-sm font-semibold text-fg-inverse hover:opacity-90">
                 추가
               </button>
             </div>
@@ -279,9 +306,13 @@ export function EventTable({ initial }: { initial: EventRow[] }) {
 }
 
 /** 사용자 정의 속성 셀. 클릭하면 값을 편집할 수 있고, 빈 값은 —로 표시한다. */
-function AttrCell({ value, onSave }: { value?: string; onSave: (value: string) => void }) {
+function AttrCell({ type = 'text', value, onSave }: { type?: EventAttrType; value?: string; onSave: (value: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+
+  if (type === 'checkbox') {
+    return <input type="checkbox" aria-label="체크박스 속성" checked={value === 'true'} onClick={(e) => { e.preventDefault(); onSave(value === 'true' ? '' : 'true'); }} onChange={() => undefined} className="size-[16px] accent-brand" />;
+  }
 
   if (!editing) {
     return (
@@ -308,6 +339,7 @@ function AttrCell({ value, onSave }: { value?: string; onSave: (value: string) =
   return (
     <input
       autoFocus
+      type={type}
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onClick={(e) => e.preventDefault()}

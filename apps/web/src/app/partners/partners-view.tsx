@@ -284,7 +284,7 @@ export function PartnersView() {
                 className={`group flex w-full shrink-0 items-center gap-[12px] px-[16px] py-[10px] ${i < rows.length - 1 ? 'border-b border-solid border-border' : ''}`}
               >
                 <div className="flex w-[180px] shrink-0 items-center text-sm font-semibold text-fg">{cell('name', 'w-full', p.name)}</div>
-                <div className={`flex w-[90px] shrink-0 text-2xs font-bold ${PARTNER_FIELD_BADGE} h-[22px] items-center rounded-sm px-[8px] w-fit`}>
+                <div className={`flex h-[22px] w-[90px] shrink-0 items-center rounded-sm px-[8px] text-2xs font-bold ${PARTNER_FIELD_BADGE}`}>
                   {cell('field', 'w-[80px]', p.field)}
                 </div>
                 <div className="flex w-[110px] shrink-0 text-xs font-medium text-fg-secondary">{cell('manager', 'w-full', p.manager)}</div>
