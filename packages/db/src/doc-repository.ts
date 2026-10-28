@@ -12,6 +12,13 @@ export async function listDocs(client: PoolClient, eventId: string): Promise<Eve
   return rows.map(toRow);
 }
 
+/** 단건 조회. 볼 수 없는 문서는 RLS 때문에 undefined다. */
+export async function getDoc(client: PoolClient, docId: string): Promise<EventDocRow | undefined> {
+  const { rows } = await client.query<RawRow>('SELECT id, event_id, title, visibility, version FROM event_docs WHERE id = $1 AND deleted_at IS NULL', [docId]);
+  const row = rows[0];
+  return row ? toRow(row) : undefined;
+}
+
 /** version이 다르면 충돌로 보고 null을 돌려준다. 권한이 없으면 RLS 때문에 0행이라 역시 null이다. */
 export async function setDocVisibility(client: PoolClient, docId: string, visibility: DocVisibility, expectedVersion: number, actorId: string): Promise<EventDocRow | null> {
   const { rows } = await client.query<RawRow>(
