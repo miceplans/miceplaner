@@ -254,7 +254,7 @@ export function TaskBoard() {
     setColumns((prev) => {
       const source = prev.find((c) => c.tasks.some((t) => t.id === taskId));
       const existing = source?.tasks.find((t) => t.id === taskId);
-      if (!source || !existing) return prev;
+      if (!source || !existing || existing.createdBy !== ME) return prev;
       const updated: Task = { ...existing, event: values.event, schedule: values.schedule, title: values.title, due: values.due, who: values.who };
       if (source.id === values.status) {
         return prev.map((c) => (c.id === source.id ? { ...c, tasks: c.tasks.map((t) => (t.id === taskId ? updated : t)) } : c));
@@ -274,7 +274,7 @@ export function TaskBoard() {
       const source = prev.find((c) => c.tasks.some((t) => t.id === taskId));
       const existing = source?.tasks.find((t) => t.id === taskId);
       const doneCol = prev.find((c) => c.done);
-      if (!source || !existing || !doneCol || source.id === doneCol.id) return prev;
+      if (!source || !existing || !doneCol || source.id === doneCol.id || existing.who !== ME) return prev;
       return prev.map((c) => {
         if (c.id === source.id) return { ...c, tasks: c.tasks.filter((t) => t.id !== taskId) };
         if (c.id === doneCol.id) return { ...c, tasks: [...c.tasks, existing] };
@@ -284,7 +284,7 @@ export function TaskBoard() {
   };
 
   const removeTask = (taskId: string) => {
-    setColumns((prev) => prev.map((c) => ({ ...c, tasks: c.tasks.filter((t) => t.id !== taskId) })));
+    setColumns((prev) => prev.map((c) => ({ ...c, tasks: c.tasks.filter((t) => t.id !== taskId || t.createdBy !== ME) })));
     setDeleting(null);
   };
 

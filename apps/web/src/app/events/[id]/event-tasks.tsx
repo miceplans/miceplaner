@@ -35,7 +35,7 @@ export function EventTasks({
             <header className="flex h-[36px] items-center gap-[10px] px-[2px]">
               <img alt="" src={`/assets/event-detail/${status.dot}.svg`} className="size-[7px]" />
               <h3 className="m-0 text-md font-semibold whitespace-nowrap text-fg">
-                <EditableTitle readOnly={!canEditItem(schedule, me)} title={schedule.title} onSave={(title) => onChange((list) => renameItem(list, schedule.id, title))} />
+                <EditableTitle readOnly={!canEditItem(schedule, me)} title={schedule.title} onSave={(title) => onChange((list) => renameItem(list, schedule.id, title, me))} />
               </h3>
               <span className={`text-xs whitespace-nowrap ${status.tone}`}>{status.text}</span>
               {schedule.part && (
@@ -43,7 +43,7 @@ export function EventTasks({
               )}
               <span className="min-w-px flex-1" />
               {schedule.date && <span className="whitespace-nowrap text-base text-fg-secondary">{schedule.date}</span>}
-              <AssigneeBadge item={schedule} onAssign={(a) => onChange((list) => assignItem(list, schedule.id, a))} />
+              <AssigneeBadge item={schedule} onAssign={(a) => onChange((list) => assignItem(list, schedule.id, a, me))} />
             </header>
             <div className="ml-[17px]">
               <Checklist

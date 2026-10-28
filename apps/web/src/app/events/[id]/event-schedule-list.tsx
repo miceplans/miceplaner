@@ -54,7 +54,7 @@ export function ScheduleList({
               aria-label={`${item.title} ${item.done ? '완료 취소' : '완료 표시'}`}
               disabled={!canToggleItem(item, me)}
               title={canToggleItem(item, me) ? undefined : '담당자만 완료할 수 있습니다'}
-              onClick={() => onChange((list) => toggleItem(list, item.id))}
+              onClick={() => onChange((list) => toggleItem(list, item.id, me))}
               className="flex size-[16px] shrink-0 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
             >
               <img alt="" src={`${A}/${status.dot}.svg`} className="size-[7px]" />
@@ -62,7 +62,7 @@ export function ScheduleList({
             <span className={`w-[24px] shrink-0 whitespace-nowrap text-xs ${status.tone}`}>{status.text}</span>
             <EditableTitle
               title={item.title}
-              onSave={(title) => onChange((list) => renameItem(list, item.id, title))}
+              onSave={(title) => onChange((list) => renameItem(list, item.id, title, me))}
               readOnly={!canEditItem(item, me)}
               className="whitespace-nowrap text-md text-fg"
             />
@@ -79,7 +79,7 @@ export function ScheduleList({
               ×
             </button>}
             {item.date && <span className="whitespace-nowrap text-base text-fg-secondary">{item.date}</span>}
-            <AssigneeBadge item={item} onAssign={(a) => onChange((list) => assignItem(list, item.id, a))} />
+            <AssigneeBadge item={item} onAssign={(a) => onChange((list) => assignItem(list, item.id, a, me))} />
           </li>
         );
       })}
@@ -113,7 +113,7 @@ export function ScheduleList({
           body="삭제한 일정은 복구할 수 없습니다."
           onClose={() => setDeletingId(null)}
           onConfirm={() => {
-            onChange((list) => removeItem(list, deletingItem.id));
+            onChange((list) => removeItem(list, deletingItem.id, me));
             setDeletingId(null);
           }}
         />

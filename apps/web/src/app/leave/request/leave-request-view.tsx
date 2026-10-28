@@ -1,8 +1,10 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { FlowTopbar, PageFrame } from '@miceplans/ui';
 import { LEAVE_EMPLOYEES, LEAVE_KINDS, LEAVE_TODAY, remainingOf, type LeaveKind } from '../data';
+import { useWorkCheck } from '../use-work-check';
 
 /** 목업: 로그인 사용자는 대표(e1)로 가정한다. */
 const ME = LEAVE_EMPLOYEES[0]!;
@@ -54,38 +56,64 @@ function formatDays(value: number): string {
 
 /** 시작~종료일의 평일 수. */
 function weekdaysBetween(start: string, end: string): number {
-  let count = 0;
+  return weekdayDatesBetween(start, end).length;
+}
+
+/** 시작~종료일의 평일 날짜 목록(YYYY-MM-DD). */
+function weekdayDatesBetween(start: string, end: string): string[] {
+  const dates: string[] = [];
   for (let d = new Date(start); d <= new Date(end); d.setDate(d.getDate() + 1)) {
-    if (d.getDay() !== 0 && d.getDay() !== 6) count += 1;
+    if (d.getDay() !== 0 && d.getDay() !== 6) {
+      dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    }
   }
-  return count;
+  return dates;
 }
 
 export function LeaveRequestView() {
+  const dateParam = useSearchParams().get('date');
+  const initialDate = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : LEAVE_TODAY;
   const [kind, setKind] = useState<LeaveKind>('full');
-  const [start, setStart] = useState(LEAVE_TODAY);
-  const [end, setEnd] = useState(LEAVE_TODAY);
+  const [start, setStart] = useState(initialDate);
+  const [end, setEnd] = useState(initialDate);
   const [reason, setReason] = useState('');
   const [substitute, setSubstitute] = useState('');
   const [sent, setSent] = useState(false);
   const [submittedDays, setSubmittedDays] = useState(0);
+  const { compEarned, compUsedDays, compRemaining, addCompUsed } = useWorkCheck();
 
+  const isComp = kind === 'comp';
   const perDay = LEAVE_KINDS.find((k) => k.kind === kind)?.days ?? 1;
   const multiDay = perDay === 1;
   const days = multiDay ? weekdaysBetween(start, end) : perDay;
-  const remaining = remainingOf(ME) - submittedDays;
-  const error = days <= 0 ? '사용 일수가 0일입니다. 날짜를 확인해 주세요.' : days > remaining ? '잔여 연차를 초과했습니다.' : null;
+  const remaining = isComp ? compRemaining : remainingOf(ME) - submittedDays;
+  const error =
+    days <= 0
+      ? '사용 일수가 0일입니다. 날짜를 확인해 주세요.'
+      : isComp && compEarned === 0
+        ? '주말 근무를 체크하면 대휴 1일이 발생합니다.'
+        : days > remaining
+          ? isComp
+            ? '잔여 대휴를 초과했습니다.'
+            : '잔여 연차를 초과했습니다.'
+          : null;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (error) return;
-    setSubmittedDays(submittedDays + days);
+    if (isComp) {
+      addCompUsed(weekdayDatesBetween(start, end).map((date) => ({ date, employeeId: ME.id, kind: 'comp' as const })));
+    } else {
+      setSubmittedDays(submittedDays + days);
+    }
     setSent(true);
     setReason('');
     setSubstitute('');
   };
 
-  const usedRate = Math.min(100, ((ME.total - remaining) / ME.total) * 100);
+  const usableDays = isComp ? compEarned : ME.total;
+  const usedDays = isComp ? compUsedDays : ME.total - remaining;
+  const usedRate = usableDays > 0 ? Math.min(100, (usedDays / usableDays) * 100) : 0;
 
   return (
     <PageFrame topbar={<FlowTopbar showToggle title="휴무계" />} mainClassName="bg-surface">
@@ -98,9 +126,9 @@ export function LeaveRequestView() {
 
           <div className="flex flex-col gap-[12px] rounded-xl bg-surface-sunken p-[20px]">
             <div className="flex items-end justify-between">
-              <span className="text-sm text-fg-secondary">남은 연차</span>
+              <span className="text-sm text-fg-secondary">{isComp ? '남은 대휴' : '남은 연차'}</span>
               <span className="text-2xl font-semibold leading-none text-fg">
-                {formatDays(remaining)}일 <span className="text-base font-normal text-fg-tertiary">/ {formatDays(ME.total)}일</span>
+                {formatDays(remaining)}일 <span className="text-base font-normal text-fg-tertiary">/ {formatDays(usableDays)}일</span>
               </span>
             </div>
             <div className="h-[6px] w-full overflow-hidden rounded-full bg-surface-chip">

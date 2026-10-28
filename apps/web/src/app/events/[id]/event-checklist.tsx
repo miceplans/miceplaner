@@ -85,11 +85,25 @@ function setAll(item: CheckItem, done: boolean): CheckItem {
   return { ...item, done, completedAt: done ? Date.now() : undefined, children: item.children?.map((c) => setAll(c, done)) };
 }
 
-export function toggleItem(items: CheckItem[], id: string): CheckItem[] {
+function findItem(items: CheckItem[], id: string): CheckItem | undefined {
+  for (const item of items) {
+    if (item.id === id) return item;
+    const found = item.children && findItem(item.children, id);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/** 아래 변경 함수는 UI와 별개로 권한이 없으면 목록을 그대로 돌려준다. */
+export function toggleItem(items: CheckItem[], id: string, me: string): CheckItem[] {
+  const target = findItem(items, id);
+  if (!target || !canToggleItem(target, me)) return items;
   return mapTree(items, id, (item) => setAll(item, !item.done)).map(normalize);
 }
 
-export function addChild(items: CheckItem[], parentId: string, title: string, createdBy?: string): CheckItem[] {
+export function addChild(items: CheckItem[], parentId: string, title: string, createdBy: string): CheckItem[] {
+  const parent = findItem(items, parentId);
+  if (!parent || !canEditItem(parent, createdBy)) return items;
   const child: CheckItem = { id: `n${Date.now()}${Math.random().toString(36).slice(2, 6)}`, title, done: false, createdBy };
   return mapTree(items, parentId, (item) => ({ ...item, children: [...(item.children ?? []), child] })).map(normalize);
 }
@@ -98,19 +112,29 @@ export function addRoot(items: CheckItem[], title: string, createdBy?: string): 
   return [...items, { id: `n${Date.now()}${Math.random().toString(36).slice(2, 6)}`, title, done: false, createdBy }];
 }
 
-export function assignItem(items: CheckItem[], id: string, assignee: string | undefined): CheckItem[] {
+export function assignItem(items: CheckItem[], id: string, assignee: string | undefined, me: string): CheckItem[] {
+  const target = findItem(items, id);
+  if (!target || !canEditItem(target, me)) return items;
   return mapTree(items, id, (item) => ({ ...item, assignee, owner: assignee?.slice(0, 1) }));
 }
 
-export function renameItem(items: CheckItem[], id: string, title: string): CheckItem[] {
+export function renameItem(items: CheckItem[], id: string, title: string, me: string): CheckItem[] {
+  const target = findItem(items, id);
+  if (!target || !canEditItem(target, me)) return items;
   return mapTree(items, id, (item) => ({ ...item, title }));
 }
 
-export function removeItem(items: CheckItem[], id: string): CheckItem[] {
+function removeNode(items: CheckItem[], id: string): CheckItem[] {
   return items
     .filter((item) => item.id !== id)
-    .map((item) => (item.children ? { ...item, children: removeItem(item.children, id) } : item))
+    .map((item) => (item.children ? { ...item, children: removeNode(item.children, id) } : item))
     .map(normalize);
+}
+
+export function removeItem(items: CheckItem[], id: string, me: string): CheckItem[] {
+  const target = findItem(items, id);
+  if (!target || !canEditItem(target, me)) return items;
+  return removeNode(items, id);
 }
 
 /** 더블클릭하면 입력창으로 바뀌는 제목. Enter·포커스 이탈로 저장하고 Esc로 취소한다. 빈 값은 저장하지 않는다. */
@@ -274,7 +298,7 @@ function Row({ item, depth, showStatus, onChange }: RowProps) {
         >
           <span className={`inline-block transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
         </button>
-        <Checkbox state={state} label={`${item.title} 완료 표시`} disabled={!canToggleItem(item, me)} onClick={() => onChange((items) => toggleItem(items, item.id))} />
+        <Checkbox state={state} label={`${item.title} 완료 표시`} disabled={!canToggleItem(item, me)} onClick={() => onChange((items) => toggleItem(items, item.id, me))} />
         {showStatus && depth === 0 && (
           <span className={`flex w-[40px] shrink-0 items-center gap-[6px] text-sm ${status.tone}`}>
             <img alt="" src={`${A}/${status.dot}.svg`} className="size-[7px]" />
@@ -283,7 +307,7 @@ function Row({ item, depth, showStatus, onChange }: RowProps) {
         )}
         <EditableTitle
           title={item.title}
-          onSave={(title) => onChange((items) => renameItem(items, item.id, title))}
+          onSave={(title) => onChange((items) => renameItem(items, item.id, title, me))}
           readOnly={!editable}
           className={`min-w-0 truncate text-base ${item.done ? 'text-fg-tertiary line-through' : depth === 0 ? 'font-medium text-fg' : 'text-fg'}`}
         />
@@ -310,7 +334,7 @@ function Row({ item, depth, showStatus, onChange }: RowProps) {
           ×
         </button>}
         {item.date && <span className="whitespace-nowrap text-base text-fg-secondary">{item.date}</span>}
-        <AssigneeBadge item={item} onAssign={(a) => onChange((items) => assignItem(items, item.id, a))} />
+        <AssigneeBadge item={item} onAssign={(a) => onChange((items) => assignItem(items, item.id, a, me))} />
       </div>
       {confirming && (
         <ConfirmDialog
@@ -318,7 +342,7 @@ function Row({ item, depth, showStatus, onChange }: RowProps) {
           body={hasChildren ? '하위 항목까지 모두 삭제되며 복구할 수 없습니다.' : '삭제한 항목은 복구할 수 없습니다.'}
           onClose={() => setConfirming(false)}
           onConfirm={() => {
-            onChange((items) => removeItem(items, item.id));
+            onChange((items) => removeItem(items, item.id, me));
             setConfirming(false);
           }}
         />

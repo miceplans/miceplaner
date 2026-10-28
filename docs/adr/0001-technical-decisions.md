@@ -54,7 +54,7 @@ Client 포털은 API만 호출한다. 협업 서버는 Client 연결을 받지 �
 
 ### 저장과 실시간
 
-- 일반 업무 데이터의 기준 저장소는 PostgreSQL이다.
+- 행사·공유 업무 데이터의 기준 저장소는 PostgreSQL이다. 개인 Todo는 서버 비용과 의존성을 줄이기 위해 사용자 컴퓨터의 로컬 저장소를 기준으로 하는 local-first 데이터이며, 초기 범위에서는 서버에 동기화하지 않는다.
 - 위키 본문은 Yjs 원본을 기준으로 저장하며 Markdown은 검색과 AI 읽기용 파생본이다.
 - Yjs 데이터는 update log, snapshot, `wiki_revision`으로 분리한다. update log는 스냅샷 이후 정리하고, 사용자 명시적 이력·제안 승인·발행·되돌리기 때만 revision을 생성한다.
 - Socket.IO는 업무 객체 갱신을 알리고 클라이언트는 쿼리 캐시를 무효화한다. Yjs는 위키 본문에만 사용한다. AI 응답만 SSE로 보낸다.

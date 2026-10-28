@@ -4,3 +4,4 @@ out
 .turbo
 *.tsbuildinfo
 .DS_Store
+.local

@@ -68,6 +68,7 @@ export function LeaveView() {
         </div>
         <LeaveCalendar />
         <p className="m-0 text-2xs text-fg-tertiary">잔여 연차가 {LOW_REMAINING_DAYS}일 이하인 직원은 빨간색으로 표시됩니다. 목업 데이터 기준: 2026년 10월 현재.</p>
+        <p className="m-0 text-2xs text-fg-tertiary">캘린더의 토·일 날짜를 누른 후 주말 근무를 체크할 수 있으며, 근무 1일당 대휴 1일이 발생해 다른 날짜에 대휴로 사용할 수 있습니다.</p>
       </div>
     </PageFrame>
   );
