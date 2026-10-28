@@ -60,12 +60,14 @@ function dDayBadge(startDate: string): { label: string; className: string } | nu
 
 const EMPTY_FORM = { name: '', start: '', end: '', client: '', pm: '', am: '', design: '', status: '진행중' as StatusKey, place: '' };
 
-export function EventTable({ initial }: { initial: EventRow[] }) {
+export function EventTable({ initial, adding: controlledAdding, onAddingChange }: { initial: EventRow[]; adding?: boolean; onAddingChange?: (open: boolean) => void }) {
   const [rows, setRows] = useState(initial);
   const [cols, setCols] = useState<ColKey[]>(['period', 'client', 'pm', 'am', 'design', 'status', 'place']);
   const [rowDrag, setRowDrag] = useState<{ from: number; over: number } | null>(null);
   const [colDrag, setColDrag] = useState<{ from: ColKey; over: ColKey } | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [uncontrolledAdding, setUncontrolledAdding] = useState(false);
+  const adding = controlledAdding ?? uncontrolledAdding;
+  const setAdding = onAddingChange ?? setUncontrolledAdding;
   const [form, setForm] = useState(EMPTY_FORM);
   const attrs = useEventAttrs();
   const [attrAdding, setAttrAdding] = useState(false);
@@ -185,11 +187,6 @@ export function EventTable({ initial }: { initial: EventRow[] }) {
           </div>
         ))}
         <div className="flex h-full w-[36px] shrink-0 items-center justify-center">
-          <button type="button" aria-label="행사 추가" title="행사 추가" onClick={() => setAdding((v) => !v)} className="flex size-[22px] items-center justify-center rounded-[4px] text-base leading-none hover:bg-surface-sunken">
-            +
-          </button>
-        </div>
-        <div className="flex h-full w-[36px] shrink-0 items-center justify-center">
           <button type="button" aria-label="속성 추가" title="속성 추가" onClick={() => setAttrAdding(true)} className="flex size-[22px] items-center justify-center rounded-[4px] text-base leading-none hover:bg-surface-sunken">
             +
           </button>
@@ -250,7 +247,6 @@ export function EventTable({ initial }: { initial: EventRow[] }) {
                   />
                 </div>
               ))}
-              <div className="h-full w-[36px] shrink-0" />
               <div className="h-full w-[36px] shrink-0" />
             </div>
           </a>

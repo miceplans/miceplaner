@@ -100,9 +100,9 @@ export type ViewTab = { label: string; icon: string; activeIcon?: string; href?:
 /** `/`로 시작하면 전체 경로, 아니면 `/assets/schedule` 아래 파일명으로 해석한다. */
 const tabIcon = (name: string): string => (name.startsWith('/') ? name : `${A}/${name}.svg`);
 
-export function ViewTabs({ tabs, active, bordered = false, onChange }: { tabs: ViewTab[]; active: number; bordered?: boolean; onChange?: (index: number) => void }): ReactNode {
+export function ViewTabs({ tabs, active, bordered = false, onChange, action }: { tabs: ViewTab[]; active: number; bordered?: boolean; onChange?: (index: number) => void; action?: ReactNode }): ReactNode {
   return (
-    <div className={`flex h-[52px] w-full shrink-0 items-center overflow-x-auto px-[24px] max-md:px-[8px] ${bordered ? 'border-b border-solid border-border' : ''}`}>
+    <div className={`flex h-[52px] w-full shrink-0 items-center px-[24px] max-md:px-[8px] ${bordered ? 'border-b border-solid border-border' : ''}`}>
       <div className="flex h-full min-w-max items-start gap-[2px]">
         {tabs.map((t, i) => {
           const on = i === active;
@@ -126,6 +126,7 @@ export function ViewTabs({ tabs, active, bordered = false, onChange }: { tabs: V
           );
         })}
       </div>
+      {action ? <div className="ml-auto flex shrink-0 items-center">{action}</div> : null}
     </div>
   );
 }

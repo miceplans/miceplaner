@@ -63,16 +63,23 @@ const WORK_WEEKS: CalCell[][] = WEEKS.map((week) =>
 
 export default function HomePage() {
   const [tab, setTab] = useState(0);
+  const [addingEvent, setAddingEvent] = useState(false);
   const events = tab === 2 ? EVENTS.filter((event) => event.pm === '박서연' || event.am === '박서연') : EVENTS;
   return (
     <AppShell active="events">
       <div className="flex min-h-screen flex-col leading-[normal]">
-        <ViewTabs tabs={TABS} active={tab} onChange={setTab} bordered />
+        <ViewTabs
+          tabs={TABS}
+          active={tab}
+          onChange={setTab}
+          bordered
+          action={tab !== 1 ? <button type="button" onClick={() => setAddingEvent(true)} className="flex h-[32px] items-center gap-[6px] rounded-md bg-brand px-[12px] text-sm font-semibold text-fg-inverse hover:opacity-90"><span className="text-base font-normal leading-none">+</span> 행사 추가</button> : undefined}
+        />
         {tab === 1 ? (
           <NoticeList />
         ) : (
           <div className="flex w-full flex-col gap-[24px]">
-            <EventTable key={tab} initial={events} />
+            <EventTable key={tab} initial={events} adding={addingEvent} onAddingChange={setAddingEvent} />
             <ScheduleViewCalendar eventWeeks={WEEKS} workWeeks={WORK_WEEKS} gridGap={19} padX={20} />
           </div>
         )}
