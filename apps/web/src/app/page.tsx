@@ -13,12 +13,12 @@ const TABS: ViewTab[] = [
   { label: '내 행사', icon: '10b86' },
 ];
 
-const EVENTS: { id: string; name: string; dot: string; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; status: StatusKey; place: string; budget?: string }[] = [
-  { id: 'e1', name: '제54회 KIMES 2025', dot: 'b7f4e', startDate: '2026-03-13', endDate: '2026-03-16', priority: true, client: '메디코리아', pm: '박서연', am: '최민준', design: '이하은', status: '진행중', place: '코엑스 Hall A·B', budget: '1.2억' },
-  { id: 'e2', name: '글로벌 AI 서밋 2025', dot: '175f6', startDate: '2026-11-03', endDate: '2026-11-04', priority: true, client: '테크노웨이', pm: '김도현', am: '한지우', design: '오세민', status: '성공', budget: '8,500만', place: '인터컨티넨탈 파르나스' },
-  { id: 'e3', name: '삼성 파트너스 데이', dot: 'd8446', startDate: '2026-10-22', endDate: '2026-10-22', priority: true, client: '삼성전자', pm: '박서연', am: '이준호', design: '윤서준', status: '진행중', budget: '6,000만', place: '코엑스 오디토리움' },
-  { id: 'e4', name: '제12회 프랜차이즈 엑스포', dot: 'ff1cc', startDate: '2026-05-08', endDate: '2026-05-10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', design: '강예린', status: '제출', budget: '4,500만', place: '일산 킨텍스 Hall 1' },
-  { id: 'e5', name: '현대자동차 신차 발표회', dot: 'd8446', startDate: '2026-12-15', endDate: '2026-12-15', client: '현대자동차', pm: '김도현', am: '한지우', design: '이하은', status: '보류중', budget: '9,800만', place: '잠실 롯데월드타워' },
+const EVENTS: { id: string; name: string; dot: string; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; video: string; status: StatusKey; place: string; budget?: string }[] = [
+  { id: 'e1', name: '제54회 KIMES 2025', dot: 'b7f4e', startDate: '2026-03-13', endDate: '2026-03-16', priority: true, client: '메디코리아', pm: '박서연', am: '최민준', design: '이하은', video: '오세민', status: '진행중', place: '코엑스 Hall A·B', budget: '1.2억' },
+  { id: 'e2', name: '글로벌 AI 서밋 2025', dot: '175f6', startDate: '2026-11-03', endDate: '2026-11-04', priority: true, client: '테크노웨이', pm: '김도현', am: '한지우', design: '오세민', video: '없음', status: '완료', budget: '8,500만', place: '인터컨티넨탈 파르나스' },
+  { id: 'e3', name: '삼성 파트너스 데이', dot: 'd8446', startDate: '2026-10-22', endDate: '2026-10-22', priority: true, client: '삼성전자', pm: '박서연', am: '이준호', design: '윤서준', video: '윤서준', status: '진행중', budget: '6,000만', place: '코엑스 오디토리움' },
+  { id: 'e4', name: '제12회 프랜차이즈 엑스포', dot: 'ff1cc', startDate: '2026-05-08', endDate: '2026-05-10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', design: '강예린', video: '없음', status: '입찰준비중', budget: '4,500만', place: '일산 킨텍스 Hall 1' },
+  { id: 'e5', name: '현대자동차 신차 발표회', dot: 'd8446', startDate: '2026-12-15', endDate: '2026-12-15', client: '현대자동차', pm: '김도현', am: '한지우', design: '이하은', video: '강예린', status: '진행협의중', budget: '9,800만', place: '잠실 롯데월드타워' },
 ];
 
 const c = (d: number, ...chips: ChipKey[]): CalCell => ({ d, chips });

@@ -23,6 +23,7 @@ type EventInfo = {
   pm: string;
   am: string;
   design: string;
+  video: string;
   place: string;
   status: StatusKey;
   dday: string;
@@ -30,11 +31,11 @@ type EventInfo = {
 };
 
 const EVENTS: Record<string, EventInfo> = {
-  e1: { name: '제54회 KIMES 2025', period: '2025. 03. 13 – 03. 16', client: '메디코리아', pm: '박서연', am: '최민준', design: '이하은', place: '코엑스 Hall A·B', status: '진행중', dday: 'D-14', color: '#f567a5' },
-  e2: { name: '글로벌 AI 서밋 2025', period: '2025. 04. 02 – 04. 03', client: '테크노웨이', pm: '김도현', am: '한지우', design: '오세민', place: '인터컨티넨탈 파르나스', status: '성공', dday: 'D-30', color: '#ffa83f' },
-  e3: { name: '삼성 파트너스 데이', period: '2025. 04. 18', client: '삼성전자', pm: '박서연', am: '이준호', design: '윤서준', place: '코엑스 오디토리움', status: '진행중', dday: 'D-46', color: '#ffc53d' },
-  e4: { name: '제12회 프랜차이즈 엑스포', period: '2025. 05. 08 – 05. 10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', design: '강예린', place: '일산 킨텍스 Hall 1', status: '제출', dday: 'D-66', color: '#ff7a45' },
-  e5: { name: '현대자동차 신차 발표회', period: '2025. 05. 22', client: '현대자동차', pm: '김도현', am: '한지우', design: '이하은', place: '잠실 롯데월드타워', status: '보류중', dday: 'D-80', color: '#ff4c50' },
+  e1: { name: '제54회 KIMES 2025', period: '2025. 03. 13 – 03. 16', client: '메디코리아', pm: '박서연', am: '최민준', design: '이하은', video: '오세민', place: '코엑스 Hall A·B', status: '진행중', dday: 'D-14', color: '#f567a5' },
+  e2: { name: '글로벌 AI 서밋 2025', period: '2025. 04. 02 – 04. 03', client: '테크노웨이', pm: '김도현', am: '한지우', design: '오세민', video: '없음', place: '인터컨티넨탈 파르나스', status: '완료', dday: 'D-30', color: '#ffa83f' },
+  e3: { name: '삼성 파트너스 데이', period: '2025. 04. 18', client: '삼성전자', pm: '박서연', am: '이준호', design: '윤서준', video: '윤서준', place: '코엑스 오디토리움', status: '진행중', dday: 'D-46', color: '#ffc53d' },
+  e4: { name: '제12회 프랜차이즈 엑스포', period: '2025. 05. 08 – 05. 10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', design: '강예린', video: '없음', place: '일산 킨텍스 Hall 1', status: '입찰준비중', dday: 'D-66', color: '#ff7a45' },
+  e5: { name: '현대자동차 신차 발표회', period: '2025. 05. 22', client: '현대자동차', pm: '김도현', am: '한지우', design: '이하은', video: '강예린', place: '잠실 롯데월드타워', status: '진행협의중', dday: 'D-80', color: '#ff4c50' },
 };
 
 const CLIENTS = ['메디코리아', '글로벌AI서밋 조직위', '삼성전자', '한국프랜차이즈협회', '로진컴퍼니', '테크노웨이', '프랜차이즈협회', '현대자동차'];
@@ -222,7 +223,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
   useEffect(() => {
     if (!(visibleTabs as readonly string[]).includes(tab)) setTab(DEFAULT_TAB[team]);
   }, [visibleTabs, tab, team]);
-  const assignable = useMemo(() => getAssignableNames({ pm: event.pm, am: event.am, design: event.design }, eventId), [event.pm, event.am, event.design, eventId]);
+  const assignable = useMemo(() => getAssignableNames({ pm: event.pm, am: event.am, design: event.design, video: event.video }, eventId), [event.pm, event.am, event.design, event.video, eventId]);
   const [schedule, setSchedule] = useState(() => resolveOwners(INITIAL_SCHEDULE, assignable));
   const access = useMemo(() => ({ me: CURRENT_USER.name, members: assignable }), [assignable]);
   const [listsLoaded, setListsLoaded] = useState(false);
@@ -446,6 +447,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
           <Prop icon="prop-person" label="PM">{event.pm}</Prop>
           <Prop icon="prop-person" label="AM">{event.am}</Prop>
           <Prop icon="prop-person" label="Design">{event.design}</Prop>
+          <Prop icon="prop-person" label="영상">{event.video}</Prop>
           {invited.length > 0 && (
             <Prop icon="prop-person" label="초대됨">
               <span className="flex items-center gap-[8px]">

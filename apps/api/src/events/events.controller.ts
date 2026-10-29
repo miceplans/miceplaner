@@ -1,8 +1,8 @@
 import { Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
-  addEventMemberBody, changeEventMemberRoleBody, listEventsQuery, updateEventBody,
-  type AddEventMemberBody, type ListEventsQuery, type UpdateEventBody,
+  addEventMemberBody, changeEventMemberRoleBody, listEventsQuery, transferEventRoleBody, updateEventBody,
+  type AddEventMemberBody, type ListEventsQuery, type TransferEventRoleBody, type UpdateEventBody,
 } from '@miceplans/contracts';
 import { Auth, type AuthUser } from '../common/auth';
 import { ZodBody, ZodQuery } from '../common/zod';
@@ -47,6 +47,12 @@ export class EventsController {
   @ApiOperation({ summary: '행사 멤버 추가 (PM·AM, 당사자에게 알림)' })
   addMember(@Auth() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @ZodBody(addEventMemberBody) body: AddEventMemberBody) {
     return this.events.addMember(user, id, body.userId, body.role);
+  }
+
+  @Post(':id/transfer-role')
+  @ApiOperation({ summary: 'PM·AM 역할 양도 (본인 역할을 다른 행사 멤버에게 넘김, 감사 로그 대상)' })
+  transferRole(@Auth() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @ZodBody(transferEventRoleBody) body: TransferEventRoleBody) {
+    return this.events.transferRole(user, id, body.userId);
   }
 
   @Patch(':id/members/:userId')

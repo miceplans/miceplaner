@@ -3,7 +3,7 @@ import { eventItemDto, leaveRecordDto, notificationDto } from '@miceplans/contra
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   assignItem, cancelLeave, createItem, leaveBalances, listItems, listLeave, listNotifications, markNotificationsRead, portalEvents, portalPrograms,
-  requestLeave, rescheduleItem, setClientVisible, setWeekendWork, softDeleteEvent, softDeleteItem, withContext, type DbContext,
+  requestLeave, rescheduleItem, setClientVisible, setWeekendWork, softDeleteEvent, softDeleteItem, transferEventRole, updateEvent, withContext, type DbContext,
 } from '../src';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -57,6 +57,26 @@ describe('Program·Task·Subtask', () => {
     const task = await withContext(app, as.member, (db) => createItem(db, U.member, { eventId: EVENT, kind: 'task', parentId: program, title: '인쇄', assigneeId: U.am }));
     expect(task.assigneeId).toBe(U.am);
     await expect(withContext(app, as.member, (db) => createItem(db, U.member, { eventId: EVENT, kind: 'task', parentId: program, title: 'y', assigneeId: U.outsider }))).rejects.toThrow(/행사 멤버여야/);
+  });
+});
+
+describe('행사 상태·기간 변경 권한', () => {
+  it('PM·AM만 상태·기간을 바꾸고 일반 멤버·Staff는 거부된다', async () => {
+    const patch = (c: DbContext, p: Parameters<typeof updateEvent>[2]) => withContext(app, c, (db) => updateEvent(db, EVENT, p));
+    await expect(patch(as.member, { status: '완료' })).rejects.toMatchObject({ code: '42501' });
+    await expect(patch(as.member, { startDate: '2026-03-12' })).rejects.toMatchObject({ code: '42501' });
+    await expect(patch(as.member, { name: '멤버가 바꾼 이름' })).resolves.toMatchObject({ name: '멤버가 바꾼 이름' });
+    await expect(patch(as.am, { status: '입찰준비중' })).resolves.toMatchObject({ status: '입찰준비중' });
+    await expect(patch(as.pm, { endDate: '2026-03-18' })).resolves.toMatchObject({ endDate: '2026-03-18' });
+    await expect(patch(as.admin, { status: '진행중', endDate: '2026-03-16' })).resolves.toMatchObject({ status: '진행중' });
+  });
+  it('PM 양도는 대상을 먼저 PM으로 올려 PM이 비지 않고, 멤버가 아닌 대상은 거부한다', async () => {
+    const roles = async () => (await admin.query(`SELECT user_id, role FROM event_members WHERE event_id = $1`, [EVENT])).rows.reduce((m, r) => ({ ...m, [r.user_id]: r.role }), {} as Record<string, string>);
+    expect(await withContext(app, as.pm, (db) => transferEventRole(db, U.pm, EVENT, 'pm', U.outsider))).toBeUndefined();
+    await withContext(app, as.pm, (db) => transferEventRole(db, U.pm, EVENT, 'pm', U.member));
+    expect(await roles()).toMatchObject({ [U.member]: 'pm', [U.pm]: 'member' });
+    await withContext(app, as.member, (db) => transferEventRole(db, U.member, EVENT, 'pm', U.pm));
+    expect(await roles()).toMatchObject({ [U.pm]: 'pm', [U.member]: 'member' });
   });
 });
 

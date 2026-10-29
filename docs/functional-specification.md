@@ -95,6 +95,8 @@ Event 아래에 Program, Task, Subtask가 한 계층으로 이어지며, 각 단
 
 - Staff는 모든 행사를 조회할 수 있지만 편집할 수 없다.
 - 행사 멤버와 PM·AM은 자신이 속한 행사의 기본 정보, Program·Task·Subtask, 일정을 변경할 수 있다.
+- 행사 상태와 기간(시작일·종료일)은 그 행사의 PM·AM(과 Super Admin)만 바꿀 수 있다. 일반 행사 멤버는 이름·장소 같은 다른 기본 정보만 고친다. API와 DB 트리거(`events_guard_schedule`)가 모두 강제한다.
+- PM은 PM 역할을, AM은 AM 역할을 다른 행사 멤버에게 양도할 수 있다(`POST /events/:id/transfer-role`). 대상이 역할을 받고 양도한 사람은 일반 멤버가 되며, 감사 로그(`member.role.transfer`)와 대상 알림이 남는다. 대상은 이미 행사 멤버여야 한다.
 - PM·AM은 행사 멤버를 추가·삭제할 수 있고, 멤버 변경은 수정 권한과 실시간 연결 권한에 즉시 반영된다.
 - 행사 생성 권한은 1단계 CRUD 구현 전에 결정한다. Staff가 생성하면 자동으로 PM이 되는 방식과 Super Admin만 생성하는 방식이 후보이다.
 
@@ -288,7 +290,7 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 
 다음 항목은 제품 동작에 영향을 주므로 각 기능 구현 전에 별도 계약으로 확정한다.
 
-- 행사, Program, Task, Subtask, 알림의 필수 필드와 상태값. 현재 `packages/db/migrations/0002_core.sql`과 `packages/contracts`는 웹 목업에서 가져온 초안이다: 행사 상태 `진행중·성공·확인중·만료·제출·보류중`, 항목 상태 `할 일·진행 중·검토 대기·보류·취소·완료`, 제작 파트 `디자인·영상·3D`, 알림 종류 4종. 제작물·디자인 요청·표 속성·예산은 모델이 미확정이라 스키마에 없다.
+- 행사, Program, Task, Subtask, 알림의 필수 필드와 상태값. 현재 `packages/db/migrations/0002_core.sql`과 `packages/contracts`는 웹 목업에서 가져온 초안이다: 행사 상태 `진행중·완료·입찰준비중·진행협의중`, 항목 상태 `할 일·진행 중·검토 대기·보류·취소·완료`, 제작 파트 `디자인·영상·3D`, 알림 종류 4종. 제작물·디자인 요청·표 속성·예산은 모델이 미확정이라 스키마에 없다.
 - Program·Task·Subtask는 `event_items` 한 표에 `kind`와 `parent_id`로 저장하고 모든 행에 `event_id`를 유지한다. 삭제는 `soft_delete_event_item`·`soft_delete_event` 함수로 하며 하위 항목이 함께 삭제된다. 담당자는 행사 멤버만 지정할 수 있다.
 - Client 포털은 `portal_events()`·`portal_programs()`만 사용한다. 지정된 행사의 `client_visible` Program에서 이름과 일정만 돌려주고, 내부 표에는 Client 정책이 없다.
 - 클라이언트 행사 일정의 시간대, 취소 및 변경 표기

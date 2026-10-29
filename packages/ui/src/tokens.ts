@@ -35,6 +35,9 @@ export type StatusToneKey =
   | 'submit'
   | 'error'
   | 'expired'
+  | 'done'
+  | 'bidPrep'
+  | 'negotiating'
   | 'scheduled'
   | 'reject';
 
@@ -47,6 +50,9 @@ export const statusTones: Record<StatusToneKey, { label: string; bg: string; fg:
   submit: { label: '제출', bg: '#f0eaff', fg: '#783dff' },
   error: { label: '실패', bg: '#ffeeee', fg: '#fe525c' },
   expired: { label: '만료', bg: '#f1f1f1', fg: '#7b7b7b' },
+  done: { label: '완료', bg: '#dbfbe6', fg: '#00c05b' },
+  bidPrep: { label: '입찰준비중', bg: '#f0eaff', fg: '#783dff' },
+  negotiating: { label: '진행협의중', bg: '#fff4d9', fg: '#e99825' },
   scheduled: { label: '예정', bg: '#e2f4ff', fg: '#2e5fd8' },
   reject: { label: '반려', bg: '#ffe4f0', fg: '#f53488' },
 };

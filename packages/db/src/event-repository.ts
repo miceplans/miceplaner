@@ -88,6 +88,20 @@ export async function changeEventMemberRole(client: PoolClient, actorId: string,
   return row;
 }
 
+/**
+ * PM·AM 역할 양도: 대상이 호출자의 역할을 받고 호출자는 일반 멤버가 된다. 대상이 행사 멤버가 아니면 undefined.
+ * 대상을 먼저 올리므로 PM이 한 명도 없는 순간이 없다. 권한은 RLS(can_manage_members)가 검사한다.
+ */
+export async function transferEventRole(client: PoolClient, actorId: string, eventId: string, role: 'pm' | 'am', targetUserId: string): Promise<EventMemberRow | undefined> {
+  const { rows } = await client.query<EventMemberRow>(`UPDATE event_members SET role = $3 WHERE event_id = $1 AND user_id = $2 RETURNING event_id AS "eventId", user_id AS "userId", role`, [eventId, targetUserId, role]);
+  const row = rows[0];
+  if (!row) return undefined;
+  await client.query(`UPDATE event_members SET role = 'member' WHERE event_id = $1 AND user_id = $2`, [eventId, actorId]);
+  await client.query(`INSERT INTO audit_log (event_id, actor_id, action, detail) VALUES ($1, $2, 'member.role.transfer', $3)`, [eventId, actorId, JSON.stringify({ from: actorId, to: targetUserId, role })]);
+  await notifyMemberChanged(client, eventId, targetUserId, 'add');
+  return row;
+}
+
 /** 지정된 Client 목록. 조회는 행사 관리자만 한다 (RLS). */
 export async function listEventClients(client: PoolClient, eventId: string): Promise<string[]> {
   const { rows } = await client.query<{ userId: string }>(`SELECT client_user_id AS "userId" FROM event_clients WHERE event_id = $1 ORDER BY client_user_id`, [eventId]);

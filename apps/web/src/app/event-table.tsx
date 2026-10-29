@@ -9,9 +9,9 @@ const A = '/assets/schedule';
 // 목업 기준일('오늘'): 2026-10-22. D-day 계산에 사용하는 고정 상수다.
 const MOCK_TODAY = new Date(2026, 9, 22);
 
-export type EventRow = { id: string; name: string; dot: string; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; status: StatusKey; place: string; budget?: string };
+export type EventRow = { id: string; name: string; dot: string; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; video: string; status: StatusKey; place: string; budget?: string };
 
-type ColKey = 'period' | 'client' | 'pm' | 'am' | 'design' | 'status' | 'place';
+type ColKey = 'period' | 'client' | 'pm' | 'am' | 'design' | 'video' | 'status' | 'place';
 
 const COL_DEFS: Record<ColKey, { label: string; icon: string; w: string }> = {
   period: { label: '기간', icon: '7db78', w: 'w-[140px]' },
@@ -19,11 +19,16 @@ const COL_DEFS: Record<ColKey, { label: string; icon: string; w: string }> = {
   pm: { label: 'PM', icon: '15302', w: 'w-[65px]' },
   am: { label: 'AM', icon: '15302', w: 'w-[65px]' },
   design: { label: 'Design', icon: '15302', w: 'w-[85px]' },
+  video: { label: '영상', icon: '15302', w: 'w-[85px]' },
   status: { label: '상태', icon: 'f8a2c', w: 'w-[110px]' },
   place: { label: '장소', icon: '7bb84', w: 'min-w-px flex-1' },
 };
 
-const STATUSES: StatusKey[] = ['진행중', '성공', '확인중', '만료', '제출', '보류중'];
+const STATUSES: StatusKey[] = ['진행중', '완료', '입찰준비중', '진행협의중'];
+
+// Design·영상 담당은 직원 이름이거나 담당이 없는 '없음'이다.
+const NO_ASSIGNEE = '없음';
+const STAFF_NAMES = ['박서연', '최민준', '김도현', '한지우', '이준호', '정유나', '이하은', '오세민', '윤서준', '강예린'];
 
 const ATTR_TYPES: { value: EventAttrType; label: string; mark: string }[] = [
   { value: 'text', label: '텍스트', mark: 'Aa' },
@@ -58,11 +63,11 @@ function dDayBadge(startDate: string): { label: string; className: string } | nu
   return { label: `D-${diff}`, className: 'bg-brand-tint text-brand' };
 }
 
-const EMPTY_FORM = { name: '', start: '', end: '', client: '', pm: '', am: '', design: '', status: '진행중' as StatusKey, place: '' };
+const EMPTY_FORM = { name: '', start: '', end: '', client: '', pm: '', am: '', design: NO_ASSIGNEE, video: NO_ASSIGNEE, status: '진행중' as StatusKey, place: '' };
 
 export function EventTable({ initial, adding: controlledAdding, onAddingChange }: { initial: EventRow[]; adding?: boolean; onAddingChange?: (open: boolean) => void }) {
   const [rows, setRows] = useState(initial);
-  const [cols, setCols] = useState<ColKey[]>(['period', 'client', 'pm', 'am', 'design', 'status', 'place']);
+  const [cols, setCols] = useState<ColKey[]>(['period', 'client', 'pm', 'am', 'design', 'video', 'status', 'place']);
   const [rowDrag, setRowDrag] = useState<{ from: number; over: number } | null>(null);
   const [colDrag, setColDrag] = useState<{ from: ColKey; over: ColKey } | null>(null);
   const [uncontrolledAdding, setUncontrolledAdding] = useState(false);
@@ -113,6 +118,7 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
         pm: form.pm,
         am: form.am,
         design: form.design,
+        video: form.video,
         status: form.status,
         place: form.place,
       },
@@ -133,7 +139,16 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
           <input placeholder="Client" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} className={input} />
           <input placeholder="PM" value={form.pm} onChange={(e) => setForm({ ...form, pm: e.target.value })} className={input} />
           <input placeholder="AM" value={form.am} onChange={(e) => setForm({ ...form, am: e.target.value })} className={input} />
-          <input placeholder="Design" value={form.design} onChange={(e) => setForm({ ...form, design: e.target.value })} className={input} />
+          <select aria-label="Design" value={form.design} onChange={(e) => setForm({ ...form, design: e.target.value })} className={input}>
+            {[NO_ASSIGNEE, ...STAFF_NAMES].map((name) => (
+              <option key={name}>{name}</option>
+            ))}
+          </select>
+          <select aria-label="영상" value={form.video} onChange={(e) => setForm({ ...form, video: e.target.value })} className={input}>
+            {[NO_ASSIGNEE, ...STAFF_NAMES].map((name) => (
+              <option key={name}>{name}</option>
+            ))}
+          </select>
           <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as StatusKey })} className={input}>
             {STATUSES.map((s) => (
               <option key={s}>{s}</option>

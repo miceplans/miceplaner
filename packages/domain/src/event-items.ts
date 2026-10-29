@@ -15,7 +15,7 @@ export const PRODUCT_PARTS = ['디자인', '영상', '3D'] as const;
 export type ProductPart = (typeof PRODUCT_PARTS)[number];
 
 /** 행사 목록 상태 배지와 같은 값 (초안). */
-export const EVENT_STATUSES = ['진행중', '성공', '확인중', '만료', '제출', '보류중'] as const;
+export const EVENT_STATUSES = ['진행중', '완료', '입찰준비중', '진행협의중'] as const;
 export type EventStatus = (typeof EVENT_STATUSES)[number];
 
 export const NOTIFICATION_KINDS = ['assigned', 'schedule_changed', 'due_soon', 'member_changed'] as const;
@@ -29,6 +29,12 @@ export const canEditEventItems = (role: Role): boolean => ITEM_EDITORS.includes(
 
 /** 멤버 추가·삭제는 PM·AM과 Super Admin. */
 export const canManageMembers = (role: Role): boolean => MEMBER_MANAGERS.includes(role);
+
+/** 행사 상태·기간 변경은 그 행사의 PM·AM과 Super Admin. 일반 행사 멤버는 다른 기본 정보만 고친다. */
+export const canChangeEventSchedule = (role: Role): boolean => MEMBER_MANAGERS.includes(role);
+
+/** PM은 PM 역할을, AM은 AM 역할을 다른 행사 멤버에게 양도할 수 있다. 양도한 사람은 일반 멤버가 된다. */
+export const canTransferRole = (role: Role): role is 'pm' | 'am' => role === 'pm' || role === 'am';
 
 /** 행사 삭제는 PM과 Super Admin. */
 export const canDeleteEvent = (role: Role): boolean => role === 'super_admin' || role === 'pm';

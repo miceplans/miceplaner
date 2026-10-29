@@ -9,7 +9,7 @@ const A = '/assets/schedule';
 
 /* ---------- 상태 pill ---------- */
 
-export type StatusKey = '진행중' | '성공' | '확인중' | '만료' | '제출' | '보류중';
+export type StatusKey = '진행중' | '성공' | '확인중' | '만료' | '제출' | '보류중' | '완료' | '입찰준비중' | '진행협의중';
 
 const TONE_OF: Record<StatusKey, StatusToneKey> = {
   진행중: 'progress',
@@ -18,6 +18,9 @@ const TONE_OF: Record<StatusKey, StatusToneKey> = {
   만료: 'expired',
   제출: 'submit',
   보류중: 'hold',
+  완료: 'done',
+  입찰준비중: 'bidPrep',
+  진행협의중: 'negotiating',
 };
 
 function StatusIcon({ status }: { status: StatusKey }): ReactNode {
@@ -31,14 +34,17 @@ function StatusIcon({ status }: { status: StatusKey }): ReactNode {
         </span>
       );
     case '성공':
+    case '완료':
       return <img alt="" src={`${A}/6bb8d.svg`} className="block size-[14.333px] shrink-0" />;
     case '확인중':
+    case '진행협의중':
       return <img alt="" src={`${A}/698cb.svg`} className="block h-[11.828px] w-[12px] shrink-0" />;
     case '만료':
       return <img alt="" src={`${A}/c7e29.svg`} className="block size-[14px] shrink-0" />;
     case '보류중':
       return <img alt="" src={`${A}/36f5f.svg`} className="block h-[11.046px] w-[12.596px] shrink-0" />;
     case '제출':
+    case '입찰준비중':
       return (
         <span className="flex h-[16.158px] w-[16.4px] shrink-0 items-center justify-center">
           <span className="relative block h-[12px] w-[12.5px] flex-none rotate-[25deg]">

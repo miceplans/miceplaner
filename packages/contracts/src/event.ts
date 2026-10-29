@@ -65,6 +65,9 @@ export type EventMemberDto = z.infer<typeof eventMemberDto>;
 
 export const addEventMemberBody = z.object({ userId: uuid, role: eventMemberRole.default('member') });
 export type AddEventMemberBody = z.infer<typeof addEventMemberBody>;
+/** 호출자 본인의 PM·AM 역할을 대상 행사 멤버에게 넘긴다. 양도할 역할은 호출자의 현재 역할로 정해진다. */
+export const transferEventRoleBody = z.object({ userId: uuid });
+export type TransferEventRoleBody = z.infer<typeof transferEventRoleBody>;
 export const changeEventMemberRoleBody = z.object({ role: eventMemberRole });
 export type ChangeEventMemberRoleBody = z.infer<typeof changeEventMemberRoleBody>;
 export { expectedVersion };

@@ -93,7 +93,7 @@ const SORT_OPTIONS: { value: ProgressSort; label: string }[] = [
   { value: '상태순', label: '상태 순' },
 ];
 
-const STATUS_ORDER: Record<StatusKey, number> = { 진행중: 0, 제출: 1, 확인중: 2, 보류중: 3, 만료: 4, 성공: 5 };
+const STATUS_ORDER: Record<StatusKey, number> = { 진행중: 0, 제출: 1, 확인중: 2, 보류중: 3, 만료: 4, 성공: 5, 완료: 6, 입찰준비중: 7, 진행협의중: 8 };
 
 /** 기본 정렬은 완료일(없으면 마감일) 빠른 순, 날짜가 없는 행은 뒤로 볂는다. */
 function sortProgress(rows: ProgressRow[], sort: ProgressSort): ProgressRow[] {

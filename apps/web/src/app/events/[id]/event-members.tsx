@@ -13,7 +13,10 @@ export type MemberInfo = {
   note?: string;
 };
 
-type EventLeads = { pm: string; am: string; design: string };
+/** Design·영상 담당이 없는 행사에 표시하는 값. 인력·담당자 목록에서는 제외한다. */
+export const NO_ASSIGNEE = '없음';
+
+type EventLeads = { pm: string; am: string; design: string; video: string };
 
 // TODO: 멤버 API 연동 전 목업 지원 인력(스태프) 명단. invite-dialog의 INVITEES와 같은 사람풀이다.
 const STAFF_BY_EVENT: Record<string, MemberInfo[]> = {
@@ -39,7 +42,7 @@ export function isEventMember(event: { pm: string; am: string }, eventId: string
 
 /** 업무 담당자로 지정할 수 있는 이름: 담당 인력(PM·AM·Design)과 지원 인력. 중복은 한 번만 센다. */
 export function getAssignableNames(event: EventLeads, eventId: string): string[] {
-  return [...new Set([event.pm, event.am, event.design, ...getEventStaff(eventId).map((m) => m.name)])];
+  return [...new Set([event.pm, event.am, event.design, event.video, ...getEventStaff(eventId).map((m) => m.name)])].filter((name) => name !== NO_ASSIGNEE);
 }
 
 /** 흔한 한 글자 성으로 시작하는 3글자 이상 이름은 이름만 뽑는다. 서준처럼 이름만 있는 2글자 이름은 그대로 둔다. */
@@ -102,7 +105,8 @@ export function EventMembers({ event, eventId }: { event: EventLeads; eventId: s
     { name: event.pm, role: 'PM', phone: '010-4821-3390', email: 'pm@miceplans.kr', note: '행사 총괄' },
     { name: event.am, role: 'AM', phone: '010-9931-2745', email: 'am@miceplans.kr', note: '현장 운영' },
     { name: event.design, role: 'Design', phone: '010-5517-8023', email: 'design@miceplans.kr', note: '제작 총괄' },
-  ];
+    { name: event.video, role: '영상', phone: '010-3382-6154', email: 'video@miceplans.kr', note: '영상 제작' },
+  ].filter((lead) => lead.name !== NO_ASSIGNEE);
   const staff = getEventStaff(eventId);
   return (
     <div className="flex w-full flex-col gap-[6px] py-[12px]">

@@ -1,10 +1,10 @@
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { eventDto, eventMemberDto, type ListEventsQuery, type UpdateEventBody } from '@miceplans/contracts';
 import {
   addEventMember, changeEventMemberRole, eventRole, getEvent, listEventClients, listEventMembers, listEvents,
-  removeEventMember, setEventClient, softDeleteEvent, updateEvent, withContext,
+  removeEventMember, setEventClient, softDeleteEvent, transferEventRole, updateEvent, withContext,
 } from '@miceplans/db';
-import { canDeleteEvent, canEditEventItems, canManageMembers } from '@miceplans/domain';
+import { canChangeEventSchedule, canDeleteEvent, canEditEventItems, canManageMembers, canTransferRole } from '@miceplans/domain';
 import type { Pool, PoolClient } from '@miceplans/db';
 import { AuthUser, requireInternal } from '../common/auth';
 import { assertFound, assertOk, mapDbError } from '../common/http';
@@ -43,12 +43,17 @@ export class EventsService {
     return eventDto.parse(assertFound(row, '행사'));
   }
 
-  /** 일반 필드는 마지막 저장 우선 (명세 3.2). 행사 멤버만 수정한다 (명세 2.2). */
+  /** 일반 필드는 마지막 저장 우선 (명세 3.2). 행사 멤버만 수정하고, 상태·기간은 PM·AM만 바꾼다 (DB 트리거도 강제). */
   async update(user: AuthUser, id: string, body: UpdateEventBody) {
     requireInternal(user);
     const row = await this.run(user, async (db) => {
-      await this.requireEvent(db, id);
+      const current = await this.requireEvent(db, id);
       await this.requireRole(db, id, canEditEventItems, '행사 멤버만 수정할 수 있다');
+      const scheduleChanged =
+        (body.status !== undefined && body.status !== current.status) ||
+        (body.startDate !== undefined && body.startDate !== current.startDate) ||
+        (body.endDate !== undefined && body.endDate !== current.endDate);
+      if (scheduleChanged) await this.requireRole(db, id, canChangeEventSchedule, '행사 상태·기간은 PM·AM만 바꿀 수 있다');
       return assertFound(await updateEvent(db, id, body), '행사');
     });
     this.rt.eventChanged(id);
@@ -93,6 +98,21 @@ export class EventsService {
       return assertFound(await changeEventMemberRole(db, user.userId, eventId, targetUserId, role), '행사 멤버');
     });
     this.rt.eventChanged(eventId);
+    return eventMemberDto.parse(row);
+  }
+
+  /** PM은 PM 역할을, AM은 AM 역할을 다른 행사 멤버에게 넘기고 본인은 일반 멤버가 된다 (감사 로그 대상). */
+  async transferRole(user: AuthUser, eventId: string, targetUserId: string) {
+    requireInternal(user);
+    const row = await this.run(user, async (db) => {
+      await this.requireEvent(db, eventId);
+      const role = await eventRole(db, eventId);
+      if (!canTransferRole(role)) throw new ForbiddenException('PM·AM만 자신의 역할을 양도할 수 있다');
+      if (targetUserId === user.userId) throw new BadRequestException('본인에게는 양도할 수 없다');
+      return assertFound(await transferEventRole(db, user.userId, eventId, role, targetUserId), '행사 멤버');
+    });
+    this.rt.eventChanged(eventId);
+    this.rt.notification(targetUserId);
     return eventMemberDto.parse(row);
   }
 

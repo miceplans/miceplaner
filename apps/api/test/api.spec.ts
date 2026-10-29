@@ -83,12 +83,20 @@ describe('행사 관리 (F-02)', () => {
     expect((await api().get('/events?year=2026').set(as('staff')).expect(200)).body).toHaveLength(2);
     expect((await api().get('/events?year=2025').set(as('staff')).expect(200)).body).toHaveLength(0);
     expect((await api().get(`/events?clientId=${CO}`).set(as('staff')).expect(200)).body).toHaveLength(2);
-    expect((await api().get('/events?status=제출').set(as('staff')).expect(200)).body).toHaveLength(0);
+    expect((await api().get('/events?status=입찰준비중').set(as('staff')).expect(200)).body).toHaveLength(0);
   });
   it('행사 멤버는 기본 정보를 수정한다 (마지막 저장 우선)', async () => {
     const res = await api().patch(`/events/${EVENT}`).set(as('member')).send({ name: '개막 행사', priority: true }).expect(200);
     expect(res.body).toMatchObject({ name: '개막 행사', priority: true });
     expect(res.body.version).toBe(2);
+  });
+  it('행사 상태·기간은 PM·AM만 바꾸고 일반 멤버는 같은 값을 보내는 것만 허용된다', async () => {
+    await api().patch(`/events/${EVENT}`).set(as('member')).send({ status: '완료' }).expect(403);
+    await api().patch(`/events/${EVENT}`).set(as('member')).send({ endDate: '2026-03-20' }).expect(403);
+    await api().patch(`/events/${EVENT}`).set(as('member')).send({ status: '진행중', startDate: '2026-03-13' }).expect(200);
+    const res = await api().patch(`/events/${EVENT}`).set(as('pm')).send({ status: '입찰준비중', endDate: '2026-03-17' }).expect(200);
+    expect(res.body).toMatchObject({ status: '입찰준비중', endDate: '2026-03-17' });
+    await api().patch(`/events/${EVENT}`).set(as('pm')).send({ status: '진행중', endDate: '2026-03-16' }).expect(200);
   });
   it('비멤버 낮은 직원은 수정할 수 없다', async () => {
     await api().patch(`/events/${EVENT}`).set(as('outsider')).send({ name: 'x' }).expect(403);
@@ -115,6 +123,31 @@ describe('행사 멤버 관리 (F-02, F-06)', () => {
     await api().delete(`/events/${EVENT}/members/${U.pm}`).set(as('pm')).expect(409);
     const log = await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'member.role.change'`);
     expect(log.rows[0].n).toBe(1);
+  });
+});
+
+describe('PM·AM 양도', () => {
+  it('PM은 PM을, AM은 AM을 다른 멤버에게 양도하고 본인은 일반 멤버가 된다', async () => {
+    const role = async (user: string) => (await api().get(`/events/${EVENT}/members`).set(as('pm')).expect(200)).body.find((m: { userId: string }) => m.userId === user)?.role;
+    await api().post(`/events/${EVENT}/members`).set(as('pm')).send({ userId: U.target, role: 'am' }).expect(201);
+    await api().post(`/events/${EVENT}/transfer-role`).set(as('member')).send({ userId: U.target }).expect(403);
+    await api().post(`/events/${EVENT}/transfer-role`).set(as('pm')).send({ userId: U.outsider }).expect(404);
+    await api().post(`/events/${EVENT}/transfer-role`).set(as('pm')).send({ userId: U.pm }).expect(400);
+
+    await api().post(`/events/${EVENT}/transfer-role`).set(as('target')).send({ userId: U.member }).expect(201);
+    expect(await role(U.member)).toBe('am');
+    expect(await role(U.target)).toBe('member');
+
+    await api().post(`/events/${EVENT}/transfer-role`).set(as('pm')).send({ userId: U.target }).expect(201);
+    expect(await role(U.target)).toBe('pm');
+    expect(await role(U.pm)).toBe('member');
+    await api().post(`/events/${EVENT}/transfer-role`).set(as('target')).send({ userId: U.pm }).expect(201);
+    expect(await role(U.pm)).toBe('pm');
+
+    await api().patch(`/events/${EVENT}/members/${U.member}`).set(as('pm')).send({ role: 'member' }).expect(200);
+    await api().delete(`/events/${EVENT}/members/${U.target}`).set(as('pm')).expect(200);
+    const log = await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'member.role.transfer'`);
+    expect(log.rows[0].n).toBe(3);
   });
 });
 
