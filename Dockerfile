@@ -15,7 +15,7 @@ COPY packages/contracts/package.json packages/contracts/
 COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter @miceplans/api...
+    pnpm install --frozen-lockfile --prod --filter @miceplans/api...
 
 FROM base AS api
 ENV NODE_ENV=production PORT=3200
