@@ -14,7 +14,10 @@ const COLUMNS = `id, client_id AS "clientId", name, to_char(start_date, 'YYYY-MM
 export async function listEvents(client: PoolClient, filter: { year?: number; clientId?: string; status?: string }): Promise<EventRow[]> {
   const cond: string[] = [];
   const vals: unknown[] = [];
-  if (filter.year !== undefined) { vals.push(filter.year); cond.push(`extract(year FROM start_date) = $${vals.length}`); }
+  if (filter.year !== undefined) {
+    vals.push(`${filter.year}-01-01`, `${filter.year + 1}-01-01`);
+    cond.push(`start_date >= $${vals.length - 1}::date AND start_date < $${vals.length}::date`);
+  }
   if (filter.clientId) { vals.push(filter.clientId); cond.push(`client_id = $${vals.length}`); }
   if (filter.status) { vals.push(filter.status); cond.push(`status = $${vals.length}`); }
   const { rows } = await client.query<EventRow>(`SELECT ${COLUMNS} FROM events ${cond.length ? `WHERE ${cond.join(' AND ')}` : ''} ORDER BY start_date, name`, vals);

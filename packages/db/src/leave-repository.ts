@@ -8,9 +8,13 @@ const COLUMNS = `id, user_id AS "userId", to_char(leave_date, 'YYYY-MM-DD') AS d
 
 /** 내부 직원은 모두의 사용 내역을 본다. month(1~12)를 주면 그 달만 돌려준다. */
 export async function listLeave(client: PoolClient, year: number, month?: number): Promise<LeaveRow[]> {
+  const start = month === undefined ? `${year}-01-01` : `${year}-${String(month).padStart(2, '0')}-01`;
+  const end = month === undefined
+    ? `${year + 1}-01-01`
+    : month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
   const { rows } = await client.query<LeaveRow>(
-    `SELECT ${COLUMNS} FROM leave_requests WHERE extract(year FROM leave_date) = $1 AND ($2::int IS NULL OR extract(month FROM leave_date) = $2) ORDER BY leave_date, user_id`,
-    [year, month ?? null],
+    `SELECT ${COLUMNS} FROM leave_requests WHERE leave_date >= $1::date AND leave_date < $2::date ORDER BY leave_date, user_id`,
+    [start, end],
   );
   return rows;
 }
@@ -19,18 +23,20 @@ export type LeaveBalanceRow = { userId: string; name: string; jobTitle: string; 
 
 /** 직원별 연차 사용 현황. 대휴는 연차 사용 일수에서 제외한다. */
 export async function leaveBalances(client: PoolClient, year: number): Promise<LeaveBalanceRow[]> {
+  const start = `${year}-01-01`;
+  const end = `${year + 1}-01-01`;
   const { rows } = await client.query(
     `SELECT u.id AS "userId", u.name, u.job_title AS "jobTitle", u.annual_leave_days::float8 AS total,
        coalesce(sum(l.days) FILTER (WHERE l.kind <> 'comp'), 0)::float8 AS used,
        array(SELECT coalesce(sum(l2.days), 0)::float8 FROM generate_series(1, 12) m
              LEFT JOIN leave_requests l2 ON l2.user_id = u.id AND l2.kind <> 'comp' AND l2.deleted_at IS NULL
-               AND extract(year FROM l2.leave_date) = $1 AND extract(month FROM l2.leave_date) = m GROUP BY m ORDER BY m) AS monthly,
+               AND l2.leave_date >= make_date($1, m, 1) AND l2.leave_date < make_date($1, m, 1) + interval '1 month' GROUP BY m ORDER BY m) AS monthly,
        coalesce(sum(l.days) FILTER (WHERE l.kind = 'comp'), 0)::float8 AS "compUsed",
        coalesce(w.days, 0)::float8 AS "compEarned"
-     FROM users u LEFT JOIN leave_requests l ON l.user_id = u.id AND l.deleted_at IS NULL AND extract(year FROM l.leave_date) = $1
+     FROM users u LEFT JOIN leave_requests l ON l.user_id = u.id AND l.deleted_at IS NULL AND l.leave_date >= $2::date AND l.leave_date < $3::date
      LEFT JOIN weekend_work_year_counts($1::int) w ON w.user_id = u.id
      GROUP BY u.id, w.days ORDER BY u.name`,
-    [year],
+    [year, start, end],
   );
   return rows;
 }
