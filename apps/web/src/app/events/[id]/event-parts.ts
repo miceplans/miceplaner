@@ -1,5 +1,5 @@
 /** 행사 제작 파트. 제작물·일정·문서에 part를 붙여 파트별로 화면을 나눠 본다. */
-export const PRODUCT_PARTS = ['디자인', '영상', '3D'] as const;
+const PRODUCT_PARTS = ['디자인', '영상', '3D'] as const;
 export type ProductPart = (typeof PRODUCT_PARTS)[number];
 
 export const PART_FILTERS = ['전체', ...PRODUCT_PARTS] as const;

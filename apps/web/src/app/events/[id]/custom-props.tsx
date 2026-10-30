@@ -7,7 +7,7 @@ import { ConfirmDialog, Dialog } from '@miceplans/ui';
 export type PropType = 'text' | 'number' | 'date' | 'checkbox';
 export type CustomProp = { id: string; name: string; type: PropType };
 
-export const PROP_TYPES: { value: PropType; label: string; mark: string }[] = [
+const PROP_TYPES: { value: PropType; label: string; mark: string }[] = [
   { value: 'text', label: '텍스트', mark: 'Aa' },
   { value: 'number', label: '숫자', mark: '#' },
   { value: 'date', label: '날짜', mark: '▦' },
