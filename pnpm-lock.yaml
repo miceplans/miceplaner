@@ -305,6 +305,15 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  packages/knowledge:
+    devDependencies:
+      '@miceplans/config':
+        specifier: workspace:*
+        version: link:../config
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
   packages/ui:
     devDependencies:
       '@miceplans/config':
