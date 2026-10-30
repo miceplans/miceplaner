@@ -28,4 +28,13 @@ export const config = {
   get webOrigin(): string {
     return process.env.WEB_ORIGIN ?? '';
   },
+  /** OpenAI 호환 LLM 엔드포인트(GLM 등). 셋 중 하나라도 없으면 AI 질의는 503이다. 키는 서버 런타임에만 둔다. */
+  get llm(): { baseUrl: string; apiKey: string; model: string } | null {
+    const { LLM_BASE_URL: baseUrl, LLM_API_KEY: apiKey, LLM_MODEL: model } = process.env;
+    return baseUrl && apiKey && model ? { baseUrl, apiKey, model } : null;
+  },
+  /** 사용자당 분당 AI 질의 한도. LLM 비용을 제한한다. */
+  get aiRequestsPerMinute(): number {
+    return Number(process.env.AI_REQUESTS_PER_MINUTE ?? 20);
+  },
 };

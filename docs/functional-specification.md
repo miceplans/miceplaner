@@ -197,6 +197,7 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 - PM 또는 AM과 Super Admin은 행사 위키를 편집할 수 있다. Staff는 행사 위키에 읽기 전용으로 연결되며 커서와 접속자 표시는 볼 수 있다.
 - Client는 협업 서버 연결을 포함해 위키의 어떠한 내용에도 접근할 수 없다.
 - 문서별 열람 범위는 `전체 공개`, `행사 멤버`(기본값), `PM·AM만` 3단계로 설정한다. 범위 변경은 PM·AM과 Super Admin만 할 수 있으며 감사 로그 대상이다. Client는 어떤 범위에서도 볼 수 없다. 서버 강제는 `packages/db`의 `event_docs` RLS 정책(`can_view_doc`, `can_edit_event`)과 `packages/domain`의 `canViewDoc`·`canChangeDocVisibility`로 구현되어 실제 PostgreSQL 테스트(`packages/db/test`)로 검증한다. 현재 웹 화면은 선택 UI와 브라우저 저장만 제공하는 목업이며 API 연동은 NestJS API 단계에서 한다. 비멤버 내부 직원은 `staff`로 판정하므로 `행사 멤버` 범위에서는 보이지 않는다.
+- 현재 구현은 협업 서버 이전 단계로, `event_docs.body_md`(Markdown)를 본문으로 저장한다. PM·AM과 Super Admin이 `POST /events/:eventId/docs`로 만들고 `PUT /docs/:docId/body`로 저장하며(마지막 저장 우선, 저장할 때마다 `version` 증가), `DELETE /docs/:docId`는 soft delete로 감사 로그를 남긴다. 열람은 `GET /docs/:docId`이고 열람 범위는 RLS가 강제한다. Yjs 원본과 Hocuspocus 도입 시 `body_md`는 파생본으로 전환한다.
 - 저장소는 update log, snapshot, `wiki_revision`을 분리한다. update log는 스냅샷 후 압축·정리하고, 명시적 버전 생성·제안 승인·발행·되돌리기에서만 `wiki_revision`을 만든다.
 - 배포 중 협업 연결이 잠시 끊길 수 있으며 클라이언트는 재접속 후 동기화한다. Presence는 복구 대상이 아닌 일시 상태다.
 - 공용 위키의 전 직원 편집 범위는 위키 에디터 단계 시작 전에 결정한다.
@@ -210,6 +211,9 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 - 검색은 권한 필터, 행사·고객사·문서 유형·최신성 필터, FTS와 `pg_trgm`, dense 검색, 병합·재정렬 순서로 처리한다.
 - 권한 밖의 문서는 제목, 요약, 인용문, 첨부 메타데이터를 포함해 검색 결과에 나타나지 않는다.
 - 한국어 검색 품질은 골든 셋으로 측정한다. FTS와 `pg_trgm` 품질이 부족하면 별도 검색 엔진 및 BGE-M3 native sparse를 재검토한다.
+- 한국어 lexical 처리는 형태소 분석기(Kiwi) 없이 한다. 색인은 `simple` tsvector로 원문 토큰을 저장하고, 질의는 `packages/knowledge`의 `queryTerms`가 조사를 떼고 불용어를 제거해 어간 접두 일치(`to_tsquery('simple', '행사':* | …)`)로 찾는다. 어형 변화로 놓친 항목은 `pg_trgm` 단어 유사도로 보완하며, 두 순위 목록은 RRF로 병합하고 문서당 가장 좋은 청크 하나만 돌려준다. Kiwi(WASM)는 상시 메모리가 700~900MB여서 도입하지 않았고, `apps/api/test/knowledge.spec.ts`의 골든 셋이 기준 미달일 때 재검토한다(6절).
+- 검색은 현재 위키 본문만 대상으로 한다. 파일 업로드·파싱(S3, worker)과 dense 검색(BGE-M3, pgvector)은 별도 서버·확장이 필요해 비용 결정 전까지 추가하지 않았다. 청크는 `knowledge_chunks`에 `event_id`를 유지하고 `event_docs` RLS를 그대로 따른다.
+- API: `GET /search?q=&eventId=&clientId=&since=&limit=`(내부 직원만). 결과의 문서·절·인용문이 곧 출처다.
 - 파일 파싱, 청킹, 임베딩은 worker가 실행하고 검색 API와 worker가 동일한 지식 처리 코드를 사용한다.
 
 ### F-11 AI 질의와 제안
@@ -228,7 +232,11 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 - 위키 제안 승인 시 서버는 에이전트 참여자로서 Yjs 트랜잭션을 수행하고 변경 출처를 남긴다.
 - 승인된 반영은 모두 감사 로그에 기록한다.
 - AI 응답은 SSE로 스트리밍하고, 호출별 프롬프트, 도구 호출, 토큰, 지연을 기록한다.
-- GLM은 OpenAI 호환 어댑터 뒤에서 사용한다. 대표 시나리오 20~30개로 첫 2주 안에 도구 호출 품질을 평가하고, 모델 또는 프롬프트 변경 때 같은 골든 셋을 다시 실행한다.
+- 구현은 `POST /ai/chat`(SSE: `text`·`tool`·`sources`·`proposal`·`done`·`error` 이벤트), `GET /events/:eventId/ai/proposals`, `POST /ai/proposals/:id/approve|reject`다. 도구는 질문한 사용자의 RLS 컨텍스트에서 실행되어 권한 밖 문서가 모델에 전달되지 않는다. 모델이 쓰는 도구 계약은 `packages/contracts/src/agent-tools.ts`, 어댑터·에이전트 루프·평가는 `packages/ai`다.
+- AI 질의는 내부 직원 전체가 할 수 있고(Client 불가), 제안은 만든 사람과 PM·AM만 볼 수 있으며, 승인·반려는 PM·AM과 Super Admin만 한다. 결정된 제안은 다시 바꿀 수 없다.
+- 승인은 승인자의 권한으로 한 트랜잭션 안에서 반영한다. `task_drafts`는 Task·Subtask 생성(상위 항목 검증), `notification`은 알림 생성, `wiki_edit`은 본문 교체와 재색인이다. `wiki_edit`은 제안 당시 `baseVersion`과 다르면 409 `VERSION_CONFLICT`로 거부하고 제안은 대기로 남는다. Yjs 트랜잭션 반영은 협업 서버 단계에서 전환한다.
+- 사용자당 분당 질의 한도(`AI_REQUESTS_PER_MINUTE`, 기본 20)로 LLM 비용을 제한한다. 호출 기록은 `ai_calls`(본인과 Super Admin만 조회)에 남는다. LLM은 `LLM_BASE_URL`·`LLM_API_KEY`·`LLM_MODEL`을 서버 런타임에서만 읽고, 없으면 AI 질의는 503이다.
+- GLM은 OpenAI 호환 어댑터 뒤에서 사용한다. 대표 시나리오 20~30개로 첫 2주 안에 도구 호출 품질을 평가하고, 모델 또는 프롬프트 변경 때 같은 골든 셋을 다시 실행한다. 골든 셋은 `packages/ai/src/eval/cases.ts`(현재 22개)이고 `LLM_* pnpm --filter @miceplans/ai eval`로 실행한다. 합격선은 미확정(7절)이라 통과율만 보고한다.
 
 ### F-12 휴가·연차
 
@@ -267,13 +275,14 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 | Client 포털 인증 | 첫 Client 포털 연동 또는 고객사 SSO 요구 발생 시 |
 | Redis 도입 | 협업 서버를 두 개 이상 운영하거나 동시 접속 증가 시 |
 | 전사 문서 space 권한 | 전사 문서 space 추가 직전 |
-| 한국어 lexical 검색 보강 | 골든 셋이 기준 미달일 때 |
+| 한국어 lexical 검색 보강 (Kiwi 등 형태소 분석) | 골든 셋이 기준 미달일 때. 현재는 조사 제거 + 접두 일치 + `pg_trgm`으로 처리 |
+| 파일 업로드·dense 검색(BGE-M3, pgvector, TEI)과 worker | 위키 외 문서 검색 요구가 확인되고 임베딩 서빙 비용을 정할 때 |
 | GLM 모델 유지 여부 | 초기 2주 평가 종료 시 |
 | 담당자가 행사 멤버가 아닌 경우의 자기 항목 상태·댓글 | 내 할 일 보드 구현 전 |
 | 행사 생성 권한 | 1단계 행사 CRUD 구현 전 |
 | 공용 위키 편집 범위 | 위키 에디터 구현 전 |
 | 예산·견적·마진 노출 | 행사 스키마 확정 전 |
-| 행사 멤버의 행사 위키·AI 권한 | 위키·AI 구현 전 |
+| 행사 멤버의 행사 위키·AI 권한 | 위키·AI 구현 전. 구현은 기존 결정(2.2)을 따라 `member`도 `staff`처럼 위키 편집·제안 승인은 불가, 열람은 범위에 따르고 AI 질의는 가능으로 두었다. 확정 시 `packages/domain/src/knowledge.ts`를 조정한다 |
 | 멤버 삭제 시 기존 담당 항목의 처리 방식 | 행사 멤버 관리 구현 전 |
 | 마감 임박 알림 발송 시점 | 알림 구현 전 |
 | 일정 변경 알림의 수신 범위(담당자만 또는 행사 멤버 전체) | 알림 구현 전 |

@@ -10,10 +10,12 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
+COPY packages/ai/package.json packages/ai/
 COPY packages/config/package.json packages/config/
 COPY packages/contracts/package.json packages/contracts/
 COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
+COPY packages/knowledge/package.json packages/knowledge/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod --filter @miceplans/api...
 
@@ -24,12 +26,16 @@ COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=deps /app/packages ./packages
 COPY package.json pnpm-workspace.yaml ./
 COPY packages/config packages/config
+COPY packages/ai/src packages/ai/src
+COPY packages/ai/tsconfig.json packages/ai/
 COPY packages/contracts/src packages/contracts/src
 COPY packages/contracts/tsconfig.json packages/contracts/
 COPY packages/db/src packages/db/src
 COPY packages/db/tsconfig.json packages/db/
 COPY packages/domain/src packages/domain/src
 COPY packages/domain/tsconfig.json packages/domain/
+COPY packages/knowledge/src packages/knowledge/src
+COPY packages/knowledge/tsconfig.json packages/knowledge/
 COPY apps/api/src apps/api/src
 COPY apps/api/tsconfig.json apps/api/
 USER node

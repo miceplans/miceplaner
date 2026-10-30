@@ -6,3 +6,6 @@ export * from './event-item';
 export * from './leave';
 export * from './notification';
 export * from './user';
+export * from './knowledge';
+export * from './agent-tools';
+export * from './ai';

@@ -133,6 +133,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@miceplans/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@miceplans/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -142,6 +145,9 @@ importers:
       '@miceplans/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@miceplans/knowledge':
+        specifier: workspace:*
+        version: link:../../packages/knowledge
       '@nestjs/common':
         specifier: ^11.1.0
         version: 11.2.8(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -252,6 +258,28 @@ importers:
       tailwindcss:
         specifier: ^4.1.0
         version: 4.3.3
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/ai:
+    dependencies:
+      '@miceplans/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@miceplans/domain':
+        specifier: workspace:*
+        version: link:../domain
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@miceplans/config':
+        specifier: workspace:*
+        version: link:../config
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.15
       typescript:
         specifier: ^5.6.0
         version: 5.9.3

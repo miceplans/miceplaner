@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { AiModule } from './ai/ai.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/auth.guard';
 import { Public } from './auth/public.decorator';
@@ -9,6 +10,7 @@ import { DirectoryModule } from './directory/directory.module';
 import { DocsModule } from './docs/docs.module';
 import { EventsModule } from './events/events.module';
 import { ItemsModule } from './items/items.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
 import { LeaveModule } from './leave/leave.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PortalModule } from './portal/portal.module';
@@ -34,6 +36,8 @@ export class HealthController {
     PortalModule,
     LeaveModule,
     DocsModule,
+    KnowledgeModule,
+    AiModule,
     DirectoryModule,
   ],
   controllers: [HealthController],

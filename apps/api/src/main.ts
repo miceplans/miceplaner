@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule, type SchemaObject } from '@nestjs/swagger';
 import { z, type ZodType } from 'zod';
 import {
-  addEventMemberBody, assignItemBody, authSessionDto, changeEventMemberRoleBody, clientDto, createItemBody, eventDocDto, eventDto,
+  addEventMemberBody, assignItemBody, authSessionDto, chatBody, createDocBody, docPageDto, proposalDto, saveDocBodyBody, searchHitDto, changeEventMemberRoleBody, clientDto, createItemBody, eventDocDto, eventDto,
   eventItemDto, eventMemberDto, googleLoginBody, leaveBalanceDto, leaveRecordDto, notificationDto,
   requestLeaveBody, rescheduleItemBody, setClientVisibleBody, setDocVisibilityBody, updateEventBody, updateItemBody, userDto, weekendWorkDto,
 } from '@miceplans/contracts';
@@ -37,6 +37,12 @@ const API_SCHEMAS: Record<string, ZodType> = {
   WeekendWorkDto: weekendWorkDto,
   EventDocDto: eventDocDto,
   SetDocVisibilityBody: setDocVisibilityBody,
+  DocPageDto: docPageDto,
+  CreateDocBody: createDocBody,
+  SaveDocBodyBody: saveDocBodyBody,
+  SearchHitDto: searchHitDto,
+  ChatBody: chatBody,
+  ProposalDto: proposalDto,
 };
 
 async function bootstrap() {

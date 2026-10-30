@@ -160,3 +160,8 @@ export async function logAiCall(client: PoolClient, call: AiCallLog): Promise<vo
     [call.userId, call.eventId, call.model, JSON.stringify(call.messages), JSON.stringify(call.toolCalls), call.promptTokens, call.completionTokens, call.latencyMs, call.error],
   );
 }
+
+/** 승인된 알림 제안을 반영한다. 권한이 없으면 RLS가 거부한다(42501). */
+export async function insertApprovedNotification(client: PoolClient, n: { recipientId: string; eventId: string; itemId: string | null; kind: string; title: string }): Promise<void> {
+  await client.query(`INSERT INTO notifications (recipient_id, event_id, item_id, kind, title) VALUES ($1, $2, $3, $4, $5)`, [n.recipientId, n.eventId, n.itemId, n.kind, n.title]);
+}
