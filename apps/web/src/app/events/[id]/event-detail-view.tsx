@@ -1,18 +1,25 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import dynamic from 'next/dynamic';
 import { SidePeekPanel, SegmentControl, StatusPill, TextTabs, Toggle, type StatusKey } from '@miceplans/ui';
 import { ItemAccessContext, resolveOwners, type CheckItem } from './event-checklist';
-import { ScheduleList } from './event-schedule-list';
-import { EventTasks } from './event-tasks';
-import { EventDocs } from './event-docs';
-import { EventStats } from './event-stats';
-import { InviteDialog, type Invitee, type InviteRole } from './invite-dialog';
-import { DesignRequestTable, ProgressTable, type Team } from './event-products';
+import type { Invitee, InviteRole } from './invite-dialog';
+import type { Team } from './event-products';
 import { PART_FILTERS, type PartFilter } from './event-parts';
-import { CURRENT_USER, EventMembers, getAssignableNames, isEventMember } from './event-members';
-import { VideoSection } from './event-video';
+import { CURRENT_USER, getAssignableNames, isEventMember } from './event-members';
 import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event-filter';
+
+// 탭별 큰 화면은 필요할 때 청크를 받아 첫 행사 상세 진입의 JS를 줄인다.
+const ScheduleList = dynamic(() => import('./event-schedule-list').then((module) => module.ScheduleList));
+const EventTasks = dynamic(() => import('./event-tasks').then((module) => module.EventTasks));
+const EventDocs = dynamic(() => import('./event-docs').then((module) => module.EventDocs));
+const EventStats = dynamic(() => import('./event-stats').then((module) => module.EventStats));
+const InviteDialog = dynamic(() => import('./invite-dialog').then((module) => module.InviteDialog));
+const DesignRequestTable = dynamic(() => import('./event-products').then((module) => module.DesignRequestTable));
+const ProgressTable = dynamic(() => import('./event-products').then((module) => module.ProgressTable));
+const EventMembers = dynamic(() => import('./event-members').then((module) => module.EventMembers));
+const VideoSection = dynamic(() => import('./event-video').then((module) => module.VideoSection));
 
 const A = '/assets/event-detail';
 
