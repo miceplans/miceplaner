@@ -4,11 +4,11 @@ import { useContext } from 'react';
 
 import { ItemAccessContext, type CheckItem } from './event-checklist';
 
-export type SortKey = '기본' | '마감일 빠른순' | '마감일 늦은순';
-export type StatusFilter = '전체' | '예정' | '지연' | '완료';
-export type DueFilter = '전체' | '오늘' | '이번 주' | '마감일 없음';
+type SortKey = '기본' | '마감일 빠른순' | '마감일 늦은순';
+type StatusFilter = '전체' | '예정' | '지연' | '완료';
+type DueFilter = '전체' | '오늘' | '이번 주' | '마감일 없음';
 /** 담당자 필터. '나'와 '미지정'은 예약값이고 그 외에는 담당자 이름이다. */
-export type AssigneeFilter = string;
+type AssigneeFilter = string;
 
 export type ItemFilter = {
   sort: SortKey;
@@ -20,7 +20,7 @@ export type ItemFilter = {
 
 export const DEFAULT_FILTER: ItemFilter = { sort: '기본', status: '전체', due: '전체', assignee: '전체', query: '' };
 
-export const SORT_KEYS: SortKey[] = ['기본', '마감일 빠른순', '마감일 늦은순'];
+const SORT_KEYS: SortKey[] = ['기본', '마감일 빠른순', '마감일 늦은순'];
 const STATUS_FILTERS: StatusFilter[] = ['전체', '예정', '지연', '완료'];
 const DUE_FILTERS: DueFilter[] = ['전체', '오늘', '이번 주', '마감일 없음'];
 
@@ -79,7 +79,7 @@ function matchTree(item: CheckItem, f: ItemFilter, me: string, now: Date): boole
 }
 
 /** 마감일 순 정렬. 마감일이 없는 항목은 방향과 관계없이 맨 뒤에 둔다. 같은 마감일은 원래 순서를 유지한다. */
-export function sortByDue<T extends CheckItem>(items: T[], sort: SortKey, now: Date = new Date()): T[] {
+function sortByDue<T extends CheckItem>(items: T[], sort: SortKey, now: Date = new Date()): T[] {
   if (sort === '기본') return items;
   const dir = sort === '마감일 빠른순' ? 1 : -1;
   return items

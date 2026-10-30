@@ -15,7 +15,7 @@ import { PortalModule } from './portal/portal.module';
 import { RealtimeModule } from './realtime/realtime.module';
 
 @Controller()
-export class HealthController {
+class HealthController {
   @Public()
   @Get('health')
   health() {

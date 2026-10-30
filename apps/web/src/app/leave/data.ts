@@ -34,10 +34,6 @@ export function remainingOf(emp: LeaveEmployee): number {
   return emp.total - emp.used;
 }
 
-export function usageRateOf(emp: LeaveEmployee): number {
-  return emp.used / emp.total;
-}
-
 /** 휴가 형태. 아이콘은 Figma 마이스플래너 > 연차 아이콘 섹션에서 가져온다. */
 export type LeaveKind = 'full' | 'comp' | 'am-half' | 'pm-half' | 'am-quarter' | 'pm-quarter';
 
