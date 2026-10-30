@@ -1,16 +1,67 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import type { ChatEvent, ProposalDto } from '@miceplans/contracts';
+import { ApiError, decideProposal, streamChat } from '@/lib/api';
 
 const A = '/assets/ai-chat';
 
 const CHIPS = ['다음 주 일정', '지연된 Task 보여줘'];
 
+type Source = Extract<ChatEvent, { type: 'sources' }>['sources'][number];
+type Turn = { role: 'user' | 'assistant'; content: string; sources?: Source[]; proposals?: ProposalDto[]; error?: string };
+
+const KIND_LABEL: Record<ProposalDto['kind'], string> = { task_drafts: 'Task 초안', notification: '알림', wiki_edit: '위키 수정' };
+const DECISION_LABEL: Record<ProposalDto['status'], string> = { pending: '승인 대기', approved: '승인됨', rejected: '반려됨' };
+
+/** 행사 상세(`/events/:id`)에서는 그 행사를 대화의 기본 맥락으로 보낸다. */
+const eventIdFrom = (pathname: string) => /^\/events\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(\/|$)/i.exec(pathname)?.[1];
+
 export function AiChatPanel({ onClose, className }: { onClose?: () => void; className?: string } = {}) {
   const [open, setOpen] = useState(true);
   const [draft, setDraft] = useState('');
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [busy, setBusy] = useState(false);
+  const abort = useRef<AbortController | null>(null);
+  const pathname = usePathname();
 
   if (!open) return null;
+
+  const patchLast = (fn: (t: Turn) => Turn) => setTurns((prev) => prev.map((t, i) => (i === prev.length - 1 ? fn(t) : t)));
+
+  const handle = (e: ChatEvent) => {
+    if (e.type === 'text') patchLast((t) => ({ ...t, content: t.content + e.delta }));
+    else if (e.type === 'sources') patchLast((t) => ({ ...t, sources: e.sources }));
+    else if (e.type === 'proposal') patchLast((t) => ({ ...t, proposals: [...(t.proposals ?? []), e.proposal] }));
+    else if (e.type === 'error') patchLast((t) => ({ ...t, error: e.message }));
+  };
+
+  const send = async (text: string) => {
+    const content = text.trim();
+    if (!content || busy) return;
+    const history = [...turns, { role: 'user' as const, content }].filter((t) => t.content).map(({ role, content: c }) => ({ role, content: c }));
+    setTurns((prev) => [...prev, { role: 'user', content }, { role: 'assistant', content: '' }]);
+    setDraft('');
+    setBusy(true);
+    abort.current = new AbortController();
+    try {
+      await streamChat({ eventId: eventIdFrom(pathname), messages: history.slice(-40) }, handle, abort.current.signal);
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) patchLast((t) => ({ ...t, error: error instanceof ApiError ? error.message : '답변을 받지 못했다' }));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const decide = async (turnIndex: number, proposal: ProposalDto, action: 'approve' | 'reject') => {
+    try {
+      const updated = await decideProposal(proposal.id, action);
+      setTurns((prev) => prev.map((t, i) => (i === turnIndex ? { ...t, proposals: t.proposals?.map((p) => (p.id === updated.id ? updated : p)) } : t)));
+    } catch (error) {
+      setTurns((prev) => prev.map((t, i) => (i === turnIndex ? { ...t, error: error instanceof ApiError ? error.message : '처리하지 못했다' } : t)));
+    }
+  };
 
   return (
     <div
@@ -25,75 +76,97 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
         <button
           type="button"
           aria-label="닫기"
-          onClick={() => onClose ? onClose() : setOpen(false)}
+          onClick={() => {
+            abort.current?.abort();
+            if (onClose) onClose();
+            else setOpen(false);
+          }}
           className="flex size-[23.345px] items-center justify-center rounded-xs"
         >
           <img alt="" src={`${A}/close-icon.svg`} className="size-[13.34px]" />
         </button>
       </div>
-      <div className="flex min-h-px w-full flex-1 flex-col items-start gap-[11.673px] overflow-y-auto bg-surface p-[13.34px]">
-        <p className="text-2xs text-fg-secondary">예시 화면 · AI 답변 기능 준비 중</p>
-        <div className="flex w-full items-start justify-end">
-          <div className="flex items-center justify-center self-stretch rounded-bl-lg rounded-br-xs rounded-tl-lg rounded-tr-lg bg-brand px-[11.673px] py-[8.337px]">
-            <span className="whitespace-nowrap text-center text-2xs text-fg-inverse">이번 주 행사 뭐 있어?</span>
-          </div>
-        </div>
-        <div className="flex w-full flex-col items-start gap-[8.337px]">
-          <p className="w-full text-2xs leading-[1.5] text-fg">
-            이번 주(3/6 – 3/12)에는 개막 행사는 없고, 3/13 시작하는 KIMES 2025 직전 준비 일정이 몰려 있어요.
-          </p>
-          <div className="flex h-[126.73px] w-full shrink-0 flex-col items-start gap-[6.67px] rounded-md border-[0.834px] border-solid border-border bg-surface p-[11.673px]">
-            <div className="flex items-center gap-[8px]">
-              <span className="whitespace-nowrap text-2xs font-semibold text-fg">제54회 KIMES 2025</span>
-              <div className="flex h-[18.343px] items-center gap-[4.169px] rounded-md bg-info-bg px-[7.504px]">
-                <img alt="" src={`${A}/dot.svg`} className="size-[5.003px]" />
-                <span className="whitespace-nowrap text-2xs font-medium text-brand-blue">진행중</span>
+      <div className="flex min-h-px w-full flex-1 flex-col items-start gap-[11.673px] overflow-y-auto bg-surface p-[13.34px]" aria-live="polite">
+        {turns.length === 0 && <p className="text-2xs text-fg-secondary">행사 일정, 태스크, 위키 문서를 물어보세요. 변경은 제안만 만들고 PM·AM이 승인해야 반영됩니다.</p>}
+        {turns.map((t, i) =>
+          t.role === 'user' ? (
+            <div key={i} className="flex w-full items-start justify-end">
+              <div className="flex items-center justify-center self-stretch rounded-bl-lg rounded-br-xs rounded-tl-lg rounded-tr-lg bg-brand px-[11.673px] py-[8.337px]">
+                <span className="whitespace-pre-wrap text-2xs text-fg-inverse">{t.content}</span>
               </div>
             </div>
-            <div className="flex items-center gap-[5.003px]">
-              <img alt="" src={`${A}/cal-icon.svg`} className="size-[10.839px]" />
-              <span className="whitespace-nowrap text-2xs text-fg-secondary">03.13 – 03.16 · 코엑스 Hall A·B</span>
+          ) : (
+            <div key={i} className="flex w-full flex-col items-start gap-[8.337px]">
+              {t.content ? <p className="w-full whitespace-pre-wrap text-2xs leading-[1.5] text-fg">{t.content}</p> : !t.error && busy && i === turns.length - 1 && <p className="text-2xs text-fg-secondary">생각하는 중…</p>}
+              {t.sources && t.sources.length > 0 && (
+                <div className="flex w-full flex-col gap-[4px] rounded-md border-[0.834px] border-solid border-border p-[8.337px]">
+                  <span className="text-2xs font-semibold text-fg">출처</span>
+                  {t.sources.map((s) => (
+                    <span key={s.docId} className="text-2xs text-fg-secondary">
+                      {s.title}
+                      {s.heading ? ` › ${s.heading}` : ''}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {t.proposals?.map((p) => (
+                <div key={p.id} className="flex w-full flex-col gap-[6.67px] rounded-md border-[0.834px] border-solid border-border bg-surface p-[11.673px]">
+                  <div className="flex items-center justify-between gap-[8px]">
+                    <span className="text-2xs font-semibold text-fg">{KIND_LABEL[p.kind]} 제안</span>
+                    <span className="text-2xs text-fg-secondary">{DECISION_LABEL[p.status]}</span>
+                  </div>
+                  <p className="text-2xs text-fg">{p.summary}</p>
+                  {p.status === 'pending' && (
+                    <div className="flex gap-[6.67px]">
+                      <button type="button" onClick={() => decide(i, p, 'approve')} className="h-[23.345px] rounded-sm bg-brand px-[10px] text-2xs text-fg-inverse">
+                        승인
+                      </button>
+                      <button type="button" onClick={() => decide(i, p, 'reject')} className="h-[23.345px] rounded-sm border-[0.834px] border-solid border-border px-[10px] text-2xs text-fg-secondary">
+                        반려
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {t.error && (
+                <div className="flex w-full items-center gap-[5.836px] rounded-sm bg-notice-bg px-[9.171px] py-[7.504px]" role="alert">
+                  <img alt="" src={`${A}/warn-icon.svg`} className="size-[10.839px]" />
+                  <p className="min-w-px flex-1 text-2xs text-notice">{t.error}</p>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-[5.003px]">
-              <img alt="" src={`${A}/list-icon.svg`} className="size-[10.839px]" />
-              <span className="whitespace-nowrap text-2xs text-fg-secondary">리허설 3.12 · 브로슈어 인쇄 3.6 – 3.10</span>
-            </div>
-            <a href="/dashboard" className="flex items-center gap-[3.335px] py-[3.335px]">
-              <span className="whitespace-nowrap text-2xs font-medium text-brand">행사에서 열기</span>
-              <img alt="" src={`${A}/arrow-icon.svg`} className="size-[10.005px]" />
-            </a>
+          ),
+        )}
+        {turns.length === 0 && (
+          <div className="flex items-start gap-[5.003px] py-[21.677px]">
+            {CHIPS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setDraft(c)}
+                className="flex h-[23.345px] items-center justify-center rounded-lg border-[0.834px] border-solid border-border bg-surface px-[8.337px] text-2xs text-fg-secondary"
+              >
+                {c}
+              </button>
+            ))}
           </div>
-          <div className="flex w-full items-center gap-[5.836px] rounded-sm bg-notice-bg px-[9.171px] py-[7.504px]">
-            <img alt="" src={`${A}/warn-icon.svg`} className="size-[10.839px]" />
-            <p className="min-w-px flex-1 text-2xs text-notice">브로슈어 인쇄가 2일 지연됐어요. 담당자에게 알림을 보낼까요?</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-[5.003px] py-[21.677px]">
-          {CHIPS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setDraft(c)}
-              className="flex h-[23.345px] items-center justify-center rounded-lg border-[0.834px] border-solid border-border bg-surface px-[8.337px] text-2xs text-fg-secondary"
-            >
-              {c}
-            </button>
-          ))}
-        </div>
+        )}
       </div>
       <form
         className="flex h-[53.36px] w-full shrink-0 items-center gap-[6.67px] border-t-[0.834px] border-solid border-border bg-surface px-[10.005px]"
         onSubmit={(e) => {
           e.preventDefault();
+          void send(draft);
         }}
       >
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="무엇이든 물어보세요"
+          maxLength={8000}
           className="h-[33.35px] min-w-px flex-1 rounded-sm bg-surface-sunken px-[10.005px] text-2xs text-fg outline-none placeholder:text-fg-tertiary"
         />
-        <button type="submit" aria-label="보내기 (준비 중)" disabled className="flex size-[30.015px] items-center justify-center rounded-sm bg-brand opacity-50">
+        <button type="submit" aria-label="보내기" disabled={busy || !draft.trim()} className="flex size-[30.015px] items-center justify-center rounded-sm bg-brand disabled:opacity-50">
           <img alt="" src={`${A}/send-icon.svg`} className="size-[13.34px]" />
         </button>
       </form>
