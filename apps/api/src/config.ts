@@ -28,6 +28,11 @@ export const config = {
   get webOrigin(): string {
     return process.env.WEB_ORIGIN ?? '';
   },
+  /** 협업 서버 내부 주소와 공유 비밀. Yjs로 편집된 문서의 본문 변경(저장·AI 승인·되돌리기)은 이 서버를 거친다. 없으면 그런 변경은 503이다. */
+  get collab(): { url: string; secret: string } | null {
+    const { COLLAB_INTERNAL_URL: url, COLLAB_INTERNAL_SECRET: secret } = process.env;
+    return url && secret ? { url: url.replace(/\/$/, ''), secret } : null;
+  },
   /** OpenAI 호환 LLM 엔드포인트(GLM 등). 셋 중 하나라도 없으면 AI 질의는 503이다. 키는 서버 런타임에만 둔다. */
   get llm(): { baseUrl: string; apiKey: string; model: string } | null {
     const { LLM_BASE_URL: baseUrl, LLM_API_KEY: apiKey, LLM_MODEL: model } = process.env;

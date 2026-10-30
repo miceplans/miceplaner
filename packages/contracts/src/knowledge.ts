@@ -49,3 +49,17 @@ export const searchHitDto = z.object({
   updatedAt: isoDateTime,
 });
 export type SearchHitDto = z.infer<typeof searchHitDto>;
+
+/** 문서 버전 (명세 F-09: 명시적 버전 생성·AI 제안 승인·되돌리기에서만 만든다). 본문은 상세 조회에만 담는다. */
+export const wikiRevisionDto = z.object({
+  id: uuid,
+  docId: uuid,
+  version: z.number().int().positive(),
+  title: z.string(),
+  reason: z.enum(['manual', 'ai_proposal', 'restore']),
+  createdBy: uuid,
+  createdAt: isoDateTime,
+});
+export type WikiRevisionDto = z.infer<typeof wikiRevisionDto>;
+export const wikiRevisionDetailDto = wikiRevisionDto.extend({ bodyMd: z.string() });
+export type WikiRevisionDetailDto = z.infer<typeof wikiRevisionDetailDto>;

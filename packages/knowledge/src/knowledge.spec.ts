@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chunkMarkdown, makeSnippet, mergeRanked, queryTerms, stripParticle, toTsQuery } from './index';
+import { chunkDocument, chunkMarkdown, makeSnippet, mergeRanked, queryTerms, stripParticle, toTsQuery } from './index';
 
 describe('chunkMarkdown', () => {
   it('제목 경로를 붙여 절 단위로 나눈다', () => {
@@ -62,5 +62,12 @@ describe('mergeRanked / makeSnippet', () => {
     expect(s).toContain('행사');
     expect(s.startsWith('…')).toBe(true);
     expect(makeSnippet('짧은 글', ['없음'])).toBe('짧은 글');
+  });
+});
+
+describe('chunkDocument', () => {
+  it('제목을 모든 청크의 제목 경로 앞에 붙이고 본문이 비어도 제목 청크를 남긴다', () => {
+    expect(chunkDocument({ title: '회의록', bodyMd: '# 일정\n3월' }).map((c) => c.heading)).toEqual(['회의록 > 일정']);
+    expect(chunkDocument({ title: '회의록', bodyMd: '' })).toEqual([{ index: 0, heading: '회의록', content: '회의록' }]);
   });
 });

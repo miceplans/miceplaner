@@ -28,6 +28,30 @@ export class KnowledgeController {
     return this.knowledge.saveBody(user, docId, body);
   }
 
+  @Post('docs/:docId/revisions')
+  @ApiOperation({ summary: '현재 내용을 버전으로 저장 (PM·AM)' })
+  createRevision(@Auth() user: AuthUser, @Param('docId', ParseUUIDPipe) docId: string) {
+    return this.knowledge.createRevision(user, docId);
+  }
+
+  @Get('docs/:docId/revisions')
+  @ApiOperation({ summary: '문서 버전 목록 (열람 범위는 RLS가 강제)' })
+  listRevisions(@Auth() user: AuthUser, @Param('docId', ParseUUIDPipe) docId: string) {
+    return this.knowledge.listRevisions(user, docId);
+  }
+
+  @Get('docs/:docId/revisions/:revisionId')
+  @ApiOperation({ summary: '문서 버전 상세 (본문 포함)' })
+  getRevision(@Auth() user: AuthUser, @Param('docId', ParseUUIDPipe) docId: string, @Param('revisionId', ParseUUIDPipe) revisionId: string) {
+    return this.knowledge.getRevision(user, docId, revisionId);
+  }
+
+  @Post('docs/:docId/revisions/:revisionId/restore')
+  @ApiOperation({ summary: '버전으로 되돌리기 (PM·AM, 현재 내용을 먼저 버전으로 남기고 감사 로그)' })
+  restoreRevision(@Auth() user: AuthUser, @Param('docId', ParseUUIDPipe) docId: string, @Param('revisionId', ParseUUIDPipe) revisionId: string) {
+    return this.knowledge.restoreRevision(user, docId, revisionId);
+  }
+
   @Delete('docs/:docId')
   @HttpCode(204)
   @ApiOperation({ summary: '위키 문서 삭제 (soft delete, PM·AM, 감사 로그)' })

@@ -1,7 +1,8 @@
-import type { ChatBody, ChatEvent, ProposalDto } from '@miceplans/contracts';
+import type { ChatBody, ChatEvent, DocPageDto, ProposalDto } from '@miceplans/contracts';
 
-/** 빌드 시점에 정해지는 공개 API 주소다. 비밀 값은 두지 않는다. */
+/** 빌드 시점에 정해지는 공개 주소다. 비밀 값은 두지 않는다. */
 export const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
+export const collabUrl = process.env.NEXT_PUBLIC_COLLAB_URL ?? '';
 
 const TOKEN_KEY = 'miceplans.token';
 
@@ -66,4 +67,12 @@ export async function streamChat(body: ChatBody, onEvent: (e: ChatEvent) => void
 
 export async function decideProposal(id: string, action: 'approve' | 'reject'): Promise<ProposalDto> {
   return (await (await request(`/ai/proposals/${id}/${action}`, { method: 'POST', body: '{}' })).json()) as ProposalDto;
+}
+
+export async function getDocPage(docId: string): Promise<DocPageDto> {
+  return (await (await request(`/docs/${docId}`, { method: 'GET' })).json()) as DocPageDto;
+}
+
+export async function getMe(): Promise<{ id: string; name: string; role: string }> {
+  return (await (await request('/auth/me', { method: 'GET' })).json()) as { id: string; name: string; role: string };
 }

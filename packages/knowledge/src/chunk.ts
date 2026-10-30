@@ -54,3 +54,12 @@ function splitParagraphs(text: string, maxChars: number): string[] {
   flush();
   return out;
 }
+
+/**
+ * 문서 한 건의 색인용 청크. 제목을 모든 청크의 제목 경로 앞에 붙여 제목으로도 검색되게 하고,
+ * 본문이 비어도 제목 청크는 남긴다. 검색 API와 협업 서버가 같은 함수를 쓴다 (명세 F-10).
+ */
+export function chunkDocument(doc: { title: string; bodyMd: string }, options?: ChunkOptions): Chunk[] {
+  const chunks = chunkMarkdown(doc.bodyMd, options).map((c) => ({ ...c, heading: [doc.title, c.heading].filter(Boolean).join(' > ') }));
+  return chunks.length ? chunks : [{ index: 0, heading: doc.title, content: doc.title }];
+}

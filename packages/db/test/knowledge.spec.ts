@@ -1,7 +1,7 @@
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  createDocPage, decideProposal, getDocPage, insertProposal, listProposals, logAiCall, replaceChunks, saveDocBody, searchChunksFts, searchChunksTrigram,
+  createDocPage, createRevision, decideProposal, getDocPage, getRevision, getYdocState, hasYdoc, listRevisions, saveCollabState, insertProposal, listProposals, logAiCall, replaceChunks, saveDocBody, searchChunksFts, searchChunksTrigram,
   setDocVisibility, softDeleteDocPage, withContext, type DbContext,
 } from '../src';
 
@@ -143,5 +143,41 @@ describe('AI 호출 로그', () => {
     expect(await count(as.staff)).toBe(1);
     expect(await count(as.pm)).toBe(0);
     expect(await count(as.admin)).toBe(1);
+  });
+});
+
+describe('협업 편집 저장소 RLS (명세 F-09)', () => {
+  const state = new Uint8Array([1, 2, 3]);
+  let docId: string;
+  beforeAll(async () => {
+    docId = (await withContext(app, as.pm, (db) => createDocPage(db, { eventId: EVENT, title: '협업 문서', visibility: 'members', bodyMd: '' }))).id;
+  });
+  it('PM이 Yjs 상태를 저장하면 본문이 갱신되고 색인된다. 본문이 같으면 version을 올리지 않는다', async () => {
+    expect(await withContext(app, as.pm, (db) => saveCollabState(db, docId, state, '협업고유어 본문'))).toBe(true);
+    const page = await withContext(app, as.pm, (db) => getDocPage(db, docId));
+    expect(page).toMatchObject({ bodyMd: '협업고유어 본문', version: 2 });
+    expect(await fts(as.pm, "'협업고유어':*")).toEqual(['협업 문서']);
+    expect(await withContext(app, as.pm, (db) => saveCollabState(db, docId, new Uint8Array([9]), '협업고유어 본문'))).toBe(false);
+    expect((await withContext(app, as.pm, (db) => getDocPage(db, docId)))!.version).toBe(2);
+    expect(Buffer.from((await withContext(app, as.pm, (db) => getYdocState(db, docId)))!)).toEqual(Buffer.from([9]));
+  });
+  it('읽기 권한만 있는 멤버는 상태를 읽을 수 있지만 저장할 수 없다', async () => {
+    expect(await withContext(app, as.member, (db) => hasYdoc(db, docId))).toBe(true);
+    await expect(withContext(app, as.member, (db) => saveCollabState(db, docId, state, '해킹'))).rejects.toMatchObject({ code: '42501' });
+    expect((await withContext(app, as.pm, (db) => getDocPage(db, docId)))!.bodyMd).toBe('협업고유어 본문');
+  });
+  it('문서를 볼 수 없는 직원·Client는 상태가 보이지 않는다', async () => {
+    expect(await withContext(app, as.staff, (db) => hasYdoc(db, docId))).toBe(false);
+    expect(await withContext(app, as.client, (db) => getYdocState(db, docId))).toBeUndefined();
+  });
+  it('버전은 PM만 만들고 문서를 볼 수 있는 사람만 목록을 본다', async () => {
+    const doc = (await withContext(app, as.pm, (db) => getDocPage(db, docId)))!;
+    const rev = await withContext(app, as.pm, (db) => createRevision(db, U.pm, doc, 'manual'));
+    expect(rev).toMatchObject({ version: 2, bodyMd: '협업고유어 본문', reason: 'manual' });
+    await expect(withContext(app, as.member, (db) => createRevision(db, U.member, doc, 'manual'))).rejects.toMatchObject({ code: '42501' });
+    await expect(withContext(app, as.pm, (db) => createRevision(db, U.member, doc, 'manual'))).rejects.toMatchObject({ code: '42501' });
+    expect(await withContext(app, as.member, (db) => listRevisions(db, docId))).toHaveLength(1);
+    expect(await withContext(app, as.staff, (db) => listRevisions(db, docId))).toHaveLength(0);
+    expect(await withContext(app, as.client, (db) => getRevision(db, docId, rev.id))).toBeUndefined();
   });
 });

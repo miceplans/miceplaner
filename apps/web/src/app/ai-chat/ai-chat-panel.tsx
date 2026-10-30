@@ -102,10 +102,10 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
                 <div className="flex w-full flex-col gap-[4px] rounded-md border-[0.834px] border-solid border-border p-[8.337px]">
                   <span className="text-2xs font-semibold text-fg">출처</span>
                   {t.sources.map((s) => (
-                    <span key={s.docId} className="text-2xs text-fg-secondary">
+                    <a key={s.docId} href={`/wiki?doc=${s.docId}`} className="text-2xs text-fg-secondary underline">
                       {s.title}
                       {s.heading ? ` › ${s.heading}` : ''}
-                    </span>
+                    </a>
                   ))}
                 </div>
               )}

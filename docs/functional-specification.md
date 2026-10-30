@@ -197,7 +197,11 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 - PM 또는 AM과 Super Admin은 행사 위키를 편집할 수 있다. Staff는 행사 위키에 읽기 전용으로 연결되며 커서와 접속자 표시는 볼 수 있다.
 - Client는 협업 서버 연결을 포함해 위키의 어떠한 내용에도 접근할 수 없다.
 - 문서별 열람 범위는 `전체 공개`, `행사 멤버`(기본값), `PM·AM만` 3단계로 설정한다. 범위 변경은 PM·AM과 Super Admin만 할 수 있으며 감사 로그 대상이다. Client는 어떤 범위에서도 볼 수 없다. 서버 강제는 `packages/db`의 `event_docs` RLS 정책(`can_view_doc`, `can_edit_event`)과 `packages/domain`의 `canViewDoc`·`canChangeDocVisibility`로 구현되어 실제 PostgreSQL 테스트(`packages/db/test`)로 검증한다. 현재 웹 화면은 선택 UI와 브라우저 저장만 제공하는 목업이며 API 연동은 NestJS API 단계에서 한다. 비멤버 내부 직원은 `staff`로 판정하므로 `행사 멤버` 범위에서는 보이지 않는다.
-- 현재 구현은 협업 서버 이전 단계로, `event_docs.body_md`(Markdown)를 본문으로 저장한다. PM·AM과 Super Admin이 `POST /events/:eventId/docs`로 만들고 `PUT /docs/:docId/body`로 저장하며(마지막 저장 우선, 저장할 때마다 `version` 증가), `DELETE /docs/:docId`는 soft delete로 감사 로그를 남긴다. 열람은 `GET /docs/:docId`이고 열람 범위는 RLS가 강제한다. Yjs 원본과 Hocuspocus 도입 시 `body_md`는 파생본으로 전환한다.
+- 구현은 `apps/collaboration`(Hocuspocus), `packages/editor-schema`(TipTap StarterKit 스키마, Markdown ↔ ProseMirror ↔ Yjs 변환), 웹 에디터(`/wiki?doc=<id>`, 정적 export라 쿼리 라우팅)다. 연결마다 세션 토큰을 검증하고 사용자의 RLS 컨텍스트로 읽고 쓴다. Client·잘못된 토큰·볼 수 없는 문서는 연결이 거부되고, PM·AM·Super Admin 외에는 읽기 전용이며 읽기 전용 접속자도 커서·접속자 표시는 본다.
+- Yjs 상태(`wiki_ydoc`, 문서당 병합된 스냅샷)가 본문의 기준이다. 저장할 때 Markdown 파생본(`event_docs.body_md`)과 검색 색인(`knowledge_chunks`)을 같은 트랜잭션에서 갱신하며 본문이 달라졌을 때만 `version`을 올린다. 협업으로 편집된 적이 없는 문서는 `body_md`로 시작한다. 저장 지연은 `COLLAB_DEBOUNCE_MS`(기본 1.5초)다.
+- 문서 생성은 `POST /events/:eventId/docs`(PM·AM), 열람은 `GET /docs/:docId`, 삭제는 `DELETE /docs/:docId`(soft delete, 감사 로그)다. `PUT /docs/:docId/body`는 협업 편집 전 문서만 직접 저장(마지막 저장 우선)하고, Yjs 상태가 있는 문서는 협업 서버의 내부 API(`POST /internal/docs/:id/replace`, 공유 비밀 `COLLAB_INTERNAL_SECRET`)로 Yjs 트랜잭션을 수행해 접속 중인 편집자에게 전파한다. 협업 서버가 없거나 실패하면 503이고 본문은 그대로다.
+- 버전(`wiki_revisions`)은 명시적 생성(`POST /docs/:docId/revisions`), AI 제안 승인, 되돌리기(`POST /docs/:docId/revisions/:id/restore`, 현재 내용을 먼저 버전으로 남기고 감사 로그)에서만 만든다. 목록·상세는 문서를 볼 수 있는 사람만 본다.
+- 알려진 한계: update log는 두지 않고 스냅샷만 저장한다. 접속 중 편집이 저장 지연 안에 있으면 AI 승인의 `baseVersion` 판정은 저장된 version 기준이다. 에디터는 StarterKit 노드(표·이미지 등 제외)만 지원한다.
 - 저장소는 update log, snapshot, `wiki_revision`을 분리한다. update log는 스냅샷 후 압축·정리하고, 명시적 버전 생성·제안 승인·발행·되돌리기에서만 `wiki_revision`을 만든다.
 - 배포 중 협업 연결이 잠시 끊길 수 있으며 클라이언트는 재접속 후 동기화한다. Presence는 복구 대상이 아닌 일시 상태다.
 - 공용 위키의 전 직원 편집 범위는 위키 에디터 단계 시작 전에 결정한다.
@@ -234,7 +238,7 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 - AI 응답은 SSE로 스트리밍하고, 호출별 프롬프트, 도구 호출, 토큰, 지연을 기록한다.
 - 구현은 `POST /ai/chat`(SSE: `text`·`tool`·`sources`·`proposal`·`done`·`error` 이벤트), `GET /events/:eventId/ai/proposals`, `POST /ai/proposals/:id/approve|reject`다. 도구는 질문한 사용자의 RLS 컨텍스트에서 실행되어 권한 밖 문서가 모델에 전달되지 않는다. 모델이 쓰는 도구 계약은 `packages/contracts/src/agent-tools.ts`, 어댑터·에이전트 루프·평가는 `packages/ai`다.
 - AI 질의는 내부 직원 전체가 할 수 있고(Client 불가), 제안은 만든 사람과 PM·AM만 볼 수 있으며, 승인·반려는 PM·AM과 Super Admin만 한다. 결정된 제안은 다시 바꿀 수 없다.
-- 승인은 승인자의 권한으로 한 트랜잭션 안에서 반영한다. `task_drafts`는 Task·Subtask 생성(상위 항목 검증), `notification`은 알림 생성, `wiki_edit`은 본문 교체와 재색인이다. `wiki_edit`은 제안 당시 `baseVersion`과 다르면 409 `VERSION_CONFLICT`로 거부하고 제안은 대기로 남는다. Yjs 트랜잭션 반영은 협업 서버 단계에서 전환한다.
+- 승인은 승인자의 권한으로 한 트랜잭션 안에서 반영한다. `task_drafts`는 Task·Subtask 생성(상위 항목 검증), `notification`은 알림 생성, `wiki_edit`은 본문 교체와 재색인이다. `wiki_edit`은 제안 당시 `baseVersion`과 다르면 409 `VERSION_CONFLICT`로 거부하고 제안은 대기로 남는다. Yjs 상태가 있는 문서는 협업 서버를 거쳐 Yjs 트랜잭션으로 반영하고, 승인 직전 내용을 `wiki_revisions`(reason `ai_proposal`)에 남긴다. 협업 서버 반영이 실패하면 결정까지 함께 되돌려 제안은 대기로 남는다.
 - 웹의 Agent 패널(`apps/web/src/app/ai-chat/ai-chat-panel.tsx`)은 `/ai/chat` SSE를 스트리밍해 답변·출처·제안 카드를 보여주고 승인·반려 버튼을 제공한다. 행사 상세(`/events/:id`)에서는 그 행사를 맥락으로 보낸다. 웹에는 아직 로그인 화면이 없어 세션 토큰은 `sessionStorage['miceplans.token']`에서 읽기만 하며(`apps/web/src/lib/api.ts`), API 주소는 `NEXT_PUBLIC_API_URL`이다. 로그인 연동 단계에서 `getToken`만 바꾼다. 제안 표시 형식·재제안 흐름은 7절에서 미확정이라 요약·상태·승인/반려만 제공한다.
 - 사용자당 분당 질의 한도(`AI_REQUESTS_PER_MINUTE`, 기본 20)로 LLM 비용을 제한한다. 호출 기록은 `ai_calls`(본인과 Super Admin만 조회)에 남는다. LLM은 `LLM_BASE_URL`·`LLM_API_KEY`·`LLM_MODEL`을 서버 런타임에서만 읽고, 없으면 AI 질의는 503이다.
 - GLM은 OpenAI 호환 어댑터 뒤에서 사용한다. 대표 시나리오 20~30개로 첫 2주 안에 도구 호출 품질을 평가하고, 모델 또는 프롬프트 변경 때 같은 골든 셋을 다시 실행한다. 골든 셋은 `packages/ai/src/eval/cases.ts`(현재 22개)이고 `LLM_* pnpm --filter @miceplans/ai eval`로 실행한다. 합격선은 미확정(7절)이라 통과율만 보고한다.
@@ -281,7 +285,7 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 | GLM 모델 유지 여부 | 초기 2주 평가 종료 시 |
 | 담당자가 행사 멤버가 아닌 경우의 자기 항목 상태·댓글 | 내 할 일 보드 구현 전 |
 | 행사 생성 권한 | 1단계 행사 CRUD 구현 전 |
-| 공용 위키 편집 범위 | 위키 에디터 구현 전 |
+| 공용 위키 편집 범위(전 직원 편집) | 전사 문서 space 추가 직전. 행사 위키는 PM·AM만 편집(2026-10-30 확인) |
 | 예산·견적·마진 노출 | 행사 스키마 확정 전 |
 | 행사 멤버의 행사 위키·AI 권한 | 위키·AI 구현 전. 구현은 기존 결정(2.2)을 따라 `member`도 `staff`처럼 위키 편집·제안 승인은 불가, 열람은 범위에 따르고 AI 질의는 가능으로 두었다. 확정 시 `packages/domain/src/knowledge.ts`를 조정한다 |
 | 멤버 삭제 시 기존 담당 항목의 처리 방식 | 행사 멤버 관리 구현 전 |

@@ -4,6 +4,8 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { connectTestAdmin, type TestAdmin } from '@miceplans/db/testing';
 import type { ChatMsg, LlmChunk, LlmClient } from '@miceplans/ai';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module';
@@ -50,7 +52,35 @@ const question = (content: string, eventId: string | undefined = EVENT) => ({ ev
 const createDoc = async (user: keyof typeof U, title: string, bodyMd: string, visibility = 'members', eventId = EVENT) =>
   (await api().post(`/events/${eventId}/docs`).set(as(user)).send({ title, bodyMd, visibility }).expect(201)).body as { id: string; version: number };
 
+/** 협업 서버 내부 API(`POST /internal/docs/:id/replace`)의 계약만 지키는 가짜. 실제 동작은 apps/collaboration 테스트가 검증한다. */
+const collabCalls: { docId: string; userId: string; markdown: string; secret: string | undefined }[] = [];
+let collabStatus = 200;
+let collabServer: Server;
+const startFakeCollab = () =>
+  new Promise<void>((resolve) => {
+    collabServer = createServer((req, res) => {
+      let raw = '';
+      req.on('data', (c) => (raw += c));
+      req.on('end', () => {
+        const docId = /\/internal\/docs\/([^/]+)\/replace/.exec(req.url ?? '')?.[1] ?? '';
+        const payload = JSON.parse(raw || '{}') as { userId: string; markdown: string };
+        collabCalls.push({ docId, userId: payload.userId, markdown: payload.markdown, secret: req.headers['x-internal-secret'] as string | undefined });
+        if (collabStatus === 200) {
+          void admin.query(`UPDATE event_docs SET body_md = $2, version = version + 1 WHERE id = $1`, [docId, payload.markdown]).then(() => { res.writeHead(200); res.end('{}'); });
+        } else {
+          res.writeHead(collabStatus);
+          res.end('{}');
+        }
+      });
+    }).listen(0, '127.0.0.1', () => {
+      process.env.COLLAB_INTERNAL_URL = `http://127.0.0.1:${(collabServer.address() as AddressInfo).port}`;
+      process.env.COLLAB_INTERNAL_SECRET = 'fake-secret';
+      resolve();
+    });
+  });
+
 beforeAll(async () => {
+  await startFakeCollab();
   admin = await connectTestAdmin(process.env.TEST_PG_ADMIN_URL!);
   for (const [name, uid] of Object.entries(U)) await admin.query(`INSERT INTO users (id, name, email, role) VALUES ($1, $2, 'kn-' || $2 || '@x.test', $3)`, [uid, name, name === 'admin' ? 'super_admin' : name === 'client' ? 'client' : 'staff']);
   await admin.query(`INSERT INTO clients (id, name) VALUES ($1, '위키 고객사')`, [CO]);
@@ -65,6 +95,9 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await app.close();
+  collabServer.close();
+  delete process.env.COLLAB_INTERNAL_URL;
+  delete process.env.COLLAB_INTERNAL_SECRET;
   // 같은 클러스터를 쓰는 다른 spec의 개수 검증을 오염시키지 않도록 이 파일이 만든 데이터를 지운다.
   const events = [EVENT, OTHER_EVENT];
   const users = Object.values(U);
@@ -72,6 +105,8 @@ afterAll(async () => {
   await admin.query(`DELETE FROM ai_proposals WHERE event_id = ANY($1)`, [events]);
   await admin.query(`DELETE FROM notifications WHERE event_id = ANY($1)`, [events]);
   await admin.query(`DELETE FROM audit_log WHERE event_id = ANY($1) OR actor_id = ANY($2)`, [events, users]);
+  await admin.query(`DELETE FROM wiki_revisions WHERE event_id = ANY($1)`, [events]);
+  await admin.query(`DELETE FROM wiki_ydoc WHERE event_id = ANY($1)`, [events]);
   await admin.query(`DELETE FROM knowledge_chunks WHERE event_id = ANY($1)`, [events]);
   await admin.query(`DELETE FROM event_docs WHERE event_id = ANY($1)`, [events]);
   await admin.query(`DELETE FROM event_items WHERE event_id = ANY($1)`, [events]);
@@ -358,6 +393,95 @@ describe('AI 제안과 승인 (F-11: 승인 전에는 아무것도 바뀌지 않
     expect((await api().get(`/docs/${doc.id}`).set(as('pm'))).body.bodyMd).toBe('사람이 먼저 수정');
     expect((await admin.query('SELECT status FROM ai_proposals WHERE id = $1', [p2.id])).rows[0]).toEqual({ status: 'pending' });
     expect(await proposeEdit(1, '오래된 version')).toBeUndefined();
+  });
+});
+
+const markYdoc = (docId: string) => admin.query(`INSERT INTO wiki_ydoc (doc_id, event_id, state) VALUES ($1, $2, '\\x00')`, [docId, EVENT]);
+
+describe('문서 버전 (F-09: 명시적 생성·AI 승인·되돌리기에서만)', () => {
+  it('PM만 버전을 만들고, 문서를 볼 수 있는 사람만 목록·상세를 본다', async () => {
+    const doc = await createDoc('pm', '버전 문서', '첫 본문', 'members');
+    await api().post(`/docs/${doc.id}/revisions`).set(as('member')).expect(403);
+    await api().post(`/docs/${doc.id}/revisions`).set(as('client')).expect(403);
+    const rev = (await api().post(`/docs/${doc.id}/revisions`).set(as('pm')).expect(201)).body;
+    expect(rev).toMatchObject({ docId: doc.id, version: 1, reason: 'manual', title: '버전 문서' });
+    expect(rev).not.toHaveProperty('bodyMd');
+    expect((await api().get(`/docs/${doc.id}/revisions`).set(as('member')).expect(200)).body).toHaveLength(1);
+    await api().get(`/docs/${doc.id}/revisions`).set(as('staff')).expect(404);
+    expect((await api().get(`/docs/${doc.id}/revisions/${rev.id}`).set(as('member')).expect(200)).body.bodyMd).toBe('첫 본문');
+  });
+  it('협업 편집 전 문서는 되돌리면 본문·색인이 바뀌고 현재 내용이 버전으로 남으며 감사 로그가 생긴다', async () => {
+    const doc = await createDoc('pm', '되돌릴 문서', '되돌리기원본 내용', 'all');
+    const rev = (await api().post(`/docs/${doc.id}/revisions`).set(as('pm')).expect(201)).body;
+    await api().put(`/docs/${doc.id}/body`).set(as('pm')).send({ bodyMd: '망가진 내용' }).expect(200);
+    await api().post(`/docs/${doc.id}/revisions/${rev.id}/restore`).set(as('member')).expect(403);
+    const restored = (await api().post(`/docs/${doc.id}/revisions/${rev.id}/restore`).set(as('pm')).expect(201)).body;
+    expect(restored.bodyMd).toBe('되돌리기원본 내용');
+    expect((await api().get('/search').query({ q: '되돌리기원본' }).set(as('staff'))).body[0].docId).toBe(doc.id);
+    const reasons = (await api().get(`/docs/${doc.id}/revisions`).set(as('pm'))).body.map((r: { reason: string }) => r.reason);
+    expect(reasons.sort()).toEqual(['manual', 'restore']);
+    expect((await admin.query(`SELECT 1 FROM audit_log WHERE action = 'doc.restore' AND detail->>'docId' = $1`, [doc.id])).rowCount).toBe(1);
+  });
+});
+
+describe('Yjs가 기준인 문서의 본문 변경은 협업 서버를 거친다 (F-09, F-11)', () => {
+  it('REST 저장은 협업 서버에 위임하고 제목만 직접 바꾼다', async () => {
+    const doc = await createDoc('pm', '협업 문서', '옛 본문', 'members');
+    await markYdoc(doc.id);
+    collabCalls.length = 0;
+    const res = await api().put(`/docs/${doc.id}/body`).set(as('pm')).send({ title: '새 제목', bodyMd: '새 본문' }).expect(200);
+    expect(res.body).toMatchObject({ title: '새 제목', bodyMd: '새 본문' });
+    expect(collabCalls).toEqual([{ docId: doc.id, userId: U.pm, markdown: '새 본문', secret: 'fake-secret' }]);
+    expect((await api().get('/search').query({ q: '새 제목' }).set(as('pm'))).body[0].title).toBe('새 제목');
+    await api().put(`/docs/${doc.id}/body`).set(as('member')).send({ bodyMd: 'x' }).expect(403);
+    expect(collabCalls).toHaveLength(1);
+  });
+  it('협업 서버가 없거나 실패하면 503이고 본문은 그대로다', async () => {
+    const doc = await createDoc('pm', '장애 문서', '안전한 본문', 'members');
+    await markYdoc(doc.id);
+    collabStatus = 500;
+    try {
+      await api().put(`/docs/${doc.id}/body`).set(as('pm')).send({ bodyMd: '바꾸려는 본문' }).expect(503);
+    } finally {
+      collabStatus = 200;
+    }
+    const url = process.env.COLLAB_INTERNAL_URL;
+    delete process.env.COLLAB_INTERNAL_URL;
+    try {
+      await api().put(`/docs/${doc.id}/body`).set(as('pm')).send({ bodyMd: '바꾸려는 본문' }).expect(503);
+    } finally {
+      process.env.COLLAB_INTERNAL_URL = url;
+    }
+    expect((await api().get(`/docs/${doc.id}`).set(as('pm'))).body.bodyMd).toBe('안전한 본문');
+  });
+  it('AI 위키 수정 승인은 버전을 남기고 Yjs 트랜잭션으로 반영한다. 협업 서버가 실패하면 제안은 대기로 남는다', async () => {
+    const doc = await createDoc('pm', 'AI 협업 문서', '승인 전 본문', 'members');
+    await markYdoc(doc.id);
+    script = (m) => (lastIsUser(m)
+      ? [toolCall('propose_wiki_edit', { docId: doc.id, baseVersion: doc.version, summary: '본문 교체', bodyMd: '승인 후 본문' })]
+      : [{ type: 'text', delta: 'x' }]);
+    // staff는 앞선 테스트들로 분당 한도에 가까워 member가 제안한다.
+    const proposal = (await chat('member', question('수정안'))).events.find((e) => e.type === 'proposal').proposal;
+
+    collabStatus = 500;
+    collabCalls.length = 0;
+    try {
+      await api().post(`/ai/proposals/${proposal.id}/approve`).set(as('pm')).expect(503);
+    } finally {
+      collabStatus = 200;
+    }
+    expect((await admin.query('SELECT status FROM ai_proposals WHERE id = $1', [proposal.id])).rows[0]).toEqual({ status: 'pending' });
+    expect((await admin.query('SELECT 1 FROM wiki_revisions WHERE doc_id = $1', [doc.id])).rowCount).toBe(0);
+    expect((await admin.query('SELECT 1 FROM audit_log WHERE detail->>\'proposalId\' = $1', [proposal.id])).rowCount).toBe(0);
+
+    collabCalls.length = 0;
+    await api().post(`/ai/proposals/${proposal.id}/approve`).set(as('pm')).expect(201);
+    expect(collabCalls).toEqual([{ docId: doc.id, userId: U.pm, markdown: '승인 후 본문', secret: 'fake-secret' }]);
+    expect((await api().get(`/docs/${doc.id}`).set(as('pm'))).body.bodyMd).toBe('승인 후 본문');
+    const revisions = (await api().get(`/docs/${doc.id}/revisions`).set(as('pm'))).body;
+    expect(revisions).toHaveLength(1);
+    expect(revisions[0]).toMatchObject({ reason: 'ai_proposal', version: doc.version });
+    expect((await api().get(`/docs/${doc.id}/revisions/${revisions[0].id}`).set(as('pm'))).body.bodyMd).toBe('승인 전 본문');
   });
 });
 

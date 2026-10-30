@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { openAiCompatible } from '@miceplans/ai';
 import { config } from '../config';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { LLM_CLIENT } from '../tokens';
 import { AiController } from './ai.controller';
@@ -8,7 +9,7 @@ import { AiService } from './ai.service';
 import { ProposalsService } from './proposals.service';
 
 @Module({
-  imports: [RealtimeModule],
+  imports: [RealtimeModule, KnowledgeModule],
   controllers: [AiController],
   providers: [
     AiService,

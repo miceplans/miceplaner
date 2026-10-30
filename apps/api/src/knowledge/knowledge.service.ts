@@ -1,25 +1,18 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { docPageDto, searchHitDto, type CreateDocBody, type SaveDocBodyBody, type SearchHitDto, type SearchQuery } from '@miceplans/contracts';
+import { docPageDto, searchHitDto, wikiRevisionDetailDto, wikiRevisionDto, type CreateDocBody, type SaveDocBodyBody, type SearchHitDto, type SearchQuery } from '@miceplans/contracts';
 import { canEditWiki } from '@miceplans/domain';
 import {
-  createDocPage, eventRole, getDocPage, replaceChunks, saveDocBody, searchChunksFts, searchChunksTrigram, softDeleteDocPage, withContext,
-  type DocPageRow, type Pool, type PoolClient,
+  createDocPage, createRevision, eventRole, getDocPage, getRevision, hasYdoc, listRevisions, reindexDocPage, renameDocPage, saveDocBody, searchChunksFts, searchChunksTrigram, softDeleteDocPage, withContext,
+  type Pool, type PoolClient,
 } from '@miceplans/db';
-import { chunkMarkdown, makeSnippet, mergeRanked, queryTerms, toTsQuery } from '@miceplans/knowledge';
+import { makeSnippet, mergeRanked, queryTerms, toTsQuery } from '@miceplans/knowledge';
 import { AuthUser, requireInternal } from '../common/auth';
 import { assertFound, assertOk, mapDbError } from '../common/http';
 import { DB_POOL } from '../tokens';
+import { CollabClient } from './collab.client';
 
 /** 한 문서에서 검색 후보로 가져올 청크 수의 여유. 문서당 한 건만 돌려주므로 limit보다 넉넉히 가져온다. */
 const CANDIDATE_FACTOR = 3;
-
-/** 제목을 모든 청크의 제목 경로 앞에 붙여 제목으로도 검색되게 한다. 본문이 비어도 제목 청크는 남긴다. */
-export function chunksFor(page: Pick<DocPageRow, 'title' | 'bodyMd'>) {
-  const chunks = chunkMarkdown(page.bodyMd).map((c) => ({ ...c, heading: [page.title, c.heading].filter(Boolean).join(' > ') }));
-  return chunks.length ? chunks : [{ index: 0, heading: page.title, content: page.title }];
-}
-
-export const reindexDoc = (db: PoolClient, page: DocPageRow) => replaceChunks(db, page.id, page.eventId, chunksFor(page));
 
 const stripTitle = (heading: string, title: string) => (heading === title ? '' : heading.startsWith(`${title} > `) ? heading.slice(title.length + 3) : heading);
 
@@ -48,7 +41,10 @@ export async function searchKnowledge(db: PoolClient, q: Pick<SearchQuery, 'q' |
 /** 행사 위키 본문 CRUD와 검색 (명세 F-09, F-10). Yjs 원본과 협업 편집은 협업 서버 단계에서 붙인다. */
 @Injectable()
 export class KnowledgeService {
-  constructor(@Inject(DB_POOL) private readonly pool: Pool) {}
+  constructor(
+    @Inject(DB_POOL) private readonly pool: Pool,
+    @Inject(CollabClient) private readonly collab: CollabClient,
+  ) {}
 
   private run<T>(user: AuthUser, fn: (db: PoolClient) => Promise<T>): Promise<T> {
     return withContext(this.pool, user, fn).catch((error) => mapDbError(error));
@@ -63,7 +59,7 @@ export class KnowledgeService {
     const page = await this.run(user, async (db) => {
       await this.requireEditor(db, eventId);
       const created = await createDocPage(db, { eventId, ...body });
-      await reindexDoc(db, created);
+      await reindexDocPage(db, created);
       return created;
     });
     return docPageDto.parse(page);
@@ -74,17 +70,80 @@ export class KnowledgeService {
     return docPageDto.parse(assertFound(await this.run(user, (db) => getDocPage(db, docId)), '문서'));
   }
 
-  /** 제목·본문은 마지막 저장 우선이다. 저장과 같은 트랜잭션에서 색인을 갱신한다. */
+  /**
+   * 제목·본문은 마지막 저장 우선이다. 협업 편집으로 Yjs 상태가 생긴 문서의 본문은 Yjs가 기준이라 협업 서버를 거쳐 바꾸고,
+   * 그렇지 않은 문서는 저장과 같은 트랜잭션에서 색인을 갱신한다.
+   */
   async saveBody(user: AuthUser, docId: string, body: SaveDocBodyBody) {
     requireInternal(user);
-    const page = await this.run(user, async (db) => {
+    const { doc, collab } = await this.run(user, async (db) => {
       const doc = assertFound(await getDocPage(db, docId), '문서');
       await this.requireEditor(db, doc.eventId);
+      if (await hasYdoc(db, docId)) return { doc, collab: true };
       const saved = assertFound(await saveDocBody(db, docId, body), '문서');
-      await reindexDoc(db, saved);
-      return saved;
+      await reindexDocPage(db, saved);
+      return { doc: saved, collab: false };
+    });
+    if (!collab) return docPageDto.parse(doc);
+    await this.collab.replaceBody(user.userId, docId, body.bodyMd);
+    return this.renameAfterCollab(user, docId, body.title);
+  }
+
+  private async renameAfterCollab(user: AuthUser, docId: string, title?: string) {
+    const page = await this.run(user, async (db) => {
+      const current = assertFound(await getDocPage(db, docId), '문서');
+      if (!title || title === current.title) return current;
+      const renamed = assertFound(await renameDocPage(db, docId, title), '문서');
+      await reindexDocPage(db, renamed);
+      return renamed;
     });
     return docPageDto.parse(page);
+  }
+
+  // ── 버전 (명세 F-09: 명시적 버전 생성·AI 제안 승인·되돌리기에서만 만든다) ──
+
+  async createRevision(user: AuthUser, docId: string) {
+    requireInternal(user);
+    const rev = await this.run(user, async (db) => {
+      const doc = assertFound(await getDocPage(db, docId), '문서');
+      await this.requireEditor(db, doc.eventId);
+      return createRevision(db, user.userId, doc, 'manual');
+    });
+    return wikiRevisionDto.parse(rev);
+  }
+
+  async listRevisions(user: AuthUser, docId: string) {
+    requireInternal(user);
+    const rows = await this.run(user, async (db) => {
+      assertFound(await getDocPage(db, docId), '문서');
+      return listRevisions(db, docId);
+    });
+    return rows.map((r) => wikiRevisionDto.parse(r));
+  }
+
+  async getRevision(user: AuthUser, docId: string, revisionId: string) {
+    requireInternal(user);
+    return wikiRevisionDetailDto.parse(assertFound(await this.run(user, (db) => getRevision(db, docId, revisionId)), '버전'));
+  }
+
+  /** 되돌리기: 현재 내용을 먼저 버전으로 남기고 선택한 버전의 본문으로 바꾼다. 감사 로그 대상이다. */
+  async restoreRevision(user: AuthUser, docId: string, revisionId: string) {
+    requireInternal(user);
+    const target = await this.run(user, async (db) => {
+      const doc = assertFound(await getDocPage(db, docId), '문서');
+      await this.requireEditor(db, doc.eventId);
+      const revision = assertFound(await getRevision(db, docId, revisionId), '버전');
+      await createRevision(db, user.userId, doc, 'restore');
+      await db.query(`INSERT INTO audit_log (event_id, actor_id, action, detail) VALUES ($1, $2, 'doc.restore', $3)`, [doc.eventId, user.userId, JSON.stringify({ docId, revisionId })]);
+      if (!(await hasYdoc(db, docId))) {
+        const saved = assertFound(await saveDocBody(db, docId, { bodyMd: revision.bodyMd }), '문서');
+        await reindexDocPage(db, saved);
+        return undefined;
+      }
+      return revision;
+    });
+    if (target) await this.collab.replaceBody(user.userId, docId, target.bodyMd);
+    return this.getPage(user, docId);
   }
 
   async remove(user: AuthUser, docId: string): Promise<void> {

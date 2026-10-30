@@ -1,5 +1,6 @@
 import type { PoolClient } from 'pg';
 import type { DocVisibility, ProposalKind, ProposalStatus } from '@miceplans/domain';
+import { chunkDocument } from '@miceplans/knowledge';
 import { isoTs } from './sql';
 
 export type DocPageRow = { id: string; eventId: string; title: string; visibility: DocVisibility; version: number; bodyMd: string; updatedAt: string };
@@ -36,6 +37,12 @@ export async function saveDocBody(client: PoolClient, docId: string, patch: { ti
     `UPDATE event_docs SET body_md = $2, title = coalesce($3, title), version = version + 1, updated_at = now() WHERE ${where} RETURNING ${PAGE}`,
     vals,
   );
+  return rows[0] ?? null;
+}
+
+/** 제목만 바꾼다(제목은 Yjs 본문이 아니다). 제목이 청크 제목 경로에 들어가므로 호출한 쪽이 다시 색인한다. */
+export async function renameDocPage(client: PoolClient, docId: string, title: string): Promise<DocPageRow | null> {
+  const { rows } = await client.query<DocPageRow>(`UPDATE event_docs SET title = $2, version = version + 1, updated_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING ${PAGE}`, [docId, title]);
   return rows[0] ?? null;
 }
 
@@ -164,4 +171,58 @@ export async function logAiCall(client: PoolClient, call: AiCallLog): Promise<vo
 /** 승인된 알림 제안을 반영한다. 권한이 없으면 RLS가 거부한다(42501). */
 export async function insertApprovedNotification(client: PoolClient, n: { recipientId: string; eventId: string; itemId: string | null; kind: string; title: string }): Promise<void> {
   await client.query(`INSERT INTO notifications (recipient_id, event_id, item_id, kind, title) VALUES ($1, $2, $3, $4, $5)`, [n.recipientId, n.eventId, n.itemId, n.kind, n.title]);
+}
+
+/** 본문이 바뀐 문서의 청크를 다시 만든다. 본문을 저장한 트랜잭션 안에서 호출한다. */
+export const reindexDocPage = (client: PoolClient, page: Pick<DocPageRow, 'id' | 'eventId' | 'title' | 'bodyMd'>) =>
+  replaceChunks(client, page.id, page.eventId, chunkDocument(page));
+
+// ── 협업 편집 (Yjs 원본) ─────────────────────────────────────────────────
+
+/** 저장된 Yjs 상태. 아직 협업으로 편집된 적이 없으면 undefined다(이때는 body_md가 기준). 볼 수 없는 문서는 RLS 때문에 undefined다. */
+export async function getYdocState(client: PoolClient, docId: string): Promise<Uint8Array | undefined> {
+  const { rows } = await client.query<{ state: Buffer }>('SELECT state FROM wiki_ydoc WHERE doc_id = $1', [docId]);
+  return rows[0]?.state;
+}
+
+export async function hasYdoc(client: PoolClient, docId: string): Promise<boolean> {
+  return ((await client.query('SELECT 1 FROM wiki_ydoc WHERE doc_id = $1', [docId])).rowCount ?? 0) > 0;
+}
+
+/**
+ * 협업 서버가 병합된 Yjs 상태와 그 Markdown 파생본을 함께 저장한다. 본문이 달라졌을 때만 version을 올리고 다시 색인한다.
+ * 권한이 없으면 RLS가 거부한다(42501). 반환값은 본문이 바뀌었는지 여부다.
+ */
+export async function saveCollabState(client: PoolClient, docId: string, state: Uint8Array, bodyMd: string): Promise<boolean> {
+  const doc = await getDocPage(client, docId);
+  if (!doc) throw Object.assign(new Error('문서를 찾을 수 없다'), { code: '42501' });
+  await client.query(
+    `INSERT INTO wiki_ydoc (doc_id, event_id, state) VALUES ($1, $2, $3)
+     ON CONFLICT (doc_id) DO UPDATE SET state = EXCLUDED.state, updated_at = now()`,
+    [docId, doc.eventId, Buffer.from(state)],
+  );
+  if (doc.bodyMd === bodyMd) return false;
+  const saved = await saveDocBody(client, docId, { bodyMd });
+  if (saved) await reindexDocPage(client, saved);
+  return true;
+}
+
+export type WikiRevisionRow = { id: string; docId: string; eventId: string; version: number; title: string; bodyMd: string; reason: 'manual' | 'ai_proposal' | 'restore'; createdBy: string; createdAt: string };
+const REVISION = `id, doc_id AS "docId", event_id AS "eventId", version, title, body_md AS "bodyMd", reason, created_by AS "createdBy", ${isoTs('created_at', 'createdAt')}`;
+
+/** 현재 문서 내용을 버전으로 남긴다. 명시적 버전 생성·AI 제안 승인·되돌리기에서만 호출한다. */
+export async function createRevision(client: PoolClient, actorId: string, doc: Pick<DocPageRow, 'id' | 'eventId' | 'version' | 'title' | 'bodyMd'>, reason: WikiRevisionRow['reason']): Promise<WikiRevisionRow> {
+  const { rows } = await client.query<WikiRevisionRow>(
+    `INSERT INTO wiki_revisions (doc_id, event_id, version, title, body_md, reason, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING ${REVISION}`,
+    [doc.id, doc.eventId, doc.version, doc.title, doc.bodyMd, reason, actorId],
+  );
+  return rows[0]!;
+}
+
+export async function listRevisions(client: PoolClient, docId: string): Promise<WikiRevisionRow[]> {
+  return (await client.query<WikiRevisionRow>(`SELECT ${REVISION} FROM wiki_revisions WHERE doc_id = $1 ORDER BY created_at DESC`, [docId])).rows;
+}
+
+export async function getRevision(client: PoolClient, docId: string, revisionId: string): Promise<WikiRevisionRow | undefined> {
+  return (await client.query<WikiRevisionRow>(`SELECT ${REVISION} FROM wiki_revisions WHERE doc_id = $1 AND id = $2`, [docId, revisionId])).rows[0];
 }

@@ -2,16 +2,16 @@ import { ConflictException, ForbiddenException, Inject, Injectable } from '@nest
 import { notificationPayload, proposalDto, taskDraftsPayload, wikiEditPayload, type ProposalDto } from '@miceplans/contracts';
 import { canDecideProposal, type ProposalStatus } from '@miceplans/domain';
 import {
-  createItem, decideProposal, eventRole, getDocPage, getProposal, insertApprovedNotification, listProposals, saveDocBody, withContext,
+  createItem, createRevision, decideProposal, eventRole, getDocPage, getProposal, hasYdoc, insertApprovedNotification, listProposals, reindexDocPage, saveDocBody, withContext,
   type Pool, type PoolClient, type ProposalRow,
 } from '@miceplans/db';
 import { AuthUser, requireInternal } from '../common/auth';
 import { assertFound, mapDbError, versionConflictError } from '../common/http';
-import { reindexDoc } from '../knowledge/knowledge.service';
+import { CollabClient } from '../knowledge/collab.client';
 import { REALTIME, type Realtime } from '../realtime/realtime.gateway';
 import { DB_POOL } from '../tokens';
 
-type Applied = { itemIds: string[]; notifiedUserId?: string };
+type Applied = { itemIds: string[]; notifiedUserId?: string; /** 트랜잭션 마지막에 협업 서버로 반영할 Yjs 본문 교체. */ afterDecision?: () => Promise<void> };
 
 /**
  * AI 제안의 목록과 승인·반려 (명세 F-11). AI는 제안만 저장하고, 변경은 승인한 PM·AM의 권한으로
@@ -22,6 +22,7 @@ export class ProposalsService {
   constructor(
     @Inject(DB_POOL) private readonly pool: Pool,
     @Inject(REALTIME) private readonly rt: Realtime,
+    @Inject(CollabClient) private readonly collab: CollabClient,
   ) {}
 
   private run<T>(user: AuthUser, fn: (db: PoolClient) => Promise<T>): Promise<T> {
@@ -42,6 +43,8 @@ export class ProposalsService {
       const applied = await this.apply(db, user, proposal);
       const row = await decideProposal(db, user.userId, id, 'approved');
       if (!row) throw new ConflictException('이미 결정된 제안이다');
+      // 외부(협업 서버) 반영은 마지막에 한다. 실패하면 결정까지 함께 되돌려 제안이 대기로 남는다.
+      await applied.afterDecision?.();
       return { row, applied };
     });
     for (const itemId of applied.itemIds) this.rt.itemChanged(row.eventId, itemId);
@@ -89,10 +92,17 @@ export class ProposalsService {
       }
       case 'wiki_edit': {
         const edit = wikiEditPayload.parse(proposal.payload);
+        const doc = await getDocPage(db, edit.docId);
         // 제안을 만든 뒤 문서가 바뀌었으면 덮어쓰지 않고 충돌로 알린다 (명세 3.2).
+        if (!doc || doc.version !== edit.baseVersion) throw versionConflictError(doc?.version ?? edit.baseVersion);
+        await createRevision(db, user.userId, doc, 'ai_proposal');
+        if (await hasYdoc(db, edit.docId)) {
+          // Yjs가 기준인 문서는 서버가 협업 참여자로서 Yjs 트랜잭션을 수행한다 (명세 F-11).
+          return { itemIds: [], afterDecision: () => this.collab.replaceBody(user.userId, edit.docId, edit.bodyMd) };
+        }
         const saved = await saveDocBody(db, edit.docId, { bodyMd: edit.bodyMd }, edit.baseVersion);
         if (!saved) throw versionConflictError((await getDocPage(db, edit.docId))?.version ?? edit.baseVersion);
-        await reindexDoc(db, saved);
+        await reindexDocPage(db, saved);
         return { itemIds: [] };
       }
     }
