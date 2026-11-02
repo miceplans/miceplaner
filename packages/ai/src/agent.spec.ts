@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { runAgent, ToolError, type ToolHandlers } from './agent';
+import { anthropicCompatible } from './anthropic';
+import { createLlmClient } from './client';
 import { openAiCompatible, type ChatMsg, type LlmChunk, type LlmClient } from './llm';
 import { EVAL_CASES } from './eval/cases';
 import { judge, runEval, uncoveredTools } from './eval/run';
@@ -89,6 +91,55 @@ describe('openAiCompatible', () => {
   it('HTTP 오류는 응답 본문 없이 상태만 알린다', async () => {
     const llm = openAiCompatible({ baseUrl: 'https://llm.test', apiKey: 'k', model: 'm', fetch: (async () => new Response('secret detail', { status: 401 })) as typeof fetch });
     await expect((async () => { for await (const _ of llm.stream({ messages: [], tools: [] })) void _; })()).rejects.toThrow('HTTP 401');
+  });
+});
+
+describe('anthropicCompatible', () => {
+  const sse = (...events: unknown[]) => new Response(events.map((e) => `event: x\ndata: ${JSON.stringify(e)}\n\n`).join(''));
+  it('system 분리, tool 결과 묶기, 도구 호출 조각·사용량을 처리한다', async () => {
+    let url = '';
+    let headers: Record<string, string> = {};
+    let body: { system?: string; messages: { role: string; content: unknown }[]; tools?: unknown[] } | undefined;
+    const fetchFake = (async (u: string, init: RequestInit) => {
+      url = u;
+      headers = init.headers as Record<string, string>;
+      body = JSON.parse(init.body as string);
+      return sse(
+        { type: 'message_start', message: { usage: { input_tokens: 9 } } },
+        { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: '안녕' } },
+        { type: 'content_block_start', index: 1, content_block: { type: 'tool_use', id: 'tu1', name: 'search_wiki' } },
+        { type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: '{"que' } },
+        { type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: 'ry":"a"}' } },
+        { type: 'message_delta', usage: { output_tokens: 4 } },
+      );
+    }) as unknown as typeof fetch;
+    const llm = anthropicCompatible({ baseUrl: 'https://llm.test/api/anthropic/', apiKey: 'k', model: 'glm', fetch: fetchFake });
+    const chunks: LlmChunk[] = [];
+    const messages: ChatMsg[] = [
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: 'q' },
+      { role: 'assistant', content: null, toolCalls: [{ id: 'a', name: 'query_events', arguments: '{}' }, { id: 'b', name: 'query_tasks', arguments: '{}' }] },
+      { role: 'tool', toolCallId: 'a', content: '1' },
+      { role: 'tool', toolCallId: 'b', content: '2' },
+    ];
+    for await (const c of llm.stream({ messages, tools: [{ name: 't', description: 'd', parameters: { type: 'object' } }] })) chunks.push(c);
+    expect(url).toBe('https://llm.test/api/anthropic/v1/messages');
+    expect(headers['x-api-key']).toBe('k');
+    expect(body!.system).toBe('sys');
+    expect(body!.messages).toHaveLength(3);
+    expect((body!.messages[2]!.content as unknown[]).length).toBe(2);
+    expect(body!.tools).toEqual([{ name: 't', description: 'd', input_schema: { type: 'object' } }]);
+    expect(chunks).toContainEqual({ type: 'text', delta: '안녕' });
+    expect(chunks).toContainEqual({ type: 'tool_calls', calls: [{ id: 'tu1', name: 'search_wiki', arguments: '{"query":"a"}' }] });
+    expect(chunks).toContainEqual({ type: 'usage', promptTokens: 9, completionTokens: 4 });
+  });
+  it('엔드포인트가 /anthropic이면 Anthropic 어댑터를 고른다', async () => {
+    const urls: string[] = [];
+    const f = (async (u: string) => { urls.push(u); return new Response('', { status: 500 }); }) as unknown as typeof fetch;
+    for (const baseUrl of ['https://x/api/anthropic', 'https://x/v4']) {
+      await (async () => { for await (const _ of createLlmClient({ baseUrl, apiKey: 'k', model: 'm', fetch: f }).stream({ messages: [], tools: [] })) void _; })().catch(() => undefined);
+    }
+    expect(urls).toEqual(['https://x/api/anthropic/v1/messages', 'https://x/v4/chat/completions']);
   });
 });
 
