@@ -8,6 +8,7 @@ import {
 import { AuthUser, requireInternal } from '../common/auth';
 import { assertFound, mapDbError, versionConflictError } from '../common/http';
 import { CollabClient } from '../knowledge/collab.client';
+import { JobQueue } from '../knowledge/job-queue';
 import { REALTIME, type Realtime } from '../realtime/realtime.gateway';
 import { DB_POOL } from '../tokens';
 
@@ -23,6 +24,7 @@ export class ProposalsService {
     @Inject(DB_POOL) private readonly pool: Pool,
     @Inject(REALTIME) private readonly rt: Realtime,
     @Inject(CollabClient) private readonly collab: CollabClient,
+    @Inject(JobQueue) private readonly queue: JobQueue,
   ) {}
 
   private run<T>(user: AuthUser, fn: (db: PoolClient) => Promise<T>): Promise<T> {
@@ -103,7 +105,7 @@ export class ProposalsService {
         const saved = await saveDocBody(db, edit.docId, { bodyMd: edit.bodyMd }, edit.baseVersion);
         if (!saved) throw versionConflictError((await getDocPage(db, edit.docId))?.version ?? edit.baseVersion);
         await reindexDocPage(db, saved);
-        return { itemIds: [] };
+        return { itemIds: [], afterDecision: () => this.queue.embedDoc({ docId: edit.docId, ctx: { workspaceId: user.workspaceId, userId: user.userId, role: user.role } }) };
       }
     }
   }

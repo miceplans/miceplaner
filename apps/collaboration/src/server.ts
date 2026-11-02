@@ -11,15 +11,20 @@ import { config } from './config';
 
 type Context = { user: CollabUser };
 
+/** 본문이 바뀌어 새로 색인된 뒤에 부르는 후처리. 임베딩이 비어 있는 새 청크를 채우는 작업을 넣는 데 쓴다. */
+export type BodyChanged = (docId: string, user: CollabUser) => void | Promise<void>;
+
 const uuid = z.uuid();
 const replaceBody = z.object({ userId: uuid, markdown: z.string().max(200_000) });
 const REPLACE_PATH = /^\/internal\/docs\/([0-9a-f-]{36})\/replace$/i;
 
 /** 문서의 Yjs 상태와 Markdown 파생본을 접속한 사용자의 권한으로 저장한다 (RLS: PM·AM만 쓸 수 있다). */
-async function persist(pool: Pool, user: CollabUser, docId: string, ydoc: Y.Doc): Promise<void> {
+async function persist(pool: Pool, user: CollabUser, docId: string, ydoc: Y.Doc, onBodyChanged?: BodyChanged): Promise<void> {
   const state = ydocToState(ydoc);
   const markdown = ydocToMarkdown(ydoc);
-  await withContext(pool, user, (db) => saveCollabState(db, docId, state, markdown));
+  const changed = await withContext(pool, user, (db) => saveCollabState(db, docId, state, markdown));
+  // 저장은 끝났으므로 후처리(임베딩 작업 등) 실패가 편집을 막지 않게 한다.
+  if (changed && onBodyChanged) await Promise.resolve(onBodyChanged(docId, user)).catch((error) => console.error('[collab] 본문 변경 후처리 실패', error));
 }
 
 const readJson = async (req: IncomingMessage, limit = 400_000): Promise<unknown> => {
@@ -52,7 +57,7 @@ const secretMatches = (given: string | undefined): boolean => {
  * - Yjs 상태가 기준이며 저장할 때 Markdown 파생본과 검색 색인도 함께 갱신한다.
  * - `POST /internal/docs/:id/replace`: API가 AI 제안 승인·되돌리기를 Yjs 트랜잭션으로 반영할 때 쓴다(공유 비밀 필요).
  */
-export function createCollabServer(pool: Pool, options: { port?: number; quiet?: boolean } = {}): Server<Context> {
+export function createCollabServer(pool: Pool, options: { port?: number; quiet?: boolean; onBodyChanged?: BodyChanged } = {}): Server<Context> {
   const extension: Extension<Context> = {
     async onAuthenticate({ token, documentName, connectionConfig }) {
       const user = await authenticate(pool, token);
@@ -78,7 +83,7 @@ export function createCollabServer(pool: Pool, options: { port?: number; quiet?:
     async onStoreDocument({ document, documentName, lastContext }) {
       const user = (lastContext as Context | undefined)?.user;
       if (!user) return;
-      await persist(pool, user, documentName, document);
+      await persist(pool, user, documentName, document, options.onBodyChanged);
     },
 
     async onRequest({ request, response, instance }) {
@@ -107,7 +112,7 @@ export function createCollabServer(pool: Pool, options: { port?: number; quiet?:
           const connection = await instance.openDirectConnection(docId, { user } satisfies Context);
           try {
             await connection.transact((doc) => replaceYdocWithMarkdown(doc, body.markdown));
-            await persist(pool, user, docId, connection.document as Y.Doc);
+            await persist(pool, user, docId, connection.document as Y.Doc, options.onBodyChanged);
           } finally {
             await connection.disconnect();
           }

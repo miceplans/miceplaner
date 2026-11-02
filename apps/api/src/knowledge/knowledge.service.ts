@@ -1,34 +1,53 @@
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { docPageDto, searchHitDto, wikiRevisionDetailDto, wikiRevisionDto, type CreateDocBody, type SaveDocBodyBody, type SearchHitDto, type SearchQuery } from '@miceplans/contracts';
 import { canEditWiki } from '@miceplans/domain';
 import {
-  createDocPage, createRevision, eventRole, getDocPage, getRevision, hasYdoc, listRevisions, reindexDocPage, renameDocPage, saveDocBody, searchChunksFts, searchChunksTrigram, softDeleteDocPage, withContext,
+  createDocPage, createRevision, eventRole, getDocPage, getRevision, hasVector, hasYdoc, listRevisions, reindexDocPage, renameDocPage, saveDocBody, searchChunksDense, searchChunksFts, searchChunksTrigram, softDeleteDocPage, withContext,
   type Pool, type PoolClient,
 } from '@miceplans/db';
 import { makeSnippet, mergeRanked, queryTerms, toTsQuery } from '@miceplans/knowledge';
+import { toVectorLiteral, type Embedder } from '@miceplans/knowledge/embed';
+import { config } from '../config';
 import { AuthUser, requireInternal } from '../common/auth';
 import { assertFound, assertOk, mapDbError } from '../common/http';
-import { DB_POOL } from '../tokens';
+import { DB_POOL, EMBEDDER } from '../tokens';
 import { CollabClient } from './collab.client';
+import { JobQueue } from './job-queue';
 
 /** 한 문서에서 검색 후보로 가져올 청크 수의 여유. 문서당 한 건만 돌려주므로 limit보다 넉넉히 가져온다. */
 const CANDIDATE_FACTOR = 3;
 
 const stripTitle = (heading: string, title: string) => (heading === title ? '' : heading.startsWith(`${title} > `) ? heading.slice(title.length + 3) : heading);
 
+const log = new Logger('search');
+
+/** 질의 임베딩이 켜져 있고 pgvector가 있을 때만 dense 후보를 가져온다. 임베딩 서버 장애는 lexical 검색으로 대체한다. */
+async function denseCandidates(db: PoolClient, q: string, filter: Parameters<typeof searchChunksFts>[2], embedder: Embedder | null | undefined) {
+  if (!embedder || !(await hasVector(db))) return [];
+  try {
+    const [vector] = await embedder([q]);
+    return vector ? await searchChunksDense(db, toVectorLiteral(vector), filter, config.denseMaxDistance) : [];
+  } catch (error) {
+    log.warn(`dense 검색을 건너뛴다: ${String(error)}`);
+    return [];
+  }
+}
+
 /**
- * 권한 필터(RLS) 뒤에 FTS와 pg_trgm 결과를 RRF로 병합하고 문서당 가장 좋은 청크 하나만 돌려준다 (명세 F-10).
- * 형태소 분석기 없이 조사를 뗀 어간의 접두 일치로 한국어 활용을 흡수한다.
+ * 권한 필터(RLS) 뒤에 FTS·pg_trgm·dense 결과를 RRF로 병합하고 문서당 가장 좋은 청크 하나만 돌려준다 (명세 F-10).
+ * 형태소 분석기 없이 조사를 뗀 어간의 접두 일치로 한국어 활용을 흡수하고, dense는 의미가 비슷한 표현을 보완한다.
  */
-export async function searchKnowledge(db: PoolClient, q: Pick<SearchQuery, 'q' | 'eventId' | 'clientId' | 'since' | 'limit'>): Promise<SearchHitDto[]> {
+export async function searchKnowledge(db: PoolClient, q: Pick<SearchQuery, 'q' | 'eventId' | 'clientId' | 'since' | 'limit'>, embedder?: Embedder | null): Promise<SearchHitDto[]> {
   const terms = queryTerms(q.q);
   if (terms.length === 0) return [];
   const filter = { eventId: q.eventId, clientId: q.clientId, since: q.since, limit: q.limit * CANDIDATE_FACTOR };
-  const [fts, trigram] = [await searchChunksFts(db, toTsQuery(terms), filter), await searchChunksTrigram(db, terms.join(' '), filter)];
-  const byId = new Map([...fts, ...trigram].map((h) => [h.id, h]));
+  const fts = await searchChunksFts(db, toTsQuery(terms), filter);
+  const trigram = await searchChunksTrigram(db, terms.join(' '), filter);
+  const dense = await denseCandidates(db, q.q, filter, embedder);
+  const byId = new Map([...fts, ...trigram, ...dense].map((h) => [h.id, h]));
   const seenDocs = new Set<string>();
   const hits: SearchHitDto[] = [];
-  for (const m of mergeRanked([fts, trigram], byId.size)) {
+  for (const m of mergeRanked([fts, trigram, dense], byId.size)) {
     const h = byId.get(m.id)!;
     if (seenDocs.has(h.docId)) continue;
     seenDocs.add(h.docId);
@@ -44,7 +63,14 @@ export class KnowledgeService {
   constructor(
     @Inject(DB_POOL) private readonly pool: Pool,
     @Inject(CollabClient) private readonly collab: CollabClient,
+    @Inject(JobQueue) private readonly queue: JobQueue,
+    @Optional() @Inject(EMBEDDER) private readonly embedder: Embedder | null = null,
   ) {}
+
+  /** 본문이 바뀐 문서의 새 청크에 임베딩을 채우도록 작업을 넣는다. */
+  private embedLater(user: AuthUser, docId: string): Promise<void> {
+    return this.queue.embedDoc({ docId, ctx: { workspaceId: user.workspaceId, userId: user.userId, role: user.role } });
+  }
 
   private run<T>(user: AuthUser, fn: (db: PoolClient) => Promise<T>): Promise<T> {
     return withContext(this.pool, user, fn).catch((error) => mapDbError(error));
@@ -62,6 +88,7 @@ export class KnowledgeService {
       await reindexDocPage(db, created);
       return created;
     });
+    await this.embedLater(user, page.id);
     return docPageDto.parse(page);
   }
 
@@ -84,7 +111,10 @@ export class KnowledgeService {
       await reindexDocPage(db, saved);
       return { doc: saved, collab: false };
     });
-    if (!collab) return docPageDto.parse(doc);
+    if (!collab) {
+      await this.embedLater(user, docId);
+      return docPageDto.parse(doc);
+    }
     await this.collab.replaceBody(user.userId, docId, body.bodyMd);
     return this.renameAfterCollab(user, docId, body.title);
   }
@@ -143,6 +173,7 @@ export class KnowledgeService {
       return revision;
     });
     if (target) await this.collab.replaceBody(user.userId, docId, target.bodyMd);
+    else await this.embedLater(user, docId);
     return this.getPage(user, docId);
   }
 
@@ -157,6 +188,6 @@ export class KnowledgeService {
 
   async search(user: AuthUser, query: SearchQuery): Promise<SearchHitDto[]> {
     requireInternal(user);
-    return this.run(user, (db) => searchKnowledge(db, query));
+    return this.run(user, (db) => searchKnowledge(db, query, this.embedder));
   }
 }

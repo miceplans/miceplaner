@@ -7,3 +7,4 @@ export * from './item-repository';
 export * from './leave-repository';
 export * from './portal-repository';
 export * from './knowledge-repository';
+export * from './file-repository';

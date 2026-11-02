@@ -15,6 +15,7 @@
     "@miceplans/db": "workspace:*",
     "@miceplans/domain": "workspace:*",
     "@miceplans/editor-schema": "workspace:*",
+    "@miceplans/queue": "workspace:*",
     "jose": "^6.0.10",
     "tsx": "^4.19.2",
     "yjs": "^13.6.33",

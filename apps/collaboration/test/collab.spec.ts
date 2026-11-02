@@ -46,6 +46,7 @@ const until = async <T>(fn: () => Promise<T | false | undefined> | T | false | u
 };
 const body = async (docId: string) => (await admin.query('SELECT body_md, version FROM event_docs WHERE id = $1', [docId])).rows[0] as { body_md: string; version: number };
 const md = (c: Client) => ydocToMarkdown(c.doc).trim();
+const changed: { docId: string; userId: string }[] = [];
 const internal = (docId: string, payload: unknown, secret: string | null = 'internal-test-secret') =>
   fetch(`${url.replace('ws:', 'http:')}/internal/docs/${docId}/replace`, { method: 'POST', headers: { 'content-type': 'application/json', ...(secret ? { 'x-internal-secret': secret } : {}) }, body: JSON.stringify(payload) });
 
@@ -60,7 +61,7 @@ beforeAll(async () => {
   }
   for (const [name, uid] of Object.entries(U)) tokens[name] = await sign(uid, name === 'admin' ? 'super_admin' : name === 'client' ? 'client' : 'staff');
   pool = createPool(process.env.DATABASE_URL!);
-  server = createCollabServer(pool, { port: 0, quiet: true });
+  server = createCollabServer(pool, { port: 0, quiet: true, onBodyChanged: (docId, user) => { changed.push({ docId, userId: user.userId }); } });
   await server.listen();
   url = server.webSocketURL;
 });
@@ -166,6 +167,18 @@ describe('내부 변경 API (AI 제안 승인·되돌리기)', () => {
     Y.applyUpdate(restored, stored.rows[0]!.state as Uint8Array);
     expect(ydocToMarkdown(restored).trim()).toBe('# API 문서\n\nAI가 고친 내용');
     expect(ydocToState(markdownToYdoc('x')).length).toBeGreaterThan(0);
+  });
+  it('본문이 바뀌어 저장될 때만 후처리(임베딩 작업)를 부른다', async () => {
+    const before = changed.filter((c) => c.docId === DOC.reload).length;
+    const live = connect(DOC.reload, tokens.pm!);
+    await live.synced;
+    replaceYdocWithMarkdown(live.doc, '후처리 확인 내용');
+    await until(() => changed.filter((c) => c.docId === DOC.reload).length > before);
+    expect(changed.filter((c) => c.docId === DOC.reload).at(-1)).toEqual({ docId: DOC.reload, userId: U.pm });
+    // 같은 내용으로 다시 교체해도 본문이 같으면 부르지 않는다.
+    const count = changed.length;
+    expect((await internal(DOC.reload, { userId: U.pm, markdown: '후처리 확인 내용' })).status).toBe(200);
+    expect(changed.length).toBe(count);
   });
   it('GET /health는 인증 없이 응답한다', async () => {
     expect((await fetch(`${url.replace('ws:', 'http:')}/health`)).status).toBe(200);

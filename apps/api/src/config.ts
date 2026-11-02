@@ -42,4 +42,12 @@ export const config = {
   get aiRequestsPerMinute(): number {
     return Number(process.env.AI_REQUESTS_PER_MINUTE ?? 20);
   },
+  /** BGE-M3를 서빙하는 TEI 주소. 없으면 dense 검색과 임베딩 작업을 쓰지 않는다. */
+  get teiUrl(): string {
+    return process.env.TEI_URL ?? '';
+  },
+  /** dense 검색에서 이 코사인 거리보다 먼 청크는 관련 없는 것으로 본다. 골든 셋으로 보정할 값이라 환경 변수로 조정한다. */
+  get denseMaxDistance(): number {
+    return Number(process.env.DENSE_MAX_DISTANCE ?? 0.5);
+  },
 };

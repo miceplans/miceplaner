@@ -13,6 +13,7 @@ import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event
 // 탭별 큰 화면은 필요할 때 청크를 받아 첫 행사 상세 진입의 JS를 줄인다.
 const ScheduleList = dynamic(() => import('./event-schedule-list').then((module) => module.ScheduleList));
 const EventTasks = dynamic(() => import('./event-tasks').then((module) => module.EventTasks));
+const EventFiles = dynamic(() => import('./event-files').then((module) => module.EventFiles));
 const EventDocs = dynamic(() => import('./event-docs').then((module) => module.EventDocs));
 const EventStats = dynamic(() => import('./event-stats').then((module) => module.EventStats));
 const InviteDialog = dynamic(() => import('./invite-dialog').then((module) => module.InviteDialog));
@@ -500,6 +501,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
         {tab === '스케줄' && <ScheduleList items={schedule} onChange={(fn) => setSchedule(fn)} part={part} filter={filter} />}
         {tab === '할 일' && <EventTasks schedules={schedule} onChange={(fn) => setSchedule(fn)} part={part} filter={filter} />}
         </ItemAccessContext.Provider>
+        {tab === '문서' && <EventFiles eventId={eventId} canManage={event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />}
         {tab === '문서' && <EventDocs eventId={eventId} part={part} canManage={event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />}
         {tab === '통계' && <EventStats schedule={schedule} tasks={schedule.flatMap((s) => s.children ?? [])} />}
         {tab === '제작물' && (

@@ -216,9 +216,31 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 - 권한 밖의 문서는 제목, 요약, 인용문, 첨부 메타데이터를 포함해 검색 결과에 나타나지 않는다.
 - 한국어 검색 품질은 골든 셋으로 측정한다. FTS와 `pg_trgm` 품질이 부족하면 별도 검색 엔진 및 BGE-M3 native sparse를 재검토한다.
 - 한국어 lexical 처리는 형태소 분석기(Kiwi) 없이 한다. 색인은 `simple` tsvector로 원문 토큰을 저장하고, 질의는 `packages/knowledge`의 `queryTerms`가 조사를 떼고 불용어를 제거해 어간 접두 일치(`to_tsquery('simple', '행사':* | …)`)로 찾는다. 어형 변화로 놓친 항목은 `pg_trgm` 단어 유사도로 보완하며, 두 순위 목록은 RRF로 병합하고 문서당 가장 좋은 청크 하나만 돌려준다. Kiwi(WASM)는 상시 메모리가 700~900MB여서 도입하지 않았고, `apps/api/test/knowledge.spec.ts`의 골든 셋이 기준 미달일 때 재검토한다(6절).
-- 검색은 현재 위키 본문만 대상으로 한다. 파일 업로드·파싱(S3, worker)과 dense 검색(BGE-M3, pgvector)은 별도 서버·확장이 필요해 비용 결정 전까지 추가하지 않았다. 청크는 `knowledge_chunks`에 `event_id`를 유지하고 `event_docs` RLS를 그대로 따른다.
+- 검색 대상은 위키 본문과 업로드 파일의 변환 결과다. 청크는 `knowledge_chunks`에 `event_id`를 유지하고 `event_docs` RLS를 그대로 따르므로 파일도 위키와 같은 열람 범위·권한 필터를 거친다.
 - API: `GET /search?q=&eventId=&clientId=&since=&limit=`(내부 직원만). 결과의 문서·절·인용문이 곧 출처다.
-- 파일 파싱, 청킹, 임베딩은 worker가 실행하고 검색 API와 worker가 동일한 지식 처리 코드를 사용한다.
+
+파일 업로드와 변환:
+
+- `POST /events/:eventId/files`(multipart `file`, PM·AM·Super Admin)로 올린다. 지원 형식은 txt·md·csv·xlsx·docx·pdf(텍스트 레이어)이고 상한은 20MB(`MAX_FILE_BYTES`)다. 형식은 확장자로만 판정하며 클라이언트가 보낸 MIME은 믿지 않는다. 스캔 이미지 PDF·이미지·구형 doc/xls는 지원하지 않는다.
+- 원본은 S3(`S3_BUCKET`, 로컬 개발은 `FILES_DIR`)에 `events/<eventId>/<uuid>` 키로 저장한다. 저장소 자격 증명은 서버 런타임에만 있고, 다운로드(`GET /files/:id/download`)는 API가 읽어 `attachment`로 전달한다. 서명 URL을 브라우저에 주지 않는다. 저장소 설정이 없으면 업로드는 503이다.
+- 업로드는 `event_files`(`pending`)를 만들고 pg-boss 작업 `parse-file`을 넣는다. worker가 업로더 권한(작업 입력의 워크스페이스·사용자·역할)으로 원본을 읽어 Markdown으로 바꾸고, 파일명을 제목으로 하는 `event_docs`(열람 범위 `행사 멤버`, PM·AM이 이후 변경)를 만들어 청크를 색인한 뒤 `ready`로 바꾼다. 변환할 수 없으면 사유와 함께 `failed`이며(형식 오류·빈 문서·원본 없음은 재시도하지 않고, 그 밖의 오류는 3회 재시도한 뒤 `failed`) 사용자는 파일 목록에서 사유를 본다.
+- 목록·상세는 변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람만 본다(Client는 항상 불가). 삭제(`DELETE /files/:id`, PM·AM)는 soft delete이며 변환 문서와 색인을 함께 내리고 감사 로그(`file.delete`)를 남긴다.
+- 웹은 행사 상세의 `문서` 탭 위 `자료 파일` 영역에서 올리기·상태 확인(변환 중이면 3초마다 갱신)·원본 받기·변환 문서 열기·삭제를 제공한다. 세션 토큰이 없거나 행사 ID가 서버의 것이 아닌 목업 데이터에서는 표시하지 않는다.
+- **원본 보존·파기 기간은 미확정이다(6절).** 현재는 삭제해도 S3 객체를 지우지 않고(소프트 삭제), 자동 파기 규칙을 두지 않는다. 정책이 정해지면 S3 수명 주기 규칙 또는 별도 작업으로 구현한다.
+
+dense 검색:
+
+- 청크 임베딩은 TEI가 서빙하는 BGE-M3 dense(1024차원)이며 `knowledge_chunks.embedding vector(1024)`와 HNSW 코사인 인덱스에 저장한다. `TEI_URL`이 있을 때만 쓴다. 없으면 임베딩 작업을 만들지 않고 검색은 lexical(FTS + `pg_trgm`)만 쓴다.
+- pgvector가 설치된 PostgreSQL에서만 `embedding` 열이 만들어진다(마이그레이션 `0008`이 확장 유무를 확인). 설치되지 않은 서버에서는 dense가 꺼진 채 나머지는 그대로 동작한다. Aurora/RDS는 pgvector를 지원한다.
+- 본문이 저장·색인될 때마다(위키 API 저장, AI 제안 승인, 되돌리기, 협업 편집 저장, 파일 변환) 청크가 새로 만들어져 임베딩이 비므로 작업 `embed-doc`을 넣고, worker가 비어 있는 청크만 채운다. 같은 문서의 요청은 30초 안에 하나로 합친다. 큐나 임베딩 서버 장애는 본문 저장을 막지 않으며 그 청크는 lexical로만 검색된다.
+- 질의는 같은 TEI로 임베딩해 권한 필터(RLS) 뒤에서 코사인 거리가 `DENSE_MAX_DISTANCE`(기본 0.5) 이하인 청크를 가져와 FTS·`pg_trgm` 결과와 함께 RRF로 병합한다. 임베딩 서버가 실패하면 dense만 건너뛰고 lexical 결과를 돌려준다. **0.5는 보정되지 않은 임시값이다.** 실제 BGE-M3 응답으로 한국어 골든 셋을 돌려 조정해야 한다.
+- TEI 서빙 비용(CPU로 충분한지, GPU가 필요한지)과 상시 실행 여부는 6절에서 결정한다. 임베딩을 켜지 않으면 추가 비용이 없다.
+
+worker(`apps/worker`):
+
+- pg-boss(PostgreSQL 위, Redis 없음)로 `parse-file`, `embed-doc` 두 큐를 처리한다. 작업 입력은 ID와 `{workspaceId, userId, role}`뿐이며 본문은 담지 않는다. 처리는 그 주체의 RLS 컨텍스트로 실행되어 `BYPASSRLS`가 필요 없다. 파싱·청킹·임베딩 코드는 `packages/knowledge`를 검색 API와 같이 쓴다.
+- pg-boss 스키마(`pgboss`)는 배포 때 마이그레이션 소유자 역할로 `pnpm --filter @miceplans/queue migrate`(이미지에서는 `packages/queue/src/migrate.ts`)를 한 번 실행해 만들고 앱 역할에 필요한 권한만 준다. API·협업 서버는 작업을 넣기만 하며 처음 필요할 때 연결한다. 앱 역할은 DDL 권한이 없다.
+- worker는 단일 프로세스(Docker `worker` 타깃)다. 큐를 폴링하므로 상시 실행 비용이 있으며, 작업량이 적으면 일정 주기 실행 방식으로 바꾸는 것을 6절에서 검토한다.
 
 ### F-11 AI 질의와 제안
 
@@ -241,7 +263,7 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 - 승인은 승인자의 권한으로 한 트랜잭션 안에서 반영한다. `task_drafts`는 Task·Subtask 생성(상위 항목 검증), `notification`은 알림 생성, `wiki_edit`은 본문 교체와 재색인이다. `wiki_edit`은 제안 당시 `baseVersion`과 다르면 409 `VERSION_CONFLICT`로 거부하고 제안은 대기로 남는다. Yjs 상태가 있는 문서는 협업 서버를 거쳐 Yjs 트랜잭션으로 반영하고, 승인 직전 내용을 `wiki_revisions`(reason `ai_proposal`)에 남긴다. 협업 서버 반영이 실패하면 결정까지 함께 되돌려 제안은 대기로 남는다.
 - 웹의 Agent 패널(`apps/web/src/app/ai-chat/ai-chat-panel.tsx`)은 `/ai/chat` SSE를 스트리밍해 답변·출처·제안 카드를 보여주고 승인·반려 버튼을 제공한다. 행사 상세(`/events/:id`)에서는 그 행사를 맥락으로 보낸다. 웹에는 아직 로그인 화면이 없어 세션 토큰은 `sessionStorage['miceplans.token']`에서 읽기만 하며(`apps/web/src/lib/api.ts`), API 주소는 `NEXT_PUBLIC_API_URL`이다. 로그인 연동 단계에서 `getToken`만 바꾼다. 제안 표시 형식·재제안 흐름은 7절에서 미확정이라 요약·상태·승인/반려만 제공한다.
 - 사용자당 분당 질의 한도(`AI_REQUESTS_PER_MINUTE`, 기본 20)로 LLM 비용을 제한한다. 호출 기록은 `ai_calls`(본인과 Super Admin만 조회)에 남는다. LLM은 `LLM_BASE_URL`·`LLM_API_KEY`·`LLM_MODEL`을 서버 런타임에서만 읽고, 없으면 AI 질의는 503이다.
-- GLM은 OpenAI 호환 어댑터 뒤에서 사용한다. 대표 시나리오 20~30개로 첫 2주 안에 도구 호출 품질을 평가하고, 모델 또는 프롬프트 변경 때 같은 골든 셋을 다시 실행한다. 골든 셋은 `packages/ai/src/eval/cases.ts`(현재 22개)이고 `LLM_* pnpm --filter @miceplans/ai eval`로 실행한다. 합격선은 미확정(7절)이라 통과율만 보고한다.
+- GLM은 OpenAI 호환 어댑터 뒤에서 사용한다. 대표 시나리오 20~30개로 첫 2주 안에 도구 호출 품질을 평가하고, 모델 또는 프롬프트 변경 때 같은 골든 셋을 다시 실행한다. 골든 셋은 `packages/ai/src/eval/cases.ts`(현재 22개)이고 `LLM_* pnpm --filter @miceplans/ai eval`로 실행한다. 합격선은 미확정(7절)이라 통과율만 보고한다. **아직 실제 GLM 엔드포인트로 실행한 결과는 없다**(개발 환경에 자격 증명이 없어 가짜 모델 단위 테스트만 통과). `LLM_BASE_URL`·`LLM_API_KEY`·`LLM_MODEL`을 준 환경에서 실행해 결과를 이 문서에 기록해야 첫 2주 평가가 끝난다.
 
 ### F-12 휴가·연차
 
@@ -281,7 +303,8 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 | Redis 도입 | 협업 서버를 두 개 이상 운영하거나 동시 접속 증가 시 |
 | 전사 문서 space 권한 | 전사 문서 space 추가 직전 |
 | 한국어 lexical 검색 보강 (Kiwi 등 형태소 분석) | 골든 셋이 기준 미달일 때. 현재는 조사 제거 + 접두 일치 + `pg_trgm`으로 처리 |
-| 파일 업로드·dense 검색(BGE-M3, pgvector, TEI)과 worker | 위키 외 문서 검색 요구가 확인되고 임베딩 서빙 비용을 정할 때 |
+| 업로드 원본의 보존·파기 기간 | 운영 시작 전. 현재는 삭제해도 S3 원본을 지우지 않고 자동 파기도 없다 |
+| TEI 임베딩 서빙 방식·비용과 `DENSE_MAX_DISTANCE` 보정, worker 상시 실행 여부 | 임베딩을 운영에서 켜기 전. 코드는 구현됐고 `TEI_URL`이 없으면 꺼져 있다. 임계값은 실제 BGE-M3로 골든 셋을 돌려 정한다 |
 | GLM 모델 유지 여부 | 초기 2주 평가 종료 시 |
 | 담당자가 행사 멤버가 아닌 경우의 자기 항목 상태·댓글 | 내 할 일 보드 구현 전 |
 | 행사 생성 권한 | 1단계 행사 CRUD 구현 전 |

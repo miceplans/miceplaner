@@ -10,7 +10,8 @@ import {
 import { AuthUser } from '../common/auth';
 import { config } from '../config';
 import { searchKnowledge } from '../knowledge/knowledge.service';
-import { DB_POOL, LLM_CLIENT } from '../tokens';
+import type { Embedder } from '@miceplans/knowledge/embed';
+import { DB_POOL, EMBEDDER, LLM_CLIENT } from '../tokens';
 
 const MAX_PAGE_CHARS = 20_000;
 const LOG_CONTENT_CHARS = 4_000;
@@ -26,6 +27,7 @@ export class AiService {
   constructor(
     @Inject(DB_POOL) private readonly pool: Pool,
     @Optional() @Inject(LLM_CLIENT) private readonly llm: LlmClient | null,
+    @Optional() @Inject(EMBEDDER) private readonly embedder: Embedder | null = null,
   ) {}
 
   /** 사용자당 분당 한도. 인스턴스 메모리로 충분하다(별도 캐시 없음). */
@@ -110,7 +112,7 @@ export class AiService {
         return { items: rows.slice(0, 200).map((i) => ({ id: i.id, kind: i.kind, parentId: i.parentId, title: i.title, status: i.status, startsOn: i.startsOn, dueOn: i.dueOn, assigneeId: i.assigneeId })) };
       },
       search_wiki: async ({ query, eventId, limit }) => {
-        const hits = await this.run(user, (db) => searchKnowledge(db, { q: query, eventId, limit: limit ?? SEARCH_LIMIT_DEFAULT }));
+        const hits = await this.run(user, (db) => searchKnowledge(db, { q: query, eventId, limit: limit ?? SEARCH_LIMIT_DEFAULT }, this.embedder));
         for (const h of hits) sources.set(h.docId, { docId: h.docId, title: h.title, heading: h.heading, snippet: h.snippet });
         return { hits: hits.map((h) => ({ chunkId: h.chunkId, docId: h.docId, title: h.title, heading: h.heading, snippet: h.snippet, score: h.score })) };
       },

@@ -9,3 +9,4 @@ export * from './user';
 export * from './knowledge';
 export * from './agent-tools';
 export * from './ai';
+export * from './files';

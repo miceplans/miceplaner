@@ -26,4 +26,8 @@ export const config = {
   get debounce(): number {
     return Number(process.env.COLLAB_DEBOUNCE_MS ?? 1500);
   },
+  /** TEI 주소. 있으면 본문이 바뀔 때 임베딩 작업을 큐에 넣는다. 없으면 dense 검색을 쓰지 않는다. */
+  get teiUrl(): string {
+    return process.env.TEI_URL ?? '';
+  },
 };
