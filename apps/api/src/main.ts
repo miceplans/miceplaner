@@ -4,7 +4,7 @@ import { DocumentBuilder, SwaggerModule, type SchemaObject } from '@nestjs/swagg
 import { z, type ZodType } from 'zod';
 import {
   addEventMemberBody, assignItemBody, authSessionDto, chatBody, createDocBody, docPageDto, proposalDto, saveDocBodyBody, searchHitDto, wikiRevisionDetailDto, wikiRevisionDto, changeEventMemberRoleBody, clientDto, createItemBody, eventDocDto, eventDto,
-  eventItemDto, eventMemberDto, googleLoginBody, leaveBalanceDto, leaveRecordDto, notificationDto,
+  eventItemDto, eventMemberDto, loginBody, registerBody, changePasswordBody, leaveBalanceDto, leaveRecordDto, notificationDto,
   requestLeaveBody, rescheduleItemBody, setClientVisibleBody, setDocVisibilityBody, updateEventBody, updateItemBody, userDto, weekendWorkDto,
 } from '@miceplans/contracts';
 import { portalEventDto, portalProgramDto } from '@miceplans/contracts/portal';
@@ -13,7 +13,9 @@ import { config } from './config';
 
 /** OpenAPI components에 넣을 contracts 스키마 목록. zod v4의 toJSONSchema로 변환한다. */
 const API_SCHEMAS: Record<string, ZodType> = {
-  GoogleLoginBody: googleLoginBody,
+  LoginBody: loginBody,
+  RegisterBody: registerBody,
+  ChangePasswordBody: changePasswordBody,
   AuthSessionDto: authSessionDto,
   UserDto: userDto,
   ClientDto: clientDto,

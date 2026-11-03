@@ -6,6 +6,7 @@ import { connectTestAdmin, type TestAdmin } from '@miceplans/db/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module';
+import { HiworksService } from '../src/auth/hiworks';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const U = { pm: id(11), member: id(12), staff: id(13), outsider: id(14), target: id(15), admin: id(16), client: id(17), client2: id(18) };
@@ -46,7 +47,15 @@ beforeAll(async () => {
 
   for (const [name, uid] of Object.entries(U)) tokens[name] = await sign(uid, name === 'client' || name === 'client2' ? 'client' : 'staff');
 
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const hiworksMembers = new Map([
+    ['new@x.test', { email: 'new@x.test', name: '신규' }],
+    ['pm@x.test', { email: 'pm@x.test', name: 'PM' }],
+    ['client@x.test', { email: 'client@x.test', name: 'Client' }],
+  ]);
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(HiworksService)
+    .useValue({ findMember: async (email: string) => hiworksMembers.get(email.toLowerCase()) })
+    .compile();
   app = moduleRef.createNestApplication();
   await app.init();
   http = app.getHttpServer();
@@ -65,6 +74,32 @@ describe('인증 (F-01)', () => {
   it('세션 주체 프로필을 낮는다', async () => {
     const res = await api().get('/auth/me').set(as('member')).expect(200);
     expect(res.body).toMatchObject({ id: U.member, email: 'member@x.test', role: 'staff' });
+  });
+  it('하이웍스 구성원 이메일로만 가입하고 이메일·비밀번호로 로그인한다', async () => {
+    await api().post('/auth/register').send({ email: 'stranger@x.test', password: 'long-enough-pw' }).expect(403);
+    await api().post('/auth/register').send({ email: 'new@x.test', password: 'short' }).expect(400);
+    const reg = await api().post('/auth/register').send({ email: 'NEW@x.test', password: 'long-enough-pw' }).expect(201);
+    expect(reg.body.user).toMatchObject({ email: 'new@x.test', name: '신규', role: 'staff' });
+    await api().post('/auth/register').send({ email: 'new@x.test', password: 'another-long-pw' }).expect(409);
+    const login = await api().post('/auth/login').send({ email: 'new@x.test', password: 'long-enough-pw' }).expect(200);
+    await api().get('/auth/me').set({ Authorization: `Bearer ${login.body.accessToken}` }).expect(200);
+    await api().post('/auth/login').send({ email: 'new@x.test', password: 'wrong-password' }).expect(401);
+    await api().post('/auth/login').send({ email: 'nobody@x.test', password: 'wrong-password' }).expect(401);
+  });
+  it('비밀번호가 없는 기존 계정은 가입으로 비밀번호를 설정하고, 로그인 실패 후에도 다시 로그인할 수 있다', async () => {
+    await api().post('/auth/register').send({ email: 'pm@x.test', password: 'pm-long-password' }).expect(201);
+    for (let i = 0; i < 5; i += 1) await api().post('/auth/login').send({ email: 'pm@x.test', password: 'bad-password-x' }).expect(401);
+    await api().post('/auth/login').send({ email: 'pm@x.test', password: 'pm-long-password' }).expect(200);
+  });
+  it('Client 계정은 이메일 로그인·가입을 쓸 수 없다', async () => {
+    await api().post('/auth/register').send({ email: 'client@x.test', password: 'client-long-pw' }).expect(403);
+  });
+  it('비밀번호를 변경한다', async () => {
+    const login = await api().post('/auth/login').send({ email: 'new@x.test', password: 'long-enough-pw' }).expect(200);
+    const h = { Authorization: `Bearer ${login.body.accessToken}` };
+    await api().post('/auth/password').set(h).send({ currentPassword: 'wrong-password', newPassword: 'brand-new-password' }).expect(401);
+    await api().post('/auth/password').set(h).send({ currentPassword: 'long-enough-pw', newPassword: 'brand-new-password' }).expect(204);
+    await api().post('/auth/login').send({ email: 'new@x.test', password: 'brand-new-password' }).expect(200);
   });
   it('Client는 낮은 기능에 접근할 수 없다', async () => {
     await api().get('/users').set(as('client')).expect(403);

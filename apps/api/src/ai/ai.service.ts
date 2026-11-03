@@ -73,6 +73,7 @@ export class AiService {
       send({ type: 'done' });
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error);
+      console.error(`[ai] 답변 생성 실패 (model=${llm.model}): ${failure}`);
       send({ type: 'error', message: '답변을 만들지 못했다. 잠시 후 다시 시도하라' });
     }
     await this.log(user, body.eventId ?? null, llm.model, [...messages, ...(result?.messages ?? [])], result, started, failure);
