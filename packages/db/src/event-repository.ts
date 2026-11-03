@@ -137,10 +137,31 @@ export async function findUserByEmail(client: PoolClient, email: string): Promis
   return rows[0];
 }
 
-/** 첫 로그인 시 만든다. 역할은 기본 staff다. */
-export async function insertUser(client: PoolClient, user: { id: string; name: string; email: string }): Promise<UserRow> {
-  const { rows } = await client.query<UserRow>(`INSERT INTO users (id, name, email) VALUES ($1, $2, $3) RETURNING ${USER_COLUMNS}`, [user.id, user.name, user.email]);
+/** 가입 시 만든다. 역할은 기본 staff다. */
+export async function insertUser(client: PoolClient, user: { id: string; name: string; email: string; passwordHash?: string }): Promise<UserRow> {
+  const { rows } = await client.query<UserRow>(
+    `INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4) RETURNING ${USER_COLUMNS}`,
+    [user.id, user.name, user.email, user.passwordHash ?? null],
+  );
   return rows[0]!;
+}
+
+/** 로그인 검증용. 비밀번호 해시는 이 함수들 밖으로 내보내지 않는다. */
+export async function getPasswordHash(client: PoolClient, id: string): Promise<string | null> {
+  const { rows } = await client.query<{ hash: string | null }>(`SELECT password_hash AS hash FROM users WHERE id = $1`, [id]);
+  return rows[0]?.hash ?? null;
+}
+
+/** 비밀번호가 아직 없는 계정에만 설정한다. 동시 가입에서 한쪽만 성공하도록 조건을 UPDATE에 둔다. */
+export async function setInitialPasswordHash(client: PoolClient, id: string, hash: string): Promise<boolean> {
+  const { rowCount } = await client.query(`UPDATE users SET password_hash = $2 WHERE id = $1 AND password_hash IS NULL`, [id, hash]);
+  return rowCount === 1;
+}
+
+/** 본인 행만 바꿀 수 있다(RLS users_update). 반영 여부를 돌려준다. */
+export async function setPasswordHash(client: PoolClient, id: string, hash: string): Promise<boolean> {
+  const { rowCount } = await client.query(`UPDATE users SET password_hash = $2 WHERE id = $1`, [id, hash]);
+  return rowCount === 1;
 }
 
 /** 이름이 바뀌었을 때만 동기화한다. 역할은 바꾸지 않는다. */

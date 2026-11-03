@@ -3,6 +3,7 @@
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { SidePeekPanel, type AgendaItem } from './side-peek';
 import { MARCH_TODOS, type PersonalTodo } from './personal-todo';
+import { Input } from './field';
 import { statusTones, type StatusToneKey } from './tokens';
 
 const A = '/assets/schedule';
@@ -77,10 +78,11 @@ export function Topbar(): ReactNode {
       <div className="h-px min-w-px flex-1" />
       <label className="flex h-[32px] w-[280px] shrink-0 items-center gap-[8px] rounded-sm bg-surface-chip px-[10px] max-md:hidden">
         <img alt="" src={`${A}/1e4e7.svg`} className="size-[15px] shrink-0" />
-        <input
+        <Input
           type="text"
           placeholder="Search"
-          className="min-w-0 flex-1 bg-transparent text-base text-fg outline-none placeholder:text-fg-tertiary"
+          variant="ghost"
+          className="min-w-0 flex-1 text-base"
         />
         <span className="flex h-[20px] items-center justify-center rounded-xs bg-surface px-[5px] text-2xs text-fg-secondary">⌘K</span>
       </label>

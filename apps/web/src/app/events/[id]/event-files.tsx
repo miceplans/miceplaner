@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from '@miceplans/ui';
 import Link from 'next/link';
 import type { FileDto } from '@miceplans/contracts';
 import { ApiError, deleteFile, downloadFile, getToken, listFiles, uploadFile } from '@/lib/api';
@@ -18,7 +19,6 @@ const size = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024)
  */
 export function EventFiles({ eventId, canManage }: { eventId: string; canManage: boolean }) {
   const [files, setFiles] = useState<FileDto[] | null>(null);
-  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const live = UUID.test(eventId) && Boolean(getToken());
@@ -27,7 +27,7 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
     try {
       setFiles(await listFiles(eventId));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : '파일 목록을 불러오지 못했다');
+      toast.error(e instanceof ApiError ? e.message : '파일 목록을 불러오지 못했다');
     }
   }, [eventId]);
 
@@ -44,12 +44,11 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
-    setError('');
     try {
       await fn();
       await refresh();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : '요청에 실패했다');
+      toast.error(e instanceof ApiError ? e.message : '요청에 실패했다');
     } finally {
       setBusy(false);
     }
@@ -69,7 +68,6 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
           </>
         )}
       </header>
-      {error && <p role="alert" className="rounded-sm bg-notice-bg px-[12px] py-[8px] text-2xs text-notice">{error}</p>}
       {files && files.length === 0 && <p className="text-2xs text-fg-secondary">올린 파일이 없다.</p>}
       <ul className="flex flex-col divide-y divide-border">
         {files?.map((f) => (

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { Button, Dialog } from '@miceplans/ui';
+import { Button, Checkbox, Dialog, Input, Select } from '@miceplans/ui';
 
 export const ROLES = ['AM', '스태프'] as const;
 export type InviteRole = (typeof ROLES)[number];
@@ -62,13 +62,13 @@ export function InviteDialog({
           <p className="m-0 text-sm text-fg-tertiary">{eventName}</p>
         </div>
 
-        <input
+        <Input
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="이름 검색"
           aria-label="이름 검색"
-          className="h-[36px] w-full rounded-sm border border-solid border-border bg-surface px-[10px] text-base text-fg"
+          className="w-full"
         />
 
         <ul className="m-0 flex max-h-[240px] list-none flex-col gap-[2px] overflow-auto p-0">
@@ -77,7 +77,7 @@ export function InviteDialog({
             return (
               <li key={p.id}>
                 <label className={`flex h-[40px] cursor-pointer items-center gap-[10px] rounded-md px-[8px] hover:bg-surface-subtle ${on ? 'bg-surface-muted' : ''}`}>
-                  <input type="checkbox" checked={on} onChange={() => toggle(p.id)} className="size-[16px] accent-brand" />
+                  <Checkbox checked={on} onChange={() => toggle(p.id)} />
                   <span className="text-base text-fg">{p.name}</span>
                   <span className="flex-1" />
                   <span className="text-xs text-fg-tertiary">{p.role}</span>
@@ -90,15 +90,15 @@ export function InviteDialog({
 
         <label className="flex flex-col gap-[4px] text-sm text-fg-secondary">
           역할
-          <select
+          <Select
             value={role}
             onChange={(e) => setRole(e.target.value as InviteRole)}
-            className="h-[36px] w-full rounded-sm border border-solid border-border bg-surface px-[10px] text-base text-fg"
+            className="w-full"
           >
             {ROLES.map((r) => (
               <option key={r}>{r}</option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <div className="flex justify-end gap-[8px]">

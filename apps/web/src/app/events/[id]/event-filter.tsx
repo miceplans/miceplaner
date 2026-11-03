@@ -2,6 +2,8 @@
 
 import { useContext } from 'react';
 
+import { Input, Select } from '@miceplans/ui';
+
 import { ItemAccessContext, type CheckItem } from './event-checklist';
 
 type SortKey = '기본' | '마감일 빠른순' | '마감일 늦은순';
@@ -99,19 +101,20 @@ export function applyFilter<T extends CheckItem>(items: T[], f: ItemFilter, me: 
   );
 }
 
-function Select<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: readonly T[]; onChange: (v: T) => void }) {
+function FilterSelect<T extends string>({ label, value, options, onChange, active = false }: { label: string; value: T; options: readonly T[]; onChange: (v: T) => void; active?: boolean }) {
   return (
     <label className="flex items-center gap-[6px] text-xs text-fg-tertiary">
       {label}
-      <select
+      <Select
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className={`h-[26px] rounded-md border border-solid bg-surface px-[6px] text-xs outline-none focus:border-brand ${value === options[0] && label !== '정렬' ? 'border-border text-fg-secondary' : 'border-brand text-brand'}`}
+        size="sm"
+        className={`shrink-0 ${active ? 'border-brand! text-brand!' : 'text-fg-secondary'}`}
       >
         {options.map((o) => (
           <option key={o} value={o}>{o}</option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }
@@ -125,16 +128,17 @@ export function FilterBar({ filter, onChange, shown, total }: { filter: ItemFilt
 
   return (
     <div className="flex w-full flex-wrap items-center gap-x-[12px] gap-y-[6px] pt-[12px]" role="search" aria-label="목록 필터">
-      <Select label="정렬" value={filter.sort} options={SORT_KEYS} onChange={(v) => set('sort', v)} />
-      <Select label="상태" value={filter.status} options={STATUS_FILTERS} onChange={(v) => set('status', v)} />
-      <Select label="마감" value={filter.due} options={DUE_FILTERS} onChange={(v) => set('due', v)} />
-      <Select label="담당자" value={filter.assignee} options={assignees} onChange={(v) => set('assignee', v)} />
-      <input
+      <FilterSelect label="정렬" value={filter.sort} options={SORT_KEYS} onChange={(v) => set('sort', v)} />
+      <FilterSelect label="상태" value={filter.status} options={STATUS_FILTERS} onChange={(v) => set('status', v)} active={filter.status !== '전체'} />
+      <FilterSelect label="마감" value={filter.due} options={DUE_FILTERS} onChange={(v) => set('due', v)} active={filter.due !== '전체'} />
+      <FilterSelect label="담당자" value={filter.assignee} options={assignees} onChange={(v) => set('assignee', v)} active={filter.assignee !== '전체'} />
+      <Input
         value={filter.query}
         placeholder="제목 검색"
         aria-label="제목 검색"
         onChange={(e) => set('query', e.target.value)}
-        className="h-[26px] w-[140px] rounded-md border border-solid border-border bg-surface px-[8px] text-xs text-fg outline-none placeholder:text-fg-tertiary focus:border-brand"
+        size="sm"
+        className="w-[140px]"
       />
       {active && (
         <>

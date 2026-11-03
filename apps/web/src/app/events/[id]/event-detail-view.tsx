@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
-import { SidePeekPanel, SegmentControl, StatusPill, TextTabs, Toggle, type StatusKey } from '@miceplans/ui';
+import { Checkbox, SidePeekPanel, SegmentControl, StatusPill, TextTabs, Toggle, type StatusKey } from '@miceplans/ui';
 import { ItemAccessContext, resolveOwners, type CheckItem } from './event-checklist';
 import type { Invitee, InviteRole } from './invite-dialog';
 import type { Team } from './event-products';
@@ -474,11 +474,10 @@ export function EventDetailView({ eventId }: { eventId: string }) {
           <SegmentControl options={PART_OPTIONS} value={part} onChange={setPart} size="sm" />
           <span className="flex-1" />
           <label className="flex cursor-pointer items-center gap-[6px] text-xs text-fg-tertiary">
-            <input
-              type="checkbox"
+            <Checkbox
+              size="sm"
               checked={previewNoAccess}
               onChange={(e) => setPreviewNoAccess(e.target.checked)}
-              className="size-[14px] accent-brand"
             />
             권한 없는 사용자로 미리보기
           </label>
@@ -560,11 +559,10 @@ export function EventDetailView({ eventId }: { eventId: string }) {
           <div className="flex flex-col gap-[8px]">
             {TODOS.map((todo, i) => (
               <label key={i} className="flex h-[37px] cursor-pointer items-center gap-[8px] rounded-md bg-surface-muted px-[11px]">
-                <input
-                  type="checkbox"
+                <Checkbox
+                  className="size-[17px]!"
                   checked={todos[i]}
                   onChange={() => setTodos((v) => v.map((x, j) => (j === i ? !x : x)))}
-                  className="size-[17px] accent-brand"
                 />
                 <span className={`text-sm font-semibold ${todos[i] ? 'text-fg-tertiary line-through' : 'text-fg'}`}>{todo}</span>
                 <span className="flex-1" />

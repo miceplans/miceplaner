@@ -29,7 +29,7 @@ MICEPLANS는 행사 운영 데이터와 사내 지식을 다루며, 내부 직�
 | 임베딩 | BGE-M3 dense, TEI | 초기 검색 구성 |
 | 검색 | PostgreSQL FTS, `pg_trgm`, pgvector | 애플리케이션에서 결과 병합 |
 | LLM | GLM | OpenAI 호환 어댑터 뒤에 배치 |
-| 내부 인증 | Google Workspace OIDC와 PKCE | Client 인증은 미결정 |
+| 내부 인증 | 이메일·비밀번호(scrypt) + 하이웍스 조직도 구성원 검증 | Google OIDC는 철회(2026-11-03). 하이웍스 OAuth는 신규 발급이 중단되어 쓰지 않는다. 메일 소유 확인이 없어 자유 가입 선점 위험을 감수한다. Client 인증은 미결정 |
 | 관측 | Sentry와 OpenTelemetry | AI 호출 로그 별도 저장 |
 
 ### 시스템 경계

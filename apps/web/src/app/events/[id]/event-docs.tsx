@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ConfirmDialog } from '@miceplans/ui';
+import { Checkbox, ConfirmDialog, Input, Select, Textarea } from '@miceplans/ui';
 
 import { matchPart, type PartFilter, type ProductPart } from './event-parts';
 
@@ -313,7 +313,7 @@ function BlockInput({
     block.type === 'h1' ? 'text-2xl font-bold leading-[1.3]' : block.type === 'h2' ? 'text-lg font-semibold leading-[1.45]' : 'text-md leading-[1.6]';
 
   return (
-    <textarea
+    <Textarea
       ref={(el) => { ref.current = el; inputRef(el); }}
       rows={1}
       value={block.text}
@@ -321,8 +321,9 @@ function BlockInput({
       onFocus={onFocus}
       onChange={(e) => onChange(e.target.value.replace(/\n/g, ''))}
       onKeyDown={onKeyDown}
-      className={`block min-w-0 flex-1 resize-none overflow-hidden border-0 bg-transparent p-0 text-fg outline-none placeholder:text-fg-tertiary ${style} ${
-        block.type === 'todo' && block.checked ? 'text-fg-tertiary line-through' : ''
+      variant="ghost"
+      className={`block min-w-0 flex-1 overflow-hidden ${style} ${
+        block.type === 'todo' && block.checked ? 'text-fg-tertiary! line-through' : ''
       }`}
     />
   );
@@ -453,12 +454,13 @@ function DocPanel({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-[40px] py-[24px]">
-          <input
+          <Input
             value={doc.title}
             onChange={(e) => collab.setTitle(doc.id, e.target.value)}
             aria-label="문서 제목"
             placeholder="제목 없음"
-            className="mb-[16px] w-full border-0 bg-transparent p-0 text-3xl font-bold text-fg outline-none placeholder:text-fg-tertiary"
+            variant="ghost"
+            className="mb-[16px] w-full text-3xl font-bold"
           />
           <div className="flex flex-col gap-[4px]">
             {blocks.map((block, index) => {
@@ -470,7 +472,7 @@ function DocPanel({
                   ))}
                   {editors[0] && <span className={`pointer-events-none absolute inset-y-0 -left-[6px] w-[2px] rounded-full ${editors[0].color}`} />}
                   {block.type === 'todo' && (
-                    <input type="checkbox" checked={!!block.checked} onChange={() => collab.editBlock(doc.id, block.id, { checked: !block.checked })} aria-label="할 일 완료" className="mt-[5px] size-[16px] shrink-0 accent-brand" />
+                    <Checkbox checked={!!block.checked} onChange={() => collab.editBlock(doc.id, block.id, { checked: !block.checked })} aria-label="할 일 완료" className="mt-[5px]" />
                   )}
                   {block.type === 'bullet' && <span className="mt-[9px] size-[5px] shrink-0 rounded-full bg-fg" />}
                   <BlockInput
@@ -599,20 +601,16 @@ export function EventDocs({ eventId, part = '전체', canManage = false }: { eve
               <span className={restored ? '' : 'invisible'}>
                 <VisibilityChip value={visibility} />
               </span>
-              <select
+              <Select
+                size="sm"
                 aria-label="열람 인원 설정"
                 value={visibility}
                 disabled={!canManage}
                 title={canManage ? undefined : 'PM·AM만 열람 범위를 바꿀 수 있습니다'}
                 onChange={(e) => changeVisibility(d.id, e.target.value as DocVisibility)}
-                className={`h-[28px] shrink-0 rounded-sm border border-solid border-border bg-surface px-[6px] text-xs text-fg-secondary disabled:cursor-not-allowed disabled:opacity-60 ${restored ? '' : 'invisible'}`}
-              >
-                {VISIBILITIES.map((v) => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-              </select>
+                options={VISIBILITIES.map((v) => ({ value: v, label: v }))}
+                className={`shrink-0 text-fg-secondary disabled:cursor-not-allowed disabled:opacity-60 ${restored ? '' : 'invisible'}`}
+              />
               {viewers.length > 0 && (
                 <span className="flex shrink-0 items-center" aria-label={`${viewers.map((v) => v.name).join(', ')} 편집 중`}>
                   {viewers.map((v, i) => (

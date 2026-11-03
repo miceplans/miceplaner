@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { FlowTopbar, PageFrame } from '@miceplans/ui';
+import { FlowTopbar, Input, PageFrame, Select, Textarea } from '@miceplans/ui';
 import { PARTNER_FIELDS, PARTNER_FIELD_BADGE, PARTNERS, type Partner, type PartnerField } from '../../data/partners';
 
 type Filter = string;
@@ -106,7 +106,7 @@ export function PartnersView() {
               const count = f === '전체' ? partners.length : partners.filter((p) => p.field === f).length;
               if (editing === f) {
                 return (
-                  <input
+                  <Input
                     key={f}
                     autoFocus
                     value={draft}
@@ -116,7 +116,9 @@ export function PartnersView() {
                       if (e.key === 'Enter') commit();
                       if (e.key === 'Escape') setEditing(null);
                     }}
-                    className="h-[30px] w-[100px] rounded-sm bg-surface-chip px-[10px] text-xs text-fg outline-none"
+                    variant="chip"
+                    size="sm"
+                    className="w-[100px]"
                   />
                 );
               }
@@ -156,7 +158,7 @@ export function PartnersView() {
               );
             })}
             {editing === '' ? (
-              <input
+              <Input
                 autoFocus
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -166,7 +168,9 @@ export function PartnersView() {
                   if (e.key === 'Escape') setEditing(null);
                 }}
                 placeholder="새 태그"
-                className="h-[30px] w-[100px] rounded-sm bg-surface-chip px-[10px] text-xs text-fg outline-none placeholder:text-fg-tertiary"
+                variant="chip"
+                size="sm"
+                className="w-[100px]"
               />
             ) : (
               <button
@@ -183,25 +187,28 @@ export function PartnersView() {
             )}
           </div>
           <div className="h-px min-w-px flex-1" />
-          <select
+          <Select
             aria-label="정렬"
             value={sort}
             onChange={(e) => setSort(e.target.value as 'name' | 'field' | 'manager')}
-            className="h-[30px] rounded-sm bg-surface-chip px-[10px] text-xs text-fg-secondary outline-none"
+            variant="chip"
+            size="sm"
+            className="shrink-0"
           >
             <option value="name">업체명순</option>
             <option value="field">분야순</option>
             <option value="manager">담당자순</option>
-          </select>
+          </Select>
           <label className="flex h-[30px] w-[220px] items-center gap-[8px] rounded-sm bg-surface-chip px-[10px]">
             <svg viewBox="0 0 16 16" fill="none" className="size-[13px] shrink-0" aria-hidden="true">
               <circle cx="7" cy="7" r="4.5" stroke="currentColor" className="text-fg-tertiary" strokeWidth="1.5" />
               <path d="M10.5 10.5 14 14" stroke="currentColor" className="text-fg-tertiary" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
-            <input
+            <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-xs text-fg outline-none placeholder:text-fg-tertiary"
+              variant="ghost"
+              className="flex-1 text-xs"
             />
           </label>
         </div>
@@ -245,26 +252,30 @@ export function PartnersView() {
                   },
                 };
                 return key === 'field' ? (
-                  <select
+                  <Select
                     autoFocus
                     value={cellEdit.value}
                     onChange={(e) => setCellEdit({ ...cellEdit, value: e.target.value })}
                     {...keys}
-                    className={`h-[26px] ${width} rounded-sm bg-surface-chip px-[6px] text-xs text-fg outline-none`}
+                    variant="chip"
+                    size="sm"
+                    className={`${width} shrink-0`}
                   >
                     {fields.map((f) => (
                       <option key={f} value={f}>
                         {f}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 ) : (
-                  <input
+                  <Input
                     autoFocus
                     value={cellEdit.value}
                     onChange={(e) => setCellEdit({ ...cellEdit, value: e.target.value })}
                     {...keys}
-                    className={`h-[26px] ${width} min-w-0 rounded-sm bg-surface-chip px-[6px] text-xs text-fg outline-none`}
+                    variant="chip"
+                    size="sm"
+                    className={`${width} min-w-0`}
                   />
                 );
               }
@@ -332,35 +343,29 @@ export function PartnersView() {
             ).map(([k, label]) => (
               <label key={k} className="flex flex-col gap-[4px] text-2xs text-fg-tertiary">
                 {label}
-                <input
+                <Input
+                  variant="chip"
                   autoFocus={k === 'name'}
                   value={form[k]}
                   onChange={(e) => setForm({ ...form, [k]: e.target.value })}
-                  className="h-[32px] rounded-sm bg-surface-chip px-[10px] text-xs text-fg outline-none"
                 />
               </label>
             ))}
             <label className="flex flex-col gap-[4px] text-2xs text-fg-tertiary">
               분야
-              <select
+              <Select
+                variant="chip"
                 value={form.field}
                 onChange={(e) => setForm({ ...form, field: e.target.value })}
-                className="h-[32px] rounded-sm bg-surface-chip px-[10px] text-xs text-fg outline-none"
-              >
-                {fields.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
+                options={fields.map((f) => ({ value: f, label: f }))}
+              />
             </label>
             <label className="flex flex-col gap-[4px] text-2xs text-fg-tertiary">
               메모
-              <textarea
+              <Textarea
+                variant="chip"
                 value={form.memo}
                 onChange={(e) => setForm({ ...form, memo: e.target.value })}
-                rows={3}
-                className="resize-none rounded-sm bg-surface-chip p-[10px] text-xs text-fg outline-none"
               />
             </label>
             <div className="flex items-center gap-[8px] pt-[4px]">

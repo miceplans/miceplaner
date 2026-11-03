@@ -1,0 +1,15 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: miceplaner-db
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:54320:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - miceplaner-postgres:/var/lib/postgresql/data
+
+volumes:
+  miceplaner-postgres:

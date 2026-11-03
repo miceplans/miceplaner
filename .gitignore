@@ -4,6 +4,7 @@ out
 .turbo
 *.tsbuildinfo
 .DS_Store
+.idea
 .local
 
 # 비밀 값

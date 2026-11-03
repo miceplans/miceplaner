@@ -9,7 +9,7 @@ export function AgentChat() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  if (pathname === '/client' || pathname.startsWith('/client/')) return null;
+  if (pathname === '/login' || pathname === '/client' || pathname.startsWith('/client/')) return null;
 
   return open ? (
     <AiChatPanel

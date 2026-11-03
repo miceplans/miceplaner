@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type DragEvent } from 'react';
-import { StatusPill, type StatusKey } from '@miceplans/ui';
+import { Input, StatusPill, type StatusKey } from '@miceplans/ui';
 
 const A = '/assets/client-list';
 
@@ -90,11 +90,12 @@ export function ClientListView() {
           <div className="flex w-full items-center justify-between bg-surface">
             <label className="flex h-[30px] w-[210px] items-center gap-[8px] rounded-sm bg-surface-chip px-[10px]">
               <img alt="" src={`${A}/search-icon.svg`} className="size-[13px] shrink-0" />
-              <input
+              <Input
+                variant="ghost"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="고객사 · 담당자 검색"
-                className="min-w-0 flex-1 bg-transparent text-xs text-fg outline-none placeholder:text-fg-tertiary"
+                className="flex-1 bg-transparent text-xs"
               />
             </label>
             <button type="button" className="flex h-[30px] items-center gap-[6px] rounded-sm bg-brand px-[12px]">

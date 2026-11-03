@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import type { ChatEvent, ProposalDto } from '@miceplans/contracts';
+import { Input, toast } from '@miceplans/ui';
 import { ApiError, decideProposal, streamChat } from '@/lib/api';
 
 const A = '/assets/ai-chat';
@@ -10,7 +11,7 @@ const A = '/assets/ai-chat';
 const CHIPS = ['다음 주 일정', '지연된 Task 보여줘'];
 
 type Source = Extract<ChatEvent, { type: 'sources' }>['sources'][number];
-type Turn = { role: 'user' | 'assistant'; content: string; sources?: Source[]; proposals?: ProposalDto[]; error?: string };
+type Turn = { role: 'user' | 'assistant'; content: string; sources?: Source[]; proposals?: ProposalDto[] };
 
 const KIND_LABEL: Record<ProposalDto['kind'], string> = { task_drafts: 'Task 초안', notification: '알림', wiki_edit: '위키 수정' };
 const DECISION_LABEL: Record<ProposalDto['status'], string> = { pending: '승인 대기', approved: '승인됨', rejected: '반려됨' };
@@ -34,7 +35,7 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
     if (e.type === 'text') patchLast((t) => ({ ...t, content: t.content + e.delta }));
     else if (e.type === 'sources') patchLast((t) => ({ ...t, sources: e.sources }));
     else if (e.type === 'proposal') patchLast((t) => ({ ...t, proposals: [...(t.proposals ?? []), e.proposal] }));
-    else if (e.type === 'error') patchLast((t) => ({ ...t, error: e.message }));
+    else if (e.type === 'error') toast.error(e.message);
   };
 
   const send = async (text: string) => {
@@ -48,7 +49,7 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
     try {
       await streamChat({ eventId: eventIdFrom(pathname), messages: history.slice(-40) }, handle, abort.current.signal);
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) patchLast((t) => ({ ...t, error: error instanceof ApiError ? error.message : '답변을 받지 못했다' }));
+      if (!(error instanceof DOMException && error.name === 'AbortError')) toast.error(error instanceof ApiError ? error.message : '답변을 받지 못했다');
     } finally {
       setBusy(false);
     }
@@ -59,7 +60,7 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
       const updated = await decideProposal(proposal.id, action);
       setTurns((prev) => prev.map((t, i) => (i === turnIndex ? { ...t, proposals: t.proposals?.map((p) => (p.id === updated.id ? updated : p)) } : t)));
     } catch (error) {
-      setTurns((prev) => prev.map((t, i) => (i === turnIndex ? { ...t, error: error instanceof ApiError ? error.message : '처리하지 못했다' } : t)));
+      toast.error(error instanceof ApiError ? error.message : '처리하지 못했다');
     }
   };
 
@@ -97,7 +98,7 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
             </div>
           ) : (
             <div key={i} className="flex w-full flex-col items-start gap-[8.337px]">
-              {t.content ? <p className="w-full whitespace-pre-wrap text-2xs leading-[1.5] text-fg">{t.content}</p> : !t.error && busy && i === turns.length - 1 && <p className="text-2xs text-fg-secondary">생각하는 중…</p>}
+              {t.content ? <p className="w-full whitespace-pre-wrap text-2xs leading-[1.5] text-fg">{t.content}</p> : busy && i === turns.length - 1 && <p className="text-2xs text-fg-secondary">생각하는 중…</p>}
               {t.sources && t.sources.length > 0 && (
                 <div className="flex w-full flex-col gap-[4px] rounded-md border-[0.834px] border-solid border-border p-[8.337px]">
                   <span className="text-2xs font-semibold text-fg">출처</span>
@@ -128,12 +129,6 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
                   )}
                 </div>
               ))}
-              {t.error && (
-                <div className="flex w-full items-center gap-[5.836px] rounded-sm bg-notice-bg px-[9.171px] py-[7.504px]" role="alert">
-                  <img alt="" src={`${A}/warn-icon.svg`} className="size-[10.839px]" />
-                  <p className="min-w-px flex-1 text-2xs text-notice">{t.error}</p>
-                </div>
-              )}
             </div>
           ),
         )}
@@ -159,12 +154,13 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
           void send(draft);
         }}
       >
-        <input
+        <Input
+          variant="chip"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="무엇이든 물어보세요"
           maxLength={8000}
-          className="h-[33.35px] min-w-px flex-1 rounded-sm bg-surface-sunken px-[10.005px] text-2xs text-fg outline-none placeholder:text-fg-tertiary"
+          className="h-[33.35px] flex-1"
         />
         <button type="submit" aria-label="보내기" disabled={busy || !draft.trim()} className="flex size-[30.015px] items-center justify-center rounded-sm bg-brand disabled:opacity-50">
           <img alt="" src={`${A}/send-icon.svg`} className="size-[13.34px]" />

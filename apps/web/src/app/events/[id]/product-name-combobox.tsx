@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { Input } from '@miceplans/ui';
+
 import { CAT_COLORS, PRODUCT_CATALOG, type ProductCatalogItem } from './product-catalog';
 
 const norm = (s: string) => s.toLowerCase().trim();
@@ -65,7 +67,7 @@ export function ProductNameCombobox({ value, onChange, onSelect }: Props) {
 
   return (
     <div ref={rootRef} className="relative w-[120px] shrink-0">
-      <input
+      <Input
         ref={inputRef}
         aria-label="name"
         value={value}
@@ -96,7 +98,8 @@ export function ProductNameCombobox({ value, onChange, onSelect }: Props) {
             setOpen(false);
           }
         }}
-        className="h-[40px] w-full min-w-0 rounded-lg border-[0.5px] border-solid border-border-strong bg-surface px-[14px] text-[15px] text-fg outline-none focus:border-brand"
+        size="lg"
+        className="w-[120px]"
       />
       {open && (
         <div ref={panelRef} className="fixed z-40 max-h-[264px] w-[320px] overflow-y-auto rounded-lg border border-solid border-border-strong bg-surface p-[4px] shadow-card">

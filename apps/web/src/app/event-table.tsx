@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type DragEvent, type FormEvent } from 'react';
-import { Dialog, StatusPill, type StatusKey } from '@miceplans/ui';
+import { Checkbox, Dialog, Input, Select, StatusPill, type StatusKey } from '@miceplans/ui';
 import { EMPTY_ATTR, type EventAttrType, useEventAttrs } from './event-attrs';
 
 const A = '/assets/schedule';
@@ -121,25 +121,23 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
     setAdding(false);
   };
 
-  const input = 'h-[32px] rounded-[6px] border border-solid border-border bg-surface px-[10px] text-sm text-fg outline-none focus:border-fg-secondary';
-
   return (
     <div className="mobile-table-scroll flex w-full flex-col items-start bg-surface px-[20px] max-md:px-0">
       {adding && (
         <form onSubmit={submit} className="mb-[12px] grid w-full grid-cols-4 gap-[10px] rounded-[8px] border border-solid border-border bg-surface-sunken p-[14px] max-md:grid-cols-2">
-          <input autoFocus required placeholder="행사명" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={`${input} col-span-2`} />
-          <input type="date" aria-label="시작일" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} className={input} />
-          <input type="date" aria-label="종료일" value={form.end} min={form.start} onChange={(e) => setForm({ ...form, end: e.target.value })} className={input} />
-          <input placeholder="Client" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} className={input} />
-          <input placeholder="PM" value={form.pm} onChange={(e) => setForm({ ...form, pm: e.target.value })} className={input} />
-          <input placeholder="AM" value={form.am} onChange={(e) => setForm({ ...form, am: e.target.value })} className={input} />
-          <input placeholder="Design" value={form.design} onChange={(e) => setForm({ ...form, design: e.target.value })} className={input} />
-          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as StatusKey })} className={input}>
+          <Input autoFocus required placeholder="행사명" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="col-span-2" />
+          <Input type="date" aria-label="시작일" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} />
+          <Input type="date" aria-label="종료일" value={form.end} min={form.start} onChange={(e) => setForm({ ...form, end: e.target.value })} />
+          <Input placeholder="Client" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
+          <Input placeholder="PM" value={form.pm} onChange={(e) => setForm({ ...form, pm: e.target.value })} />
+          <Input placeholder="AM" value={form.am} onChange={(e) => setForm({ ...form, am: e.target.value })} />
+          <Input placeholder="Design" value={form.design} onChange={(e) => setForm({ ...form, design: e.target.value })} />
+          <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as StatusKey })}>
             {STATUSES.map((s) => (
               <option key={s}>{s}</option>
             ))}
-          </select>
-          <input placeholder="장소" value={form.place} onChange={(e) => setForm({ ...form, place: e.target.value })} className={`${input} col-span-2`} />
+          </Select>
+          <Input placeholder="장소" value={form.place} onChange={(e) => setForm({ ...form, place: e.target.value })} className="col-span-2" />
           <div className="col-span-2 flex items-center justify-end gap-[8px]">
             <a href="/import/upload" className="mr-auto flex h-[32px] items-center rounded-[6px] border border-solid border-border bg-surface px-[12px] text-sm text-fg no-underline hover:bg-surface-sunken">
               Excel로 가져오기
@@ -273,7 +271,7 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
             <div className="flex flex-col gap-[16px] px-[20px] py-[18px]">
               <label className="flex flex-col gap-[7px] text-sm font-medium text-fg">
                 속성 이름
-                <input autoFocus required value={attrLabel} onChange={(e) => setAttrLabel(e.target.value)} placeholder="예: 계약 상태" className="h-[40px] rounded-md border border-solid border-border bg-surface px-[11px] text-base font-normal text-fg outline-none placeholder:text-fg-tertiary focus:border-brand focus:ring-2 focus:ring-brand/15" />
+                <Input autoFocus required value={attrLabel} onChange={(e) => setAttrLabel(e.target.value)} placeholder="예: 계약 상태" size="lg" />
               </label>
               <fieldset className="m-0 border-0 p-0">
                 <legend className="mb-[7px] text-sm font-medium text-fg">유형</legend>
@@ -307,7 +305,7 @@ function AttrCell({ type = 'text', value, onSave }: { type?: EventAttrType; valu
   const [draft, setDraft] = useState('');
 
   if (type === 'checkbox') {
-    return <input type="checkbox" aria-label="체크박스 속성" checked={value === 'true'} onClick={(e) => { e.preventDefault(); onSave(value === 'true' ? '' : 'true'); }} onChange={() => undefined} className="size-[16px] accent-brand" />;
+    return <Checkbox aria-label="체크박스 속성" checked={value === 'true'} onClick={(e) => { e.preventDefault(); onSave(value === 'true' ? '' : 'true'); }} onChange={() => undefined} />;
   }
 
   if (!editing) {
@@ -333,7 +331,7 @@ function AttrCell({ type = 'text', value, onSave }: { type?: EventAttrType; valu
   };
 
   return (
-    <input
+    <Input
       autoFocus
       type={type}
       value={draft}
@@ -347,7 +345,7 @@ function AttrCell({ type = 'text', value, onSave }: { type?: EventAttrType; valu
           setEditing(false);
         }
       }}
-      className="h-[28px] w-full rounded-sm border border-solid border-border bg-surface px-[6px] text-base text-fg outline-none focus:border-fg-secondary"
+      size="sm"
     />
   );
 }

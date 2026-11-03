@@ -14,19 +14,24 @@ export const config = {
     if (process.env.NODE_ENV === 'production') throw new Error('JWT_SECRET이 필요하다 (운영 환경에서는 기본값을 쓸 수 없다)');
     return 'dev-only-insecure-secret-change-me';
   },
-  get googleClientId(): string {
-    return process.env.GOOGLE_CLIENT_ID ?? '';
+  /** 하이웍스 Office Token. 서버 런타임에만 둔다. 없으면 가입·로그인을 열지 않는다(503). */
+  get hiworksOfficeToken(): string {
+    return process.env.OFFICE_TOKEN ?? '';
   },
-  /** 설정하면 이 Google Workspace 도메인(hd) 사용자만 로그인할 수 있다. */
-  get googleWorkspaceDomain(): string {
-    return process.env.GOOGLE_WORKSPACE_DOMAIN ?? '';
+  /** 하이웍스 메일 도메인. 조직도의 email이 비어 있는 구성원은 `mail_id@도메인`으로 본다. */
+  get hiworksMailDomain(): string {
+    return process.env.HIWORKS_MAIL_DOMAIN ?? '';
+  },
+  get hiworksApiUrl(): string {
+    return (process.env.HIWORKS_API_URL ?? 'https://api.hiworks.com').replace(/\/$/, '');
   },
   get workspaceId(): string {
     return process.env.WORKSPACE_ID ?? 'miceplans';
   },
-  /** Socket.IO와 Swagger UI의 허용 출처. 비우면 CORS를 열지 않는다. */
+  /** CORS·Socket.IO·Swagger UI의 허용 출처(쉼표 구분). 운영에서는 비우면 CORS를 열지 않고, 개발에서는 웹 개발 서버(localhost:3100)만 허용한다. */
   get webOrigin(): string {
-    return process.env.WEB_ORIGIN ?? '';
+    if (process.env.WEB_ORIGIN !== undefined) return process.env.WEB_ORIGIN;
+    return process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3100,http://127.0.0.1:3100';
   },
   /** 협업 서버 내부 주소와 공유 비밀. Yjs로 편집된 문서의 본문 변경(저장·AI 승인·되돌리기)은 이 서버를 거친다. 없으면 그런 변경은 503이다. */
   get collab(): { url: string; secret: string } | null {

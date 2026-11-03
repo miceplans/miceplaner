@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Select } from '@miceplans/ui';
 
 const A = '/assets/import';
 
@@ -35,21 +36,13 @@ export function MappingForm() {
                   ) : null}
                   <span className="text-base whitespace-nowrap text-fg">{r.label}</span>
                 </div>
-                <label className="relative flex h-[32px] w-[320px] shrink-0 items-center gap-[8px] rounded-sm border border-solid border-border bg-surface px-[10px] text-base text-fg">
-                  <select
-                    aria-label={`${r.label} 매핑`}
-                    value={values[i]}
-                    onChange={(e) => setValues((v) => v.map((x, j) => (j === i ? e.target.value : x)))}
-                    className="absolute inset-0 cursor-pointer appearance-none opacity-0"
-                  >
-                    {PROPERTIES.map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
-                  <span className="whitespace-nowrap">{values[i]}</span>
-                  <div className="h-px min-w-px flex-1" />
-                  <img alt="" src={`${A}/chevron.svg`} className="size-[14px]" />
-                </label>
+                <Select
+                  aria-label={`${r.label} 매핑`}
+                  value={values[i]}
+                  onChange={(e) => setValues((v) => v.map((x, j) => (j === i ? e.target.value : x)))}
+                  options={PROPERTIES.map((p) => ({ value: p, label: p }))}
+                  className="w-[320px] shrink-0"
+                />
               </div>
             ))}
           </div>

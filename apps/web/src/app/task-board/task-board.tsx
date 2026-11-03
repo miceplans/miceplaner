@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, ConfirmDialog, Dialog, FlowTopbar, PageFrame, ViewTabs, type ViewTab } from '@miceplans/ui';
+import { Button, ConfirmDialog, Dialog, FlowTopbar, Input, PageFrame, Select, ViewTabs, type ViewTab } from '@miceplans/ui';
 
 const A = '/assets/task-board';
 
@@ -340,11 +340,11 @@ export function TaskBoard() {
             <p className="text-base text-fg-secondary">{tab === 'mine' ? '내가 담당한 Tasks' : '모든 Tasks'}</p>
             <label className="flex items-center gap-[6px] text-sm whitespace-nowrap text-fg-secondary">
               정렬
-              <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} className="h-[32px] rounded-sm border border-solid border-border bg-surface px-[8px] text-base text-fg">
+              <Select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} className="shrink-0">
                 <option value="default">기본</option>
                 <option value="due-asc">마감일 빠른 순</option>
                 <option value="due-desc">마감일 느린 순</option>
-              </select>
+              </Select>
             </label>
           </div>
           <div className="overflow-x-auto rounded-lg border border-border">
@@ -463,7 +463,6 @@ function TaskDialog({
   const [due, setDue] = useState(initial?.due ?? '');
   const [who, setWho] = useState(initial?.who ?? ME);
   const [status, setStatus] = useState(initial?.status ?? defaultStatus);
-  const field = 'h-[36px] w-full rounded-sm border border-solid border-border bg-surface px-[10px] text-base text-fg';
   const label = 'flex flex-col gap-[4px] text-sm text-fg-secondary';
   return (
     <Dialog onClose={onCancel}>
@@ -488,35 +487,35 @@ function TaskDialog({
         <h2 className="m-0 text-lg font-semibold text-fg">{mode === 'add' ? 'Task 추가' : 'Task 수정'}</h2>
         <label className={label}>
           제목
-          <input autoFocus required value={title} onChange={(e) => setTitle(e.target.value)} className={field} />
+          <Input autoFocus required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full" />
         </label>
         <div className="flex gap-[12px]">
           <label className={`${label} flex-1`}>
             상태
-            <select value={status} onChange={(e) => setStatus(e.target.value)} className={field}>
+            <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full">
               {COLUMNS.map((c) => (
                 <option key={c.id}>{c.name}</option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className={`${label} flex-1`}>
             행사
-            <select value={event} onChange={(e) => setEvent(e.target.value)} className={field}>
+            <Select value={event} onChange={(e) => setEvent(e.target.value)} className="w-full">
               {SORTED_EVENTS.map((e) => (
                 <option key={e.name}>{e.name}</option>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
         <label className={label}>
           일정
-          <input value={schedule} onChange={(e) => setSchedule(e.target.value)} placeholder="예: 리헤설" className={field} />
+          <Input value={schedule} onChange={(e) => setSchedule(e.target.value)} placeholder="예: 리헤설" className="w-full" />
         </label>
         <div className="flex gap-[12px]">
           <label className={`${label} flex-1`}>
             마감일
             <div className="relative">
-              <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className={field} />
+              <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="w-full" />
               {due ? (
                 <button
                   type="button"
@@ -530,13 +529,13 @@ function TaskDialog({
           </label>
           <label className={`${label} flex-1`}>
             담당자
-            <select value={who} onChange={(e) => setWho(e.target.value as Avatar)} className={field}>
+            <Select value={who} onChange={(e) => setWho(e.target.value as Avatar)} className="w-full">
               {(Object.keys(AVATAR) as Avatar[]).map((a) => (
                 <option key={a} value={a}>
                   {AVATAR_NAME[a]}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
         <div className="flex justify-end gap-[8px]">
