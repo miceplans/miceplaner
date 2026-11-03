@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type DragEvent, type PointerEvent, type ReactNode } from 'react';
+import { Input, Select } from './field';
 
 const A = '/assets/schedule';
 
@@ -204,10 +205,8 @@ export function TaskSubtaskSection(): React.ReactNode {
   const doneCount = tasks.reduce((n, t) => n + t.subs.filter((s) => s.done).length, 0);
   const totalCount = tasks.reduce((n, t) => n + t.subs.length, 0);
 
-  const selectCls = 'h-[26px] shrink-0 rounded-sm border border-solid border-border bg-surface px-[6px] text-xs text-fg-secondary';
-  const draftInputCls =
-    'h-[26px] min-w-0 flex-1 rounded-sm border border-solid border-border bg-surface px-[8px] text-md text-fg outline-none placeholder:text-fg-tertiary';
-  const inlineInputCls = 'min-w-0 flex-1 bg-transparent text-md text-fg outline-none placeholder:text-fg-tertiary';
+  const selectCls = 'shrink-0';
+  const draftInputCls = 'flex-1';
 
   return (
     <div className="flex w-full flex-col gap-[12px]">
@@ -250,7 +249,7 @@ export function TaskSubtaskSection(): React.ReactNode {
               ))}
               <div className="flex items-center gap-[6px] px-[4px] py-[3px]">
                 <img alt="" src={`${A}/1d729.svg`} className="size-[9px] shrink-0" />
-                <input
+                <Input
                   value={subDrafts[task.id] ?? ''}
                   onChange={(e) => setSubDrafts((prev) => ({ ...prev, [task.id]: e.target.value }))}
                   onKeyDown={(e) => {
@@ -260,12 +259,14 @@ export function TaskSubtaskSection(): React.ReactNode {
                     }
                   }}
                   placeholder="Subtask 추가"
-                  className={inlineInputCls}
+                  variant="ghost"
+                  className="flex-1 text-md"
                 />
-                <select
+                <Select
                   value={subWhos[task.id] ?? task.who}
                   onChange={(e) => setSubWhos((prev) => ({ ...prev, [task.id]: e.target.value as AssigneeKey }))}
                   aria-label="Subtask 담당자"
+                  size="sm"
                   className={selectCls}
                 >
                   {(Object.keys(ASSIGNEE) as AssigneeKey[]).map((a) => (
@@ -273,7 +274,7 @@ export function TaskSubtaskSection(): React.ReactNode {
                       {ASSIGNEE[a].name}
                     </option>
                   ))}
-                </select>
+                </Select>
                 <button
                   type="button"
                   onClick={() => addSub(task.id)}
@@ -286,7 +287,7 @@ export function TaskSubtaskSection(): React.ReactNode {
           </div>
         ))}
         <div className="flex w-full items-center gap-[6px] rounded-md border border-dashed border-border-strong p-[8px]">
-          <input
+          <Input
             value={taskDraft}
             onChange={(e) => setTaskDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -296,15 +297,22 @@ export function TaskSubtaskSection(): React.ReactNode {
               }
             }}
             placeholder="Task 추가"
+            size="sm"
             className={draftInputCls}
           />
-          <select value={taskWho} onChange={(e) => setTaskWho(e.target.value as AssigneeKey)} aria-label="Task 담당자" className={selectCls}>
+          <Select
+            value={taskWho}
+            onChange={(e) => setTaskWho(e.target.value as AssigneeKey)}
+            aria-label="Task 담당자"
+            size="sm"
+            className={selectCls}
+          >
             {(Object.keys(ASSIGNEE) as AssigneeKey[]).map((a) => (
               <option key={a} value={a}>
                 {ASSIGNEE[a].name}
               </option>
             ))}
-          </select>
+          </Select>
           <button
             type="button"
             onClick={addTask}
