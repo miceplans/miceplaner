@@ -3,15 +3,15 @@ import { isoTs } from './sql';
 import type { ChunkHit, SearchFilter } from './knowledge-repository';
 
 export type FileStatus = 'pending' | 'ready' | 'failed';
-export type FileRow = { id: string; eventId: string; docId: string | null; name: string; mime: string; sizeBytes: number; storageKey: string; status: FileStatus; error: string | null; uploadedBy: string; createdAt: string };
+export type FileRow = { id: string; eventId: string; docId: string | null; itemId: string | null; name: string; mime: string; sizeBytes: number; storageKey: string; status: FileStatus; error: string | null; uploadedBy: string; createdAt: string };
 
-const FILE = `id, event_id AS "eventId", doc_id AS "docId", name, mime, size_bytes::int AS "sizeBytes", storage_key AS "storageKey", status, error, uploaded_by AS "uploadedBy", ${isoTs('created_at', 'createdAt')}`;
+const FILE = `id, event_id AS "eventId", doc_id AS "docId", item_id AS "itemId", name, mime, size_bytes::int AS "sizeBytes", storage_key AS "storageKey", status, error, uploaded_by AS "uploadedBy", ${isoTs('created_at', 'createdAt')}`;
 
 /** 권한이 없으면 RLS가 거부한다(42501). */
-export async function insertFile(client: PoolClient, f: { eventId: string; name: string; mime: string; sizeBytes: number; storageKey: string; uploadedBy: string }): Promise<FileRow> {
+export async function insertFile(client: PoolClient, f: { eventId: string; itemId?: string | null; name: string; mime: string; sizeBytes: number; storageKey: string; uploadedBy: string }): Promise<FileRow> {
   const { rows } = await client.query<FileRow>(
-    `INSERT INTO event_files (event_id, name, mime, size_bytes, storage_key, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING ${FILE}`,
-    [f.eventId, f.name, f.mime, f.sizeBytes, f.storageKey, f.uploadedBy],
+    `INSERT INTO event_files (event_id, name, mime, size_bytes, storage_key, uploaded_by, item_id) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING ${FILE}`,
+    [f.eventId, f.name, f.mime, f.sizeBytes, f.storageKey, f.uploadedBy, f.itemId ?? null],
   );
   return rows[0]!;
 }
@@ -21,8 +21,16 @@ export async function getFile(client: PoolClient, id: string): Promise<FileRow |
   return (await client.query<FileRow>(`SELECT ${FILE} FROM event_files WHERE id = $1 AND deleted_at IS NULL`, [id])).rows[0];
 }
 
-export async function listFiles(client: PoolClient, eventId: string): Promise<FileRow[]> {
-  return (await client.query<FileRow>(`SELECT ${FILE} FROM event_files WHERE event_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`, [eventId])).rows;
+export async function listFiles(client: PoolClient, eventId: string, filter: { itemId?: string } = {}): Promise<FileRow[]> {
+  const cond = ['event_id = $1'];
+  const vals: unknown[] = [eventId];
+  if (filter.itemId) { vals.push(filter.itemId); cond.push(`item_id = $${vals.length}`); }
+  return (await client.query<FileRow>(`SELECT ${FILE} FROM event_files WHERE ${cond.join(' AND ')} AND deleted_at IS NULL ORDER BY created_at DESC`, vals)).rows;
+}
+
+/** 첨부 대상 항목을 옮긴다. 같은 행사의 항목이어야 하고 대상이 없으면 undefined다 (RLS·트리거). */
+export async function moveFile(client: PoolClient, id: string, itemId: string | null): Promise<FileRow | undefined> {
+  return (await client.query<FileRow>(`UPDATE event_files SET item_id = $2 WHERE id = $1 RETURNING ${FILE}`, [id, itemId])).rows[0];
 }
 
 export async function markFile(client: PoolClient, id: string, patch: { status: FileStatus; error?: string | null; docId?: string }): Promise<void> {

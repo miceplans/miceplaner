@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ForbiddenException, Inject, Injectable, PayloadTooLargeException, ServiceUnavailableException } from '@nestjs/common';
-import { fileDto, MAX_FILE_BYTES } from '@miceplans/contracts';
+import { fileDto, MAX_FILE_BYTES, type ListFilesQuery, type MoveFileBody } from '@miceplans/contracts';
 import { canEditWiki } from '@miceplans/domain';
-import { eventRole, getFile, insertFile, listFiles, softDeleteFile, withContext, type Pool, type PoolClient } from '@miceplans/db';
+import { eventRole, getFile, getItem, insertFile, listFiles, moveFile, softDeleteFile, withContext, type Pool, type PoolClient } from '@miceplans/db';
 import { SUPPORTED_EXTENSIONS } from '@miceplans/knowledge/parse';
 import type { ObjectStore } from '@miceplans/storage';
 import { AuthUser, requireInternal } from '../common/auth';
@@ -37,7 +37,7 @@ export class FilesService {
     return this.store;
   }
 
-  async upload(user: AuthUser, eventId: string, file: Upload | undefined) {
+  async upload(user: AuthUser, eventId: string, file: Upload | undefined, itemId: string | null) {
     requireInternal(user);
     if (!file) throw new BadRequestException('file 필드로 파일을 보내야 한다');
     if (file.size > MAX_FILE_BYTES) throw new PayloadTooLargeException(`파일은 ${MAX_FILE_BYTES / 1024 / 1024}MB를 넘을 수 없다`);
@@ -49,12 +49,13 @@ export class FilesService {
     // 권한(PM·AM)은 행 삽입 전에 확인한다. 원본은 권한 확인 뒤에만 저장소에 올린다.
     await this.run(user, async (db) => {
       if (!canEditWiki(await eventRole(db, eventId))) throw new ForbiddenException('파일 업로드는 PM·AM만 할 수 있다');
+      if (itemId) assertFound(await getItem(db, itemId), '첨부 대상 항목');
     });
     const storageKey = `events/${eventId}/${randomUUID()}`;
     await store.put(storageKey, file.buffer, file.mimetype);
     let created;
     try {
-      created = await this.run(user, (db) => insertFile(db, { eventId, name, mime: file.mimetype, sizeBytes: file.size, storageKey, uploadedBy: user.userId }));
+      created = await this.run(user, (db) => insertFile(db, { eventId, itemId, name, mime: file.mimetype, sizeBytes: file.size, storageKey, uploadedBy: user.userId }));
       await this.queue.parseFile({ fileId: created.id, ctx: { workspaceId: user.workspaceId, userId: user.userId, role: user.role } });
     } catch (error) {
       await store.delete(storageKey).catch(() => undefined); // 고아 객체를 남기지 않는다
@@ -64,9 +65,21 @@ export class FilesService {
     return fileDto.parse(created);
   }
 
-  async list(user: AuthUser, eventId: string) {
+  async list(user: AuthUser, eventId: string, query: ListFilesQuery) {
     requireInternal(user);
-    return (await this.run(user, (db) => listFiles(db, eventId))).map((f) => fileDto.parse(f));
+    return (await this.run(user, (db) => listFiles(db, eventId, query))).map((f) => fileDto.parse(f));
+  }
+
+  /** 첨부 대상 항목 이동은 PM·AM만 한다. 같은 행사의 항목이어야 한다 (DB 트리거가 검사). */
+  async move(user: AuthUser, id: string, body: MoveFileBody) {
+    requireInternal(user);
+    const row = await this.run(user, async (db) => {
+      const file = assertFound(await getFile(db, id), '파일');
+      if (!canEditWiki(await eventRole(db, file.eventId))) throw new ForbiddenException('파일 이동은 PM·AM만 할 수 있다');
+      if (body.itemId) assertFound(await getItem(db, body.itemId), '첨부 대상 항목');
+      return assertFound(await moveFile(db, id, body.itemId), '파일');
+    });
+    return fileDto.parse(row);
   }
 
   async get(user: AuthUser, id: string) {
