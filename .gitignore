@@ -5,3 +5,8 @@ out
 *.tsbuildinfo
 .DS_Store
 .local
+
+# 비밀 값
+.env
+.env.*
+!.env.example
