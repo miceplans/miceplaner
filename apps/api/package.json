@@ -11,9 +11,14 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1161.0",
+    "@miceplans/ai": "workspace:*",
     "@miceplans/contracts": "workspace:*",
     "@miceplans/db": "workspace:*",
     "@miceplans/domain": "workspace:*",
+    "@miceplans/knowledge": "workspace:*",
+    "@miceplans/queue": "workspace:*",
+    "@miceplans/storage": "workspace:*",
     "@nestjs/common": "^11.1.0",
     "@nestjs/core": "^11.1.0",
     "@nestjs/platform-express": "^11.1.0",
@@ -21,6 +26,7 @@
     "@nestjs/swagger": "^11.1.0",
     "@nestjs/websockets": "^11.1.0",
     "jose": "^6.0.10",
+    "multer": "^2.5.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.1",
@@ -30,6 +36,7 @@
   "devDependencies": {
     "@miceplans/config": "workspace:*",
     "@nestjs/testing": "^11.1.0",
+    "@types/multer": "^2.3.0",
     "@types/node": "^22.0.0",
     "@types/supertest": "^6.0.2",
     "supertest": "^7.1.1",

@@ -1,7 +1,26 @@
 {
-  "name": "@miceplans/db", "version": "0.0.0", "private": true, "type": "module",
-  "exports": { ".": "./src/index.ts", "./testing": "./src/testing.ts" },
-  "scripts": { "typecheck": "tsc -p tsconfig.json", "test": "vitest run", "lint": "eslint src test" },
-  "dependencies": { "@miceplans/domain": "workspace:*", "pg": "^8.13.0" },
-  "devDependencies": { "@miceplans/config": "workspace:*", "@miceplans/contracts": "workspace:*", "@types/pg": "^8.11.0", "typescript": "^5.6.0" }
+  "name": "@miceplans/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint src test"
+  },
+  "dependencies": {
+    "@miceplans/domain": "workspace:*",
+    "@miceplans/knowledge": "workspace:*",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@miceplans/config": "workspace:*",
+    "@miceplans/contracts": "workspace:*",
+    "@types/pg": "^8.11.0",
+    "typescript": "^5.6.0"
+  }
 }

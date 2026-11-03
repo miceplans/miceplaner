@@ -28,3 +28,21 @@ html, body { margin: 0; font-family: var(--font-sans); }
     transparent 5px, transparent 10px
   );
 }
+
+/* 위키 에디터 본문(TipTap/ProseMirror) — Tailwind preflight가 지운 서식을 복원한다 */
+.wiki-prose { font-size: 0.875rem; line-height: 1.7; color: var(--color-fg, inherit); }
+.wiki-prose > * + * { margin-top: 0.75em; }
+.wiki-prose h1 { font-size: 1.5rem; font-weight: 600; }
+.wiki-prose h2 { font-size: 1.25rem; font-weight: 600; }
+.wiki-prose h3 { font-size: 1.05rem; font-weight: 600; }
+.wiki-prose ul { list-style: disc; padding-left: 1.5em; }
+.wiki-prose ol { list-style: decimal; padding-left: 1.5em; }
+.wiki-prose blockquote { border-left: 3px solid rgb(23 23 28 / 0.15); padding-left: 1em; color: rgb(23 23 28 / 0.7); }
+.wiki-prose pre { background: rgb(23 23 28 / 0.06); border-radius: 6px; padding: 0.75em 1em; overflow-x: auto; font-family: ui-monospace, monospace; font-size: 0.8125rem; }
+.wiki-prose code { background: rgb(23 23 28 / 0.06); border-radius: 4px; padding: 0.1em 0.3em; font-family: ui-monospace, monospace; }
+.wiki-prose pre code { background: none; padding: 0; }
+.wiki-prose hr { border: 0; border-top: 1px solid rgb(23 23 28 / 0.15); }
+.wiki-prose a { color: #2f6fed; text-decoration: underline; }
+.wiki-prose p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: rgb(23 23 28 / 0.4); float: left; height: 0; pointer-events: none; }
+.collaboration-carets__caret { position: relative; margin-left: -1px; margin-right: -1px; border-left: 1px solid; border-right: 1px solid; word-break: normal; pointer-events: none; }
+.collaboration-carets__label { position: absolute; top: -1.4em; left: -1px; padding: 0.1rem 0.3rem; border-radius: 3px 3px 3px 0; color: #fff; font-size: 11px; font-weight: 600; line-height: normal; white-space: nowrap; user-select: none; }

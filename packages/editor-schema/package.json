@@ -1,0 +1,13 @@
+{
+  "name": "@miceplans/editor-schema", "version": "0.0.0", "private": true, "type": "module",
+  "exports": { ".": "./src/index.ts", "./markdown": "./src/markdown.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json", "test": "vitest run", "lint": "eslint src" },
+  "dependencies": {
+    "@tiptap/core": "3.32.1",
+    "@tiptap/pm": "3.32.1",
+    "@tiptap/starter-kit": "3.32.1",
+    "@tiptap/y-tiptap": "^3.0.7",
+    "yjs": "^13.6.33"
+  },
+  "devDependencies": { "@miceplans/config": "workspace:*", "typescript": "^5.6.0" }
+}

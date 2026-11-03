@@ -24,6 +24,7 @@ export async function connectTestAdmin(url: string): Promise<TestAdmin> {
 
 /** 실제 PostgreSQL 임시 클러스터를 띄우고 마이그레이션을 적용한 뒤 접속 정보를 돌려준다. */
 export async function startTestPostgres(): Promise<TestPostgres> {
+  if (process.env.TEST_PG_EXTERNAL_URL) return useExternalPostgres(process.env.TEST_PG_EXTERNAL_URL);
   const port = 54000 + Math.floor(Math.random() * 900);
   const dir = mkdtempSync(join(tmpdir(), 'miceplans-pg-'));
   execFileSync(bin('initdb'), ['-D', join(dir, 'data'), '-U', 'postgres', '--auth=trust', '-E', 'UTF8'], { stdio: 'ignore' });
@@ -41,6 +42,34 @@ export async function startTestPostgres(): Promise<TestPostgres> {
     stop: () => {
       execFileSync(bin('pg_ctl'), ['-D', join(dir, 'data'), '-m', 'immediate', 'stop'], { stdio: 'ignore' });
       rmSync(dir, { recursive: true, force: true });
+    },
+  };
+}
+
+/**
+ * pgvector가 든 서버처럼 로컬에 없는 확장이 필요한 검증용으로, 이미 떠 있는 서버(trust 인증)에 임시 데이터베이스를 만든다.
+ * 예: docker run -e POSTGRES_HOST_AUTH_METHOD=trust -p 55432:5432 pgvector/pgvector:pg16 → TEST_PG_EXTERNAL_URL=postgres://postgres@127.0.0.1:55432/postgres
+ */
+async function useExternalPostgres(adminUrl: string): Promise<TestPostgres> {
+  const db = `t${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  const u = new URL(adminUrl);
+  const boot = new pg.Client({ connectionString: adminUrl });
+  await boot.connect();
+  await boot.query(`CREATE DATABASE ${db}`);
+  await boot.end();
+  u.pathname = `/${db}`;
+  const admin = new pg.Client({ connectionString: u.toString() });
+  await admin.connect();
+  const migrations = join(here, '..', 'migrations');
+  for (const file of readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort()) await admin.query(readFileSync(join(migrations, file), 'utf8'));
+  await admin.end();
+  const app = new URL(u.toString());
+  app.username = 'miceplans_app';
+  return {
+    adminUrl: u.toString(),
+    appUrl: app.toString(),
+    stop: () => {
+      // 외부 서버의 임시 데이터베이스는 호출 쪽이 서버째 버린다.
     },
   };
 }

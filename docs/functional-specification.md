@@ -197,6 +197,11 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 - PM 또는 AM과 Super Admin은 행사 위키를 편집할 수 있다. Staff는 행사 위키에 읽기 전용으로 연결되며 커서와 접속자 표시는 볼 수 있다.
 - Client는 협업 서버 연결을 포함해 위키의 어떠한 내용에도 접근할 수 없다.
 - 문서별 열람 범위는 `전체 공개`, `행사 멤버`(기본값), `PM·AM만` 3단계로 설정한다. 범위 변경은 PM·AM과 Super Admin만 할 수 있으며 감사 로그 대상이다. Client는 어떤 범위에서도 볼 수 없다. 서버 강제는 `packages/db`의 `event_docs` RLS 정책(`can_view_doc`, `can_edit_event`)과 `packages/domain`의 `canViewDoc`·`canChangeDocVisibility`로 구현되어 실제 PostgreSQL 테스트(`packages/db/test`)로 검증한다. 현재 웹 화면은 선택 UI와 브라우저 저장만 제공하는 목업이며 API 연동은 NestJS API 단계에서 한다. 비멤버 내부 직원은 `staff`로 판정하므로 `행사 멤버` 범위에서는 보이지 않는다.
+- 구현은 `apps/collaboration`(Hocuspocus), `packages/editor-schema`(TipTap StarterKit 스키마, Markdown ↔ ProseMirror ↔ Yjs 변환), 웹 에디터(`/wiki?doc=<id>`, 정적 export라 쿼리 라우팅)다. 연결마다 세션 토큰을 검증하고 사용자의 RLS 컨텍스트로 읽고 쓴다. Client·잘못된 토큰·볼 수 없는 문서는 연결이 거부되고, PM·AM·Super Admin 외에는 읽기 전용이며 읽기 전용 접속자도 커서·접속자 표시는 본다.
+- Yjs 상태(`wiki_ydoc`, 문서당 병합된 스냅샷)가 본문의 기준이다. 저장할 때 Markdown 파생본(`event_docs.body_md`)과 검색 색인(`knowledge_chunks`)을 같은 트랜잭션에서 갱신하며 본문이 달라졌을 때만 `version`을 올린다. 협업으로 편집된 적이 없는 문서는 `body_md`로 시작한다. 저장 지연은 `COLLAB_DEBOUNCE_MS`(기본 1.5초)다.
+- 문서 생성은 `POST /events/:eventId/docs`(PM·AM), 열람은 `GET /docs/:docId`, 삭제는 `DELETE /docs/:docId`(soft delete, 감사 로그)다. `PUT /docs/:docId/body`는 협업 편집 전 문서만 직접 저장(마지막 저장 우선)하고, Yjs 상태가 있는 문서는 협업 서버의 내부 API(`POST /internal/docs/:id/replace`, 공유 비밀 `COLLAB_INTERNAL_SECRET`)로 Yjs 트랜잭션을 수행해 접속 중인 편집자에게 전파한다. 협업 서버가 없거나 실패하면 503이고 본문은 그대로다.
+- 버전(`wiki_revisions`)은 명시적 생성(`POST /docs/:docId/revisions`), AI 제안 승인, 되돌리기(`POST /docs/:docId/revisions/:id/restore`, 현재 내용을 먼저 버전으로 남기고 감사 로그)에서만 만든다. 목록·상세는 문서를 볼 수 있는 사람만 본다.
+- 알려진 한계: update log는 두지 않고 스냅샷만 저장한다. 접속 중 편집이 저장 지연 안에 있으면 AI 승인의 `baseVersion` 판정은 저장된 version 기준이다. 에디터는 StarterKit 노드(표·이미지 등 제외)만 지원한다.
 - 저장소는 update log, snapshot, `wiki_revision`을 분리한다. update log는 스냅샷 후 압축·정리하고, 명시적 버전 생성·제안 승인·발행·되돌리기에서만 `wiki_revision`을 만든다.
 - 배포 중 협업 연결이 잠시 끊길 수 있으며 클라이언트는 재접속 후 동기화한다. Presence는 복구 대상이 아닌 일시 상태다.
 - 공용 위키의 전 직원 편집 범위는 위키 에디터 단계 시작 전에 결정한다.
@@ -210,7 +215,32 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 - 검색은 권한 필터, 행사·고객사·문서 유형·최신성 필터, FTS와 `pg_trgm`, dense 검색, 병합·재정렬 순서로 처리한다.
 - 권한 밖의 문서는 제목, 요약, 인용문, 첨부 메타데이터를 포함해 검색 결과에 나타나지 않는다.
 - 한국어 검색 품질은 골든 셋으로 측정한다. FTS와 `pg_trgm` 품질이 부족하면 별도 검색 엔진 및 BGE-M3 native sparse를 재검토한다.
-- 파일 파싱, 청킹, 임베딩은 worker가 실행하고 검색 API와 worker가 동일한 지식 처리 코드를 사용한다.
+- 한국어 lexical 처리는 형태소 분석기(Kiwi) 없이 한다. 색인은 `simple` tsvector로 원문 토큰을 저장하고, 질의는 `packages/knowledge`의 `queryTerms`가 조사를 떼고 불용어를 제거해 어간 접두 일치(`to_tsquery('simple', '행사':* | …)`)로 찾는다. 어형 변화로 놓친 항목은 `pg_trgm` 단어 유사도로 보완하며, 두 순위 목록은 RRF로 병합하고 문서당 가장 좋은 청크 하나만 돌려준다. Kiwi(WASM)는 상시 메모리가 700~900MB여서 도입하지 않았고, `apps/api/test/knowledge.spec.ts`의 골든 셋이 기준 미달일 때 재검토한다(6절).
+- 검색 대상은 위키 본문과 업로드 파일의 변환 결과다. 청크는 `knowledge_chunks`에 `event_id`를 유지하고 `event_docs` RLS를 그대로 따르므로 파일도 위키와 같은 열람 범위·권한 필터를 거친다.
+- API: `GET /search?q=&eventId=&clientId=&since=&limit=`(내부 직원만). 결과의 문서·절·인용문이 곧 출처다.
+
+파일 업로드와 변환:
+
+- `POST /events/:eventId/files`(multipart `file`, PM·AM·Super Admin)로 올린다. 지원 형식은 txt·md·csv·xlsx·docx·pdf(텍스트 레이어)이고 상한은 20MB(`MAX_FILE_BYTES`)다. 형식은 확장자로만 판정하며 클라이언트가 보낸 MIME은 믿지 않는다. 스캔 이미지 PDF·이미지·구형 doc/xls는 지원하지 않는다.
+- 원본은 S3(`S3_BUCKET`, 로컬 개발은 `FILES_DIR`)에 `events/<eventId>/<uuid>` 키로 저장한다. 저장소 자격 증명은 서버 런타임에만 있고, 다운로드(`GET /files/:id/download`)는 API가 읽어 `attachment`로 전달한다. 서명 URL을 브라우저에 주지 않는다. 저장소 설정이 없으면 업로드는 503이다.
+- 업로드는 `event_files`(`pending`)를 만들고 pg-boss 작업 `parse-file`을 넣는다. worker가 업로더 권한(작업 입력의 워크스페이스·사용자·역할)으로 원본을 읽어 Markdown으로 바꾸고, 파일명을 제목으로 하는 `event_docs`(열람 범위 `행사 멤버`, PM·AM이 이후 변경)를 만들어 청크를 색인한 뒤 `ready`로 바꾼다. 변환할 수 없으면 사유와 함께 `failed`이며(형식 오류·빈 문서·원본 없음은 재시도하지 않고, 그 밖의 오류는 3회 재시도한 뒤 `failed`) 사용자는 파일 목록에서 사유를 본다.
+- 목록·상세는 변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람만 본다(Client는 항상 불가). 삭제(`DELETE /files/:id`, PM·AM)는 soft delete이며 변환 문서와 색인을 함께 내리고 감사 로그(`file.delete`)를 남긴다.
+- 웹은 행사 상세의 `문서` 탭 위 `자료 파일` 영역에서 올리기·상태 확인(변환 중이면 3초마다 갱신)·원본 받기·변환 문서 열기·삭제를 제공한다. 세션 토큰이 없거나 행사 ID가 서버의 것이 아닌 목업 데이터에서는 표시하지 않는다.
+- **원본 보존·파기 기간은 미확정이다(6절).** 현재는 삭제해도 S3 객체를 지우지 않고(소프트 삭제), 자동 파기 규칙을 두지 않는다. 정책이 정해지면 S3 수명 주기 규칙 또는 별도 작업으로 구현한다.
+
+dense 검색:
+
+- 청크 임베딩은 TEI가 서빙하는 BGE-M3 dense(1024차원)이며 `knowledge_chunks.embedding vector(1024)`와 HNSW 코사인 인덱스에 저장한다. `TEI_URL`이 있을 때만 쓴다. 없으면 임베딩 작업을 만들지 않고 검색은 lexical(FTS + `pg_trgm`)만 쓴다.
+- pgvector가 설치된 PostgreSQL에서만 `embedding` 열이 만들어진다(마이그레이션 `0008`이 확장 유무를 확인). 설치되지 않은 서버에서는 dense가 꺼진 채 나머지는 그대로 동작한다. Aurora/RDS는 pgvector를 지원한다.
+- 본문이 저장·색인될 때마다(위키 API 저장, AI 제안 승인, 되돌리기, 협업 편집 저장, 파일 변환) 청크가 새로 만들어져 임베딩이 비므로 작업 `embed-doc`을 넣고, worker가 비어 있는 청크만 채운다. 같은 문서의 요청은 30초 안에 하나로 합친다. 큐나 임베딩 서버 장애는 본문 저장을 막지 않으며 그 청크는 lexical로만 검색된다.
+- 질의는 같은 TEI로 임베딩해 권한 필터(RLS) 뒤에서 코사인 거리가 `DENSE_MAX_DISTANCE`(기본 0.5) 이하인 청크를 가져와 FTS·`pg_trgm` 결과와 함께 RRF로 병합한다. 임베딩 서버가 실패하면 dense만 건너뛰고 lexical 결과를 돌려준다. **0.5는 2026-11-03 실제 BGE-M3(TEI cpu-arm64-1.9)로 소규모 골든 셋(문서 4개·청크 7개, 질의 12개, 무관 질의 6개)을 측정해 정했다.** 문장형 질의의 관련 문서 거리는 0.18~0.41, 무관한 질의의 최소 거리는 0.60~0.66이라 0.5에서 양쪽 모두 약 0.1 여유가 있다. 단어 하나짜리 질의(예: `회고`)는 관련 문서와의 거리가 0.59여서 무관한 질의와 구분되지 않으므로 dense가 아닌 lexical(제목·FTS)이 맡는다. 표본이 작으므로 실제 문서가 쌓이면 `packages/db/test/dense-tei.spec.ts`(`TEST_TEI_URL`·`TEST_PG_EXTERNAL_URL`로 실행)로 다시 점검한다.
+- TEI 서빙 비용(CPU로 충분한지, GPU가 필요한지)과 상시 실행 여부는 6절에서 결정한다. 임베딩을 켜지 않으면 추가 비용이 없다.
+
+worker(`apps/worker`):
+
+- pg-boss(PostgreSQL 위, Redis 없음)로 `parse-file`, `embed-doc` 두 큐를 처리한다. 작업 입력은 ID와 `{workspaceId, userId, role}`뿐이며 본문은 담지 않는다. 처리는 그 주체의 RLS 컨텍스트로 실행되어 `BYPASSRLS`가 필요 없다. 파싱·청킹·임베딩 코드는 `packages/knowledge`를 검색 API와 같이 쓴다.
+- pg-boss 스키마(`pgboss`)는 배포 때 마이그레이션 소유자 역할로 `pnpm --filter @miceplans/queue migrate`(이미지에서는 `packages/queue/src/migrate.ts`)를 한 번 실행해 만들고 앱 역할에 필요한 권한만 준다. API·협업 서버는 작업을 넣기만 하며 처음 필요할 때 연결한다. 앱 역할은 DDL 권한이 없다.
+- worker는 단일 프로세스(Docker `worker` 타깃)다. 큐를 폴링하므로 상시 실행 비용이 있으며, 작업량이 적으면 일정 주기 실행 방식으로 바꾸는 것을 6절에서 검토한다.
 
 ### F-11 AI 질의와 제안
 
@@ -228,7 +258,12 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 - 위키 제안 승인 시 서버는 에이전트 참여자로서 Yjs 트랜잭션을 수행하고 변경 출처를 남긴다.
 - 승인된 반영은 모두 감사 로그에 기록한다.
 - AI 응답은 SSE로 스트리밍하고, 호출별 프롬프트, 도구 호출, 토큰, 지연을 기록한다.
-- GLM은 OpenAI 호환 어댑터 뒤에서 사용한다. 대표 시나리오 20~30개로 첫 2주 안에 도구 호출 품질을 평가하고, 모델 또는 프롬프트 변경 때 같은 골든 셋을 다시 실행한다.
+- 구현은 `POST /ai/chat`(SSE: `text`·`tool`·`sources`·`proposal`·`done`·`error` 이벤트), `GET /events/:eventId/ai/proposals`, `POST /ai/proposals/:id/approve|reject`다. 도구는 질문한 사용자의 RLS 컨텍스트에서 실행되어 권한 밖 문서가 모델에 전달되지 않는다. 모델이 쓰는 도구 계약은 `packages/contracts/src/agent-tools.ts`, 어댑터·에이전트 루프·평가는 `packages/ai`다.
+- AI 질의는 내부 직원 전체가 할 수 있고(Client 불가), 제안은 만든 사람과 PM·AM만 볼 수 있으며, 승인·반려는 PM·AM과 Super Admin만 한다. 결정된 제안은 다시 바꿀 수 없다.
+- 승인은 승인자의 권한으로 한 트랜잭션 안에서 반영한다. `task_drafts`는 Task·Subtask 생성(상위 항목 검증), `notification`은 알림 생성, `wiki_edit`은 본문 교체와 재색인이다. `wiki_edit`은 제안 당시 `baseVersion`과 다르면 409 `VERSION_CONFLICT`로 거부하고 제안은 대기로 남는다. Yjs 상태가 있는 문서는 협업 서버를 거쳐 Yjs 트랜잭션으로 반영하고, 승인 직전 내용을 `wiki_revisions`(reason `ai_proposal`)에 남긴다. 협업 서버 반영이 실패하면 결정까지 함께 되돌려 제안은 대기로 남는다.
+- 웹의 Agent 패널(`apps/web/src/app/ai-chat/ai-chat-panel.tsx`)은 `/ai/chat` SSE를 스트리밍해 답변·출처·제안 카드를 보여주고 승인·반려 버튼을 제공한다. 행사 상세(`/events/:id`)에서는 그 행사를 맥락으로 보낸다. 웹에는 아직 로그인 화면이 없어 세션 토큰은 `sessionStorage['miceplans.token']`에서 읽기만 하며(`apps/web/src/lib/api.ts`), API 주소는 `NEXT_PUBLIC_API_URL`이다. 로그인 연동 단계에서 `getToken`만 바꾼다. 제안 표시 형식·재제안 흐름은 7절에서 미확정이라 요약·상태·승인/반려만 제공한다.
+- 사용자당 분당 질의 한도(`AI_REQUESTS_PER_MINUTE`, 기본 20)로 LLM 비용을 제한한다. 호출 기록은 `ai_calls`(본인과 Super Admin만 조회)에 남는다. LLM은 `LLM_BASE_URL`·`LLM_API_KEY`·`LLM_MODEL`을 서버 런타임에서만 읽고, 없으면 AI 질의는 503이다.
+- GLM은 OpenAI 호환 어댑터 뒤에서 사용한다. 대표 시나리오 20~30개로 첫 2주 안에 도구 호출 품질을 평가하고, 모델 또는 프롬프트 변경 때 같은 골든 셋을 다시 실행한다. 골든 셋은 `packages/ai/src/eval/cases.ts`(현재 22개)이고 `LLM_* pnpm --filter @miceplans/ai eval`로 실행한다. 합격선은 미확정(7절)이라 통과율만 보고한다. **실행 기록(2026-11-02, z.ai `/api/anthropic`, `glm-4.5-flash`): 20/22(91%).** 실패는 `tasks-progress`(query_tasks 미호출)와 `propose-notification`(propose_notification 미호출) 2건이다. 이 계정에서는 유료 모델(`glm-5.3-flash`, `glm-4.7`, `glm-4.5` 등)이 `1113`(잔액·패키지 없음)으로 거절되고 무료 `glm-4.5-flash`만 응답해, 사용자 결정(2026-11-02)에 따라 `glm-4.5-flash`를 평가 모델로 삼았다. 다른 모델로 바꾸면 같은 골든 셋을 다시 실행한다(`LLM_* pnpm --filter @miceplans/ai eval`). 합격선은 미확정(7절)이다. 엔드포인트가 `/anthropic`으로 끝나면 Anthropic Messages 어댑터, 아니면 OpenAI 호환 어댑터를 쓴다(`createLlmClient`).
 
 ### F-12 휴가·연차
 
@@ -267,13 +302,15 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 | Client 포털 인증 | 첫 Client 포털 연동 또는 고객사 SSO 요구 발생 시 |
 | Redis 도입 | 협업 서버를 두 개 이상 운영하거나 동시 접속 증가 시 |
 | 전사 문서 space 권한 | 전사 문서 space 추가 직전 |
-| 한국어 lexical 검색 보강 | 골든 셋이 기준 미달일 때 |
+| 한국어 lexical 검색 보강 (Kiwi 등 형태소 분석) | 골든 셋이 기준 미달일 때. 현재는 조사 제거 + 접두 일치 + `pg_trgm`으로 처리 |
+| 업로드 원본의 보존·파기 기간 | 운영 시작 전. 현재는 삭제해도 S3 원본을 지우지 않고 자동 파기도 없다 |
+| TEI 임베딩 서빙 방식·비용, worker 상시 실행 여부 | 임베딩을 운영에서 켜기 전. 코드는 구현됐고 `TEI_URL`이 없으면 꺼져 있다. 임계값 `DENSE_MAX_DISTANCE`는 소규모 실측으로 0.5를 정했고 실제 문서로 재점검한다 |
 | GLM 모델 유지 여부 | 초기 2주 평가 종료 시 |
 | 담당자가 행사 멤버가 아닌 경우의 자기 항목 상태·댓글 | 내 할 일 보드 구현 전 |
 | 행사 생성 권한 | 1단계 행사 CRUD 구현 전 |
-| 공용 위키 편집 범위 | 위키 에디터 구현 전 |
+| 공용 위키 편집 범위(전 직원 편집) | 전사 문서 space 추가 직전. 행사 위키는 PM·AM만 편집(2026-10-30 확인) |
 | 예산·견적·마진 노출 | 행사 스키마 확정 전 |
-| 행사 멤버의 행사 위키·AI 권한 | 위키·AI 구현 전 |
+| 행사 멤버의 행사 위키·AI 권한 | 위키·AI 구현 전. 구현은 기존 결정(2.2)을 따라 `member`도 `staff`처럼 위키 편집·제안 승인은 불가, 열람은 범위에 따르고 AI 질의는 가능으로 두었다. 확정 시 `packages/domain/src/knowledge.ts`를 조정한다 |
 | 멤버 삭제 시 기존 담당 항목의 처리 방식 | 행사 멤버 관리 구현 전 |
 | 마감 임박 알림 발송 시점 | 알림 구현 전 |
 | 일정 변경 알림의 수신 범위(담당자만 또는 행사 멤버 전체) | 알림 구현 전 |

@@ -6,13 +6,21 @@
     "dev": "next dev -p 3100",
     "build": "next build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@hocuspocus/provider": "^4.8.0",
+    "@miceplans/contracts": "workspace:*",
+    "@miceplans/editor-schema": "workspace:*",
     "@miceplans/ui": "workspace:*",
+    "@tiptap/extension-collaboration": "3.32.1",
+    "@tiptap/extension-collaboration-caret": "3.32.1",
+    "@tiptap/react": "3.32.1",
     "next": "^15.5.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@miceplans/config": "workspace:*",
@@ -22,6 +30,7 @@
     "@types/react-dom": "^19.0.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^4.1.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^5.0.5"
   }
 }

@@ -1,0 +1,27 @@
+{
+  "name": "@miceplans/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src test",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@miceplans/contracts": "workspace:*",
+    "@miceplans/db": "workspace:*",
+    "@miceplans/knowledge": "workspace:*",
+    "@miceplans/queue": "workspace:*",
+    "@miceplans/storage": "workspace:*",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@miceplans/config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^5.0.5"
+  }
+}
