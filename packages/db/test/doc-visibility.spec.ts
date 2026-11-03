@@ -11,6 +11,11 @@ let docs: Record<'all' | 'members' | 'managers', string>;
 
 beforeAll(async () => {
   const admin = new pg.Pool({ connectionString: process.env.TEST_PG_ADMIN_URL });
+  // event_members의 낮은 직원 전용 트리거가 users를 본다.
+  await admin.query(
+    `INSERT INTO users (id, name, email, role) VALUES ($1,'pm','dv-pm@x.test','staff'), ($2,'am','dv-am@x.test','staff'), ($3,'member','dv-member@x.test','staff'), ($4,'staff','dv-staff@x.test','staff'), ($5,'client','dv-client@x.test','client'), ($6,'admin','dv-admin@x.test','super_admin')`,
+    [U.pm, U.am, U.member, U.staff, U.client, U.admin],
+  );
   await admin.query(`INSERT INTO event_members VALUES ($1,$2,'pm'), ($1,$3,'am'), ($1,$4,'member')`, [EVENT, U.pm, U.am, U.member]);
   const ids = await Promise.all(
     (['all', 'members', 'managers'] as const).map(async (v) => (await admin.query(`INSERT INTO event_docs (event_id, title, visibility) VALUES ($1,$2,$2) RETURNING id`, [EVENT, v])).rows[0].id as string),
