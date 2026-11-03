@@ -1,4 +1,4 @@
-import type { ChatBody, ChatEvent, DocPageDto, FileDto, ProposalDto } from '@miceplans/contracts';
+import type { AuthSessionDto, ChatBody, ChatEvent, DocPageDto, FileDto, ProposalDto } from '@miceplans/contracts';
 
 /** 빌드 시점에 정해지는 공개 주소다. 비밀 값은 두지 않는다. */
 export const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -6,8 +6,10 @@ export const collabUrl = process.env.NEXT_PUBLIC_COLLAB_URL ?? '';
 
 const TOKEN_KEY = 'miceplans.token';
 
-/** 로그인 화면이 아직 없어 세션 토큰은 sessionStorage에서 읽기만 한다. 로그인 연동 단계에서 이 함수만 바꾼다. */
+/** 세션 토큰은 탭을 닫으면 사라지도록 sessionStorage에 둔다. */
 export const getToken = (): string | null => (typeof window === 'undefined' ? null : window.sessionStorage.getItem(TOKEN_KEY));
+export const setToken = (token: string): void => window.sessionStorage.setItem(TOKEN_KEY, token);
+export const clearToken = (): void => window.sessionStorage.removeItem(TOKEN_KEY);
 
 export class ApiError extends Error {
   constructor(readonly status: number, message: string) {
@@ -72,6 +74,19 @@ export async function decideProposal(id: string, action: 'approve' | 'reject'): 
 
 export async function getDocPage(docId: string): Promise<DocPageDto> {
   return (await (await request(`/docs/${docId}`, { method: 'GET' })).json()) as DocPageDto;
+}
+
+/** 이메일·비밀번호로 로그인하거나 가입한다. 성공하면 세션 토큰을 저장한다. 실패 사유는 서버 메시지를 그대로 쓴다. */
+export async function signIn(mode: 'login' | 'register', body: { email: string; password: string }): Promise<AuthSessionDto> {
+  if (!apiBase) throw new ApiError(0, 'API 주소(NEXT_PUBLIC_API_URL)가 설정되지 않았다');
+  const res = await fetch(`${apiBase}/auth/${mode}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) {
+    const detail = (await res.json().catch(() => null)) as { message?: unknown } | null;
+    throw new ApiError(res.status, typeof detail?.message === 'string' ? detail.message : `요청에 실패했다 (${res.status})`);
+  }
+  const session = (await res.json()) as AuthSessionDto;
+  setToken(session.accessToken);
+  return session;
 }
 
 export async function getMe(): Promise<{ id: string; name: string; role: string }> {
