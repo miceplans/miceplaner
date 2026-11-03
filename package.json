@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@12.3.4",
   "scripts": {
-    "dev": "pnpm --filter @miceplans/web dev",
+    "dev": "pnpm --parallel --filter @miceplans/web --filter @miceplans/api dev",
     "dev:api": "pnpm --filter @miceplans/api dev",
     "build": "pnpm --filter @miceplans/web build",
     "typecheck": "pnpm -r typecheck",
