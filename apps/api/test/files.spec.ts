@@ -160,3 +160,52 @@ describe.skipIf(!process.env.TEST_PG_EXTERNAL_URL)('dense 검색 병합 (pgvecto
     await api().get('/search').query({ q: '행사 어디서 해요' }).set(as('client')).expect(403);
   });
 });
+
+describe('항목 첨부와 이동 (F-04)', () => {
+  const OTHER = id(4102);
+
+  afterAll(async () => {
+    // 이 describe가 만든 항목과 다른 행사 데이터를 정리한다 (파일 수준 afterAll은 항목을 지우지 않아 FK로 실패한다).
+    for (const eventId of [EVENT, OTHER]) {
+      await admin.query(`DELETE FROM pgboss.job WHERE data->>'fileId' IN (SELECT id::text FROM event_files WHERE event_id = $1)`, [eventId]);
+      await admin.query(`DELETE FROM event_files WHERE event_id = $1`, [eventId]);
+      await admin.query(`DELETE FROM event_items WHERE event_id = $1`, [eventId]);
+    }
+    await admin.query(`ALTER TABLE event_members DISABLE TRIGGER USER`); // 마지막 PM 삭제를 막는 트리거
+    await admin.query(`DELETE FROM event_members WHERE event_id = $1`, [OTHER]);
+    await admin.query(`ALTER TABLE event_members ENABLE TRIGGER USER`);
+    await admin.query(`DELETE FROM events WHERE id = $1`, [OTHER]);
+  });
+
+  it('업로드 때 항목에 첨부하고 itemId로 필터링한다', async () => {
+    const item = (await api().post(`/events/${EVENT}/items`).set(as('pm')).send({ kind: 'program', title: '첨부 프로그램' }).expect(201)).body.id;
+    const res = await upload('pm', '항목 첨부.txt', '본문').field('itemId', item).expect(201);
+    expect(res.body).toMatchObject({ itemId: item, status: 'pending' });
+    const filtered = await api().get(`/events/${EVENT}/files?itemId=${item}`).set(as('pm')).expect(200);
+    expect(filtered.body.map((f: { id: string }) => f.id)).toEqual([res.body.id]);
+  });
+
+  it('다른 행사의 항목에는 첨부할 수 없다', async () => {
+    await admin.query(`INSERT INTO events (id, client_id, name, start_date, end_date) VALUES ($1, $2, 'other', '2026-04-01', '2026-04-02')`, [OTHER, CO]);
+    await admin.query(`INSERT INTO event_members VALUES ($1, $2, 'pm')`, [OTHER, U.pm]);
+    const otherItem = (await api().post(`/events/${OTHER}/items`).set(as('pm')).send({ kind: 'program', title: '타 행사' }).expect(201)).body.id;
+    await upload('pm', 'x.txt', 'x').field('itemId', otherItem).expect(409);
+  });
+
+  it('이동은 PM·AM만 하고 같은 행사의 항목으로만 가능하다', async () => {
+    const item = (await api().post(`/events/${EVENT}/items`).set(as('pm')).send({ kind: 'program', title: '이동 대상' }).expect(201)).body.id;
+    const otherItem = (await api().get(`/events/${OTHER}/items`).set(as('pm')).expect(200)).body[0].id;
+    const res = await upload('pm', '이동.txt', '본문').expect(201);
+    const fileId = res.body.id;
+    // member에게 보이는 파일로 만들어 권한 검사 지점까지 도달하게 한다.
+    const doc = (await admin.query(`INSERT INTO event_docs (event_id, title, visibility, body_md) VALUES ($1, '이동.txt', 'members', '본문') RETURNING id`, [EVENT])).rows[0]!.id;
+    await admin.query(`UPDATE event_files SET status = 'ready', doc_id = $2 WHERE id = $1`, [fileId, doc]);
+
+    await api().patch(`/files/${fileId}`).set(as('member')).send({ itemId: item }).expect(403);
+    await api().patch(`/files/${fileId}`).set(as('pm')).send({ itemId: otherItem }).expect(409);
+    await api().patch(`/files/${fileId}`).set(as('pm')).send({ itemId: id(4999) }).expect(404);
+    await api().patch(`/files/${fileId}`).set(as('pm')).send({ itemId: item }).expect(200).expect((r) => expect(r.body.itemId).toBe(item));
+    const root = await api().patch(`/files/${fileId}`).set(as('pm')).send({ itemId: null }).expect(200);
+    expect(root.body.itemId).toBeNull();
+  });
+});
