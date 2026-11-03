@@ -8,3 +8,4 @@ export * from './leave-repository';
 export * from './portal-repository';
 export * from './knowledge-repository';
 export * from './file-repository';
+export * from './seed';
