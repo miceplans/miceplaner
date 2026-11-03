@@ -1,8 +1,9 @@
-import { Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { MAX_FILE_BYTES } from '@miceplans/contracts';
+import { listFilesQuery, MAX_FILE_BYTES, moveFileBody, uploadFileFields, type ListFilesQuery, type MoveFileBody, type UploadFileFields } from '@miceplans/contracts';
 import { Auth, type AuthUser } from '../common/auth';
+import { ZodBody, ZodQuery } from '../common/zod';
 import { FilesService, type Upload } from './files.service';
 
 /** express Response 중 쓰는 부분만. */
@@ -16,23 +17,34 @@ export class FilesController {
   @Post('events/:eventId/files')
   @ApiOperation({ summary: '파일 업로드 (PM·AM). 원본은 저장소에 두고 worker가 변환·색인한다' })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' }, itemId: { type: 'string', format: 'uuid', nullable: true } } } })
   // multer가 상한을 넘으면 413으로 끊는다. 파일은 메모리에 올라오므로 상한을 작게 유지한다.
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_BYTES, files: 1 } }))
-  upload(@Auth() user: AuthUser, @Param('eventId', ParseUUIDPipe) eventId: string, @UploadedFile() file: Upload | undefined) {
-    return this.files.upload(user, eventId, file);
+  upload(
+    @Auth() user: AuthUser,
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @UploadedFile() file: Upload | undefined,
+    @ZodBody(uploadFileFields) fields: UploadFileFields,
+  ) {
+    return this.files.upload(user, eventId, file, fields.itemId ?? null);
   }
 
   @Get('events/:eventId/files')
-  @ApiOperation({ summary: '행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람)' })
-  list(@Auth() user: AuthUser, @Param('eventId', ParseUUIDPipe) eventId: string) {
-    return this.files.list(user, eventId);
+  @ApiOperation({ summary: '행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링' })
+  list(@Auth() user: AuthUser, @Param('eventId', ParseUUIDPipe) eventId: string, @ZodQuery(listFilesQuery) query: ListFilesQuery) {
+    return this.files.list(user, eventId, query);
   }
 
   @Get('files/:id')
   @ApiOperation({ summary: '파일 상태 (pending·ready·failed와 실패 사유)' })
   get(@Auth() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.files.get(user, id);
+  }
+
+  @Patch('files/:id')
+  @ApiOperation({ summary: '첨부 대상 항목 이동 (PM·AM). null이면 행사 루트 첨부로 옮긴다. 같은 행사의 항목이어야 한다' })
+  move(@Auth() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @ZodBody(moveFileBody) body: MoveFileBody) {
+    return this.files.move(user, id, body);
   }
 
   @Get('files/:id/download')

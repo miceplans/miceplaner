@@ -4,7 +4,7 @@ import { DocumentBuilder, SwaggerModule, type SchemaObject } from '@nestjs/swagg
 import { z, type ZodType } from 'zod';
 import {
   addEventMemberBody, assignItemBody, authSessionDto, chatBody, createDocBody, docPageDto, proposalDto, saveDocBodyBody, searchHitDto, wikiRevisionDetailDto, wikiRevisionDto, changeEventMemberRoleBody, clientDto, createItemBody, eventDocDto, eventDto,
-  eventItemDto, eventMemberDto, googleLoginBody, leaveBalanceDto, leaveRecordDto, notificationDto,
+  eventItemDto, eventMemberDto, googleLoginBody, leaveBalanceDto, leaveRecordDto, moveFileBody, notificationDto,
   requestLeaveBody, rescheduleItemBody, setClientVisibleBody, setDocVisibilityBody, updateEventBody, updateItemBody, userDto, weekendWorkDto,
 } from '@miceplans/contracts';
 import { portalEventDto, portalProgramDto } from '@miceplans/contracts/portal';
@@ -45,6 +45,7 @@ const API_SCHEMAS: Record<string, ZodType> = {
   WikiRevisionDetailDto: wikiRevisionDetailDto,
   ChatBody: chatBody,
   ProposalDto: proposalDto,
+  MoveFileBody: moveFileBody,
 };
 
 async function bootstrap() {
