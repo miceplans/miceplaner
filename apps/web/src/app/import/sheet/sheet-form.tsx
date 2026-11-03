@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Toggle } from '@miceplans/ui';
+import { Select, Toggle } from '@miceplans/ui';
 
 const A = '/assets/import';
 
@@ -60,20 +60,14 @@ export function SheetForm() {
         </div>
         <div className="h-px min-w-px flex-1" />
         <Toggle checked={useHeader} onChange={setUseHeader} ariaLabel="헤더 행 사용" />
-        <label className="relative flex h-[32px] shrink-0 items-center gap-[8px] rounded-sm border border-solid border-border bg-surface px-[10px] text-sm text-fg">
-          <select
-            value={row}
-            disabled={!useHeader}
-            onChange={(e) => setRow(e.target.value)}
-            className="absolute inset-0 cursor-pointer appearance-none opacity-0 disabled:cursor-default"
-          >
-            {ROWS.map((r) => (
-              <option key={r}>{r}</option>
-            ))}
-          </select>
-          <span className={useHeader ? '' : 'text-fg-tertiary'}>{row}</span>
-          <img alt="" src={`${A}/chevron.svg`} className="size-[14px]" />
-        </label>
+        <Select
+          aria-label="헤더 행"
+          value={row}
+          disabled={!useHeader}
+          onChange={(e) => setRow(e.target.value)}
+          options={ROWS.map((r) => ({ value: r, label: r }))}
+          className="shrink-0 disabled:cursor-default disabled:text-fg-tertiary"
+        />
       </div>
     </div>
   );

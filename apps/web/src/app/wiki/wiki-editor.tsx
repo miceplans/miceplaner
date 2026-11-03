@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { toast } from '@miceplans/ui';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
@@ -30,6 +31,10 @@ export function WikiEditor() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
+
+  useEffect(() => {
     if (!UUID.test(docId)) {
       setError('문서 주소가 올바르지 않다');
       return;
@@ -42,7 +47,7 @@ export function WikiEditor() {
       .catch((e) => setError(e instanceof ApiError ? e.message : '문서를 불러오지 못했다'));
   }, [docId]);
 
-  if (error) return <p role="alert" className="p-[24px] text-base text-notice">{error}</p>;
+  if (error) return null;
   if (!page || !me) return <p className="p-[24px] text-base text-fg-secondary">불러오는 중…</p>;
   return <Collaborative page={page} userName={me.name} />;
 }
@@ -79,6 +84,10 @@ function Collaborative({ page, userName }: { page: DocPageDto; userName: string 
     };
   }, [page.id, ydoc]);
 
+  useEffect(() => {
+    if (failure) toast.error(failure);
+  }, [failure]);
+
   return (
     <div className="mx-auto flex w-full max-w-[860px] flex-col gap-[16px] p-[24px]">
       <header className="flex flex-wrap items-center justify-between gap-[12px]">
@@ -97,11 +106,7 @@ function Collaborative({ page, userName }: { page: DocPageDto; userName: string 
           ))}
         </ul>
       </header>
-      {failure ? (
-        <p role="alert" className="rounded-sm bg-notice-bg px-[12px] py-[8px] text-2xs text-notice">{failure}</p>
-      ) : (
-        provider && <Surface ydoc={ydoc} provider={provider} readOnly={readOnly} userName={userName} />
-      )}
+      {!failure && provider && <Surface ydoc={ydoc} provider={provider} readOnly={readOnly} userName={userName} />}
     </div>
   );
 }

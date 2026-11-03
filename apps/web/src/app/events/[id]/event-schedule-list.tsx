@@ -1,7 +1,7 @@
 'use client';
 
 import { useContext, useState } from 'react';
-import { ConfirmDialog } from '@miceplans/ui';
+import { ConfirmDialog, Input } from '@miceplans/ui';
 
 import { AssigneeBadge, EditableTitle, ItemAccessContext, addRoot, assignItem, canEditItem, canToggleItem, removeItem, renameItem, toggleItem, type CheckItem } from './event-checklist';
 import { matchPart, type PartFilter } from './event-parts';
@@ -88,7 +88,7 @@ export function ScheduleList({
       )}
       <li className="flex h-[36px] items-center px-[17px]">
         {adding ? (
-          <input
+          <Input
             autoFocus
             value={value}
             placeholder="새 Schedule 입력 후 Enter"
@@ -98,7 +98,8 @@ export function ScheduleList({
               if (e.key === 'Escape') { setValue(''); setAdding(false); }
             }}
             onBlur={() => { setValue(''); setAdding(false); }}
-            className="h-[28px] min-w-0 flex-1 rounded-md border border-solid border-border bg-surface px-[8px] text-[13px] text-fg outline-none placeholder:text-fg-tertiary focus:border-brand"
+            size="sm"
+            className="flex-1"
           />
         ) : (
           <button type="button" onClick={() => setAdding(true)} className="flex items-center gap-[8px] text-[13px] text-fg-tertiary hover:text-fg-secondary">

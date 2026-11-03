@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ToastViewport } from '@miceplans/ui';
 import { AgentChat } from './agent-chat';
 import './globals.css';
 
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         {children}
         <AgentChat />
+        <ToastViewport />
       </body>
     </html>
   );

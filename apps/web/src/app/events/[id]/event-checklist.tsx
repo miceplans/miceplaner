@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState } from 'react';
-import { ConfirmDialog } from '@miceplans/ui';
+import { ConfirmDialog, Input } from '@miceplans/ui';
 
 import type { ProductPart } from './event-parts';
 
@@ -157,7 +157,7 @@ export function EditableTitle({ title, onSave, className, readOnly = false }: { 
     setEditing(false);
   };
   return (
-    <input
+    <Input
       autoFocus
       value={value}
       aria-label={`${title} 이름 수정`}
@@ -168,7 +168,8 @@ export function EditableTitle({ title, onSave, className, readOnly = false }: { 
         if (e.key === 'Escape') setEditing(false);
       }}
       onBlur={commit}
-      className="h-[26px] min-w-[120px] rounded-md border border-solid border-brand bg-surface px-[6px] text-base text-fg outline-none"
+      size="sm"
+      className="min-w-[120px] border-brand! text-base!"
     />
   );
 }
@@ -244,7 +245,7 @@ function NewItemInput({ placeholder, onSubmit, onCancel }: { placeholder: string
     else onCancel();
   };
   return (
-    <input
+    <Input
       autoFocus
       value={value}
       placeholder={placeholder}
@@ -254,7 +255,8 @@ function NewItemInput({ placeholder, onSubmit, onCancel }: { placeholder: string
         if (e.key === 'Escape') onCancel();
       }}
       onBlur={onCancel}
-      className="h-[28px] min-w-0 flex-1 rounded-md border border-solid border-border bg-surface px-[8px] text-base text-fg outline-none placeholder:text-fg-tertiary focus:border-brand"
+      size="sm"
+      className="flex-1"
     />
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 
-import { ConfirmDialog, StatusPill, type StatusKey } from '@miceplans/ui';
+import { Checkbox, ConfirmDialog, Input, Select, StatusPill, Textarea, type StatusKey } from '@miceplans/ui';
 import { AddPropertyButton, PROP_COL_WIDTH, PropCell, PropHeaderCell, useCustomProps } from './custom-props';
 import { ProductNameCombobox } from './product-name-combobox';
 import { matchPart, type PartFilter, type ProductPart } from './event-parts';
@@ -134,18 +134,19 @@ export function ProgressTable({ team, part = '전체', eventId = 'default' }: { 
         <span className="flex-1" />
         <label className="flex items-center gap-[6px] text-sm text-fg-secondary">
           정렬
-          <select
+          <Select
             aria-label="정렬 기준"
             value={sort}
             onChange={(e) => setSort(e.target.value as ProgressSort)}
-            className="h-[30px] rounded-sm border border-solid border-border bg-surface px-[8px] text-xs text-fg"
+            size="sm"
+            className="shrink-0"
           >
             {SORT_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       </div>
       <div className="overflow-x-auto">
@@ -204,12 +205,13 @@ export function ProgressTable({ team, part = '전체', eventId = 'default' }: { 
                 </div>
                 {design && commentFor === r.id && (
                   <div className="flex w-full flex-col items-start gap-[10px]">
-                    <textarea
+                    <Textarea
                       autoFocus
                       aria-label="의견"
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
-                      className={`h-[58px] w-full resize-none rounded-lg border-[0.5px] border-solid bg-surface p-[8px] text-base text-black outline-none focus:border-brand ${LINE}`}
+                      size="lg"
+                      className="h-[58px] w-full"
                     />
                     <button type="button" onClick={send} className="rounded-lg bg-brand p-[6px] text-base font-semibold text-fg-inverse">
                       보내기
@@ -385,12 +387,13 @@ export function DesignRequestTable({ team, part = '전체', eventName = '행사'
                         }
                       />
                     ) : (
-                      <input
+                      <Input
                         key={f}
                         aria-label={f}
                         value={r[f]}
                         onChange={(e) => update(r.id, { [f]: e.target.value })}
-                        className={`h-[40px] min-w-0 shrink-0 rounded-lg border-[0.5px] border-solid bg-surface px-[14px] text-[15px] text-fg outline-none focus:border-brand ${LINE} ${WIDTHS[fi]}`}
+                        size="lg"
+                        className={`${WIDTHS[fi]} shrink-0`}
                       />
                     )
                   ) : (
@@ -403,12 +406,10 @@ export function DesignRequestTable({ team, part = '전체', eventName = '행사'
                 <span className={`${CELL} w-[70px] text-fg-secondary`}>{r.part}</span>
                 <span className={`${CELL} w-[80px]`}>{r.due}</span>
                 <span className="flex h-[40px] w-[80px] shrink-0 items-center px-[8px]">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     aria-label="협의중"
                     checked={r.negotiating}
                     onChange={(e) => update(r.id, { negotiating: e.target.checked })}
-                    className="size-[16px] accent-brand"
                   />
                 </span>
                 {cp.props.map((p) => (

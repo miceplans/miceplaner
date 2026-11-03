@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { FlowTopbar, PageFrame } from '@miceplans/ui';
+import { FlowTopbar, Input, PageFrame, Select, Textarea, toast } from '@miceplans/ui';
 import { LEAVE_EMPLOYEES, LEAVE_KINDS, LEAVE_TODAY, remainingOf, type LeaveKind } from '../data';
 import { useWorkCheck } from '../use-work-check';
 
@@ -10,43 +10,7 @@ import { useWorkCheck } from '../use-work-check';
 const ME = LEAVE_EMPLOYEES[0]!;
 const COLLEAGUES = LEAVE_EMPLOYEES.filter((e) => e.id !== ME.id);
 
-const input = 'h-[40px] w-full rounded-lg border border-solid border-border bg-surface px-[12px] text-base text-fg outline-none transition-colors hover:border-fg-tertiary focus:border-fg';
-type Option = { value: string; label: string };
-
-/** 커스텀 드롭다운. 목록 스타일은 행사 상세의 ClientSelect를 따른다. */
-function Dropdown({ value, options, onChange }: { value: string; options: Option[]; onChange: (v: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const current = options.find((o) => o.value === value);
-  return (
-    <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}>
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className={`${input} flex items-center justify-between text-left`}
-      >
-        <span className="truncate">{current?.label}</span>
-        <span aria-hidden className="ml-[8px] text-xs text-fg-tertiary">▾</span>
-      </button>
-      {open && (
-        <ul role="listbox" className="absolute left-0 top-full z-20 m-0 mt-[4px] flex max-h-[240px] w-full list-none flex-col overflow-auto rounded-xl bg-surface p-[4px] shadow-card">
-          {options.map((o) => (
-            <li key={o.value} role="option" aria-selected={o.value === value}>
-              <button
-                type="button"
-                onClick={() => { onChange(o.value); setOpen(false); }}
-                className={`w-full rounded-md px-[12px] py-[8px] text-left text-base hover:bg-surface-subtle ${o.value === value ? 'font-medium text-brand' : 'text-fg'}`}
-              >
-                {o.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
+const field = 'w-full';
 
 const label = 'text-sm font-medium text-fg';
 
@@ -100,7 +64,10 @@ export function LeaveRequestView() {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (error) return;
+    if (error) {
+      toast.error(error);
+      return;
+    }
     if (isComp) {
       addCompUsed(weekdayDatesBetween(start, end).map((date) => ({ date, employeeId: ME.id, kind: 'comp' as const })));
     } else {
@@ -138,9 +105,11 @@ export function LeaveRequestView() {
 
           <div className="flex flex-col gap-[8px]">
             <span className={label}>휴가 형태</span>
-            <Dropdown
+            <Select
+              size="lg"
+              className={field}
               value={kind}
-              onChange={(v) => setKind(v as LeaveKind)}
+              onChange={(e) => setKind(e.target.value as LeaveKind)}
               options={LEAVE_KINDS.map((k) => ({ value: k.kind, label: `${k.label} (${formatDays(k.days)}일)` }))}
             />
           </div>
@@ -148,33 +117,35 @@ export function LeaveRequestView() {
           <div className="flex flex-col gap-[8px]">
             <span className={label}>사용 기간</span>
             <div className="flex items-center gap-[8px]">
-              <input type="date" aria-label="시작일" required value={start} onChange={(e) => { setStart(e.target.value); if (e.target.value > end) setEnd(e.target.value); }} className={input} />
+              <Input size="lg" type="date" aria-label="시작일" required value={start} onChange={(e) => { setStart(e.target.value); if (e.target.value > end) setEnd(e.target.value); }} className={field} />
               {multiDay ? (
                 <>
                   <span className="text-fg-tertiary">~</span>
-                  <input type="date" aria-label="종료일" required value={end} min={start} onChange={(e) => setEnd(e.target.value)} className={input} />
+                  <Input size="lg" type="date" aria-label="종료일" required value={end} min={start} onChange={(e) => setEnd(e.target.value)} className={field} />
                 </>
               ) : null}
             </div>
-            <p className={`m-0 text-sm ${error ? 'text-error' : 'text-fg-secondary'}`}>{error ?? `총 ${formatDays(days)}일 사용`}</p>
+            <p className="m-0 text-sm text-fg-secondary">총 {formatDays(days)}일 사용</p>
           </div>
 
           <label className="flex flex-col gap-[8px]">
             <span className={label}>사유</span>
-            <textarea required rows={4} value={reason} onChange={(e) => { setReason(e.target.value); setSent(false); }} placeholder="사유를 입력해 주세요" className={`${input} h-auto resize-none py-[10px]`} />
+            <Textarea size="lg" required rows={4} value={reason} onChange={(e) => { setReason(e.target.value); setSent(false); }} placeholder="사유를 입력해 주세요" className={field} />
           </label>
 
           <div className="flex flex-col gap-[8px]">
             <span className={label}>대체 근무자 <span className="font-normal text-fg-tertiary">(선택)</span></span>
-            <Dropdown
+            <Select
+              size="lg"
+              className={field}
               value={substitute}
-              onChange={setSubstitute}
+              onChange={(e) => setSubstitute(e.target.value)}
               options={[{ value: '', label: '지정 안 함' }, ...COLLEAGUES.map((c) => ({ value: c.name, label: `${c.name} · ${c.role}` }))]}
             />
           </div>
 
           <div className="flex flex-col gap-[8px]">
-            <button type="submit" disabled={Boolean(error)} className="h-[44px] w-full rounded-lg bg-fg text-base font-medium text-surface disabled:cursor-not-allowed disabled:opacity-40">
+            <button type="submit" className="h-[44px] w-full rounded-lg bg-fg text-base font-medium text-surface">
               제출
             </button>
             {sent ? <p className="m-0 text-center text-sm text-fg-secondary">제출되었습니다.</p> : null}

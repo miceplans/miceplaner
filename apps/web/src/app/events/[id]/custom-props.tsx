@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ConfirmDialog, Dialog } from '@miceplans/ui';
+import { Checkbox, ConfirmDialog, Dialog, Input } from '@miceplans/ui';
 
 /** 표에 사용자가 추가하는 속성(컬럼). 노션처럼 이름과 유형을 정하고 이름 변경·삭제를 할 수 있다. */
 export type PropType = 'text' | 'number' | 'date' | 'checkbox';
@@ -85,8 +85,6 @@ export function useCustomProps(scope: string) {
   };
 }
 
-const INPUT = 'h-[34px] w-full rounded-sm border border-solid border-border bg-surface px-[10px] text-base text-fg outline-none focus:border-brand';
-
 /** 표 제목 옆의 + 버튼. 눌러서 속성 이름과 유형을 정해 추가한다. */
 export function AddPropertyButton({ onAdd }: { onAdd: (name: string, type: PropType) => void }) {
   const [open, setOpen] = useState(false);
@@ -131,7 +129,7 @@ export function AddPropertyButton({ onAdd }: { onAdd: (name: string, type: PropT
             <div className="flex flex-col gap-[16px] px-[20px] py-[18px]">
               <label className="flex flex-col gap-[7px] text-sm font-medium text-fg">
                 속성 이름
-                <input autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 작업 우선순위" className="h-[40px] w-full rounded-md border border-solid border-border bg-surface px-[11px] text-base font-normal text-fg outline-none placeholder:text-fg-tertiary focus:border-brand focus:ring-2 focus:ring-brand/15" />
+                <Input autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 작업 우선순위" size="lg" />
               </label>
               <fieldset className="m-0 border-0 p-0">
                 <legend className="mb-[7px] text-sm font-medium text-fg">유형</legend>
@@ -187,7 +185,7 @@ export function PropHeaderCell({ prop, className, onRename, onRemove }: { prop: 
             className="flex w-[320px] max-w-full flex-col gap-[14px] rounded-lg bg-surface p-[20px] shadow-card"
           >
             <h2 className="m-0 text-lg font-semibold text-fg">속성 수정</h2>
-            <input autoFocus required value={name} onChange={(e) => setName(e.target.value)} aria-label="속성 이름" className={INPUT} />
+            <Input autoFocus required value={name} onChange={(e) => setName(e.target.value)} aria-label="속성 이름" className="w-full" />
             <p className="m-0 text-sm text-fg-tertiary">유형: {PROP_TYPES.find((t) => t.value === prop.type)!.label} (추가한 뒤에는 바꿀 수 없습니다)</p>
             <div className="flex items-center gap-[8px]">
               <button type="button" onClick={() => { close(); setConfirming(true); }} className="h-[32px] rounded-sm px-[10px] text-base text-error-delay hover:bg-surface-subtle">
@@ -218,25 +216,24 @@ export function PropHeaderCell({ prop, className, onRename, onRemove }: { prop: 
 
 /** 속성 값 칸. 유형에 맞는 입력창을 바로 보여주고 값이 바뀌면 저장한다. 텍스트·숫자·날짜는 포커스를 잃거나 Enter에서 저장한다. */
 export function PropCell({ prop, value, onChange }: { prop: CustomProp; value: string; onChange: (value: string) => void }) {
-  const base = 'h-[40px] w-[120px] shrink-0 rounded-lg border border-solid border-transparent bg-transparent px-[8px] text-[15px] text-fg outline-none hover:border-border focus:border-brand';
-
   if (prop.type === 'checkbox') {
     return (
       <span className="flex h-[40px] w-[120px] shrink-0 items-center px-[8px]">
-        <input type="checkbox" aria-label={prop.name} checked={value === 'true'} onChange={(e) => onChange(e.target.checked ? 'true' : '')} className="size-[16px] accent-brand" />
+        <Checkbox aria-label={prop.name} checked={value === 'true'} onChange={(e) => onChange(e.target.checked ? 'true' : '')} />
       </span>
     );
   }
   return (
     // key로 저장된 값이 바뀌면(다른 표 인스턴스 갱신 등) 입력창을 새로 그린다.
-    <input
+    <Input
       key={value}
       type={prop.type === 'text' ? 'text' : prop.type}
       aria-label={prop.name}
       defaultValue={value}
       onBlur={(e) => { if (e.target.value !== value) onChange(e.target.value); }}
       onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.currentTarget.blur(); }}
-      className={base}
+      variant="ghost"
+      className="h-[40px] w-[120px] shrink-0 rounded-lg border border-solid border-transparent px-[8px] text-[15px] hover:border-border focus:border-brand"
     />
   );
 }
