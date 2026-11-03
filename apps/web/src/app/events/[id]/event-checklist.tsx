@@ -101,7 +101,7 @@ export function toggleItem(items: CheckItem[], id: string, me: string): CheckIte
   return mapTree(items, id, (item) => setAll(item, !item.done)).map(normalize);
 }
 
-export function addChild(items: CheckItem[], parentId: string, title: string, createdBy: string): CheckItem[] {
+function addChild(items: CheckItem[], parentId: string, title: string, createdBy: string): CheckItem[] {
   const parent = findItem(items, parentId);
   if (!parent || !canEditItem(parent, createdBy)) return items;
   const child: CheckItem = { id: `n${Date.now()}${Math.random().toString(36).slice(2, 6)}`, title, done: false, createdBy };

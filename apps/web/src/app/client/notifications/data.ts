@@ -16,7 +16,7 @@ export const CHIP: Record<Tone, { className: string; hex?: string }> = {
   gray: { className: 'bg-surface-section' },
 };
 
-export type Row = { id: string; tone: Tone; icon: string; title: string; event: string; when: string; at: string; unread?: boolean };
+type Row = { id: string; tone: Tone; icon: string; title: string; event: string; when: string; at: string; unread?: boolean };
 export type Group = { label: string; badge?: string; height: string; rows: Row[] };
 
 // 목업 기준일('오늘'): 2026-10-22. 아래 at(절대 시각) 값의 기준이다.
