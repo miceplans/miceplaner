@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { AgentFab } from '@miceplans/ui';
 import { AiChatPanel } from './ai-chat/ai-chat-panel';
+import { isPublicPath } from './auth-guard';
 
 export function AgentChat() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  if (pathname === '/login' || pathname === '/client' || pathname.startsWith('/client/')) return null;
+  if (isPublicPath(pathname)) return null;
 
   return open ? (
     <AiChatPanel

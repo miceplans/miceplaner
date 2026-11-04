@@ -32,6 +32,10 @@ async function request(path: string, init: RequestInit): Promise<Response> {
   if (!apiBase) throw new ApiError(0, 'API 주소(NEXT_PUBLIC_API_URL)가 설정되지 않았다');
   if (!token) throw new ApiError(401, STATUS_MESSAGE[401]!);
   const res = await fetch(`${apiBase}${path}`, { ...init, headers: { ...init.headers, authorization: `Bearer ${token}`, ...(init.body instanceof FormData ? {} : { 'content-type': 'application/json' }) } });
+  if (res.status === 401) {
+    clearToken();
+    window.location.replace('/login');
+  }
   if (!res.ok) throw new ApiError(res.status, STATUS_MESSAGE[res.status] ?? `요청에 실패했다 (${res.status})`);
   return res;
 }
