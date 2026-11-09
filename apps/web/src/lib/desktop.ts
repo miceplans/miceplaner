@@ -1,7 +1,8 @@
-const NOTIFICATION_PREFERENCE = 'miceplans.desktop-notifications';
-export const DESKTOP_NOTIFICATION_CHANGE = 'miceplans:desktop-notifications-changed';
+'use client';
 
-/** 웹 배포본에서는 Tauri IPC를 전혀 호출하지 않는다. */
+const NOTIFICATION_PREFERENCE = 'miceplans.desktop-notifications';
+export const DESKTOP_NOTIFICATION_CHANGE = 'miceplans:desktop-notification-change';
+
 export function isDesktopShell(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
@@ -12,21 +13,24 @@ export function desktopNotificationsEnabled(): boolean {
 
 export async function enableDesktopNotifications(): Promise<boolean> {
   if (!isDesktopShell()) return false;
+
   const { isPermissionGranted, requestPermission } = await import('@tauri-apps/plugin-notification');
   const granted = (await isPermissionGranted()) || (await requestPermission()) === 'granted';
-  if (!granted) return false;
-  window.localStorage.setItem(NOTIFICATION_PREFERENCE, 'enabled');
-  window.dispatchEvent(new Event(DESKTOP_NOTIFICATION_CHANGE));
-  return true;
+  if (granted) {
+    window.localStorage.setItem(NOTIFICATION_PREFERENCE, 'enabled');
+    window.dispatchEvent(new Event(DESKTOP_NOTIFICATION_CHANGE));
+  }
+  return granted;
 }
 
 export function disableDesktopNotifications(): void {
+  if (!isDesktopShell()) return;
   window.localStorage.removeItem(NOTIFICATION_PREFERENCE);
   window.dispatchEvent(new Event(DESKTOP_NOTIFICATION_CHANGE));
 }
 
-export async function sendDesktopNotification(title: string): Promise<void> {
+export async function sendDesktopNotification(body: string): Promise<void> {
   if (!desktopNotificationsEnabled()) return;
   const { sendNotification } = await import('@tauri-apps/plugin-notification');
-  sendNotification({ title: 'MICEPLANS', body: title });
+  await sendNotification({ title: 'MICEPLANS', body });
 }
