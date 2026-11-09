@@ -10,13 +10,24 @@ export async function http<T>(url: string, init: RequestInit = {}): Promise<T> {
   const isForm = init.body instanceof FormData;
   const authed = !url.startsWith('/auth/login') && !url.startsWith('/auth/register');
   if (authed && !token) throw new ApiError(401, STATUS_MESSAGE[401]!);
+  // Orval이 만든 요청은 Content-Type을 넣고, 이 래퍼도 JSON 본문에 기본값을 넣는다.
+  // 객체로 합치면 대소문자가 다른 두 키가 Fetch에서 `application/json, application/json`으로
+  // 병합되어 Vercel의 body 파서가 "invalid media type"으로 거부한다. Headers.set은 한 값만 남긴다.
+  const headers = new Headers();
+  if (init.headers instanceof Headers) {
+    init.headers.forEach((value, name) => headers.set(name, value));
+  } else if (Array.isArray(init.headers)) {
+    for (const [name, value] of init.headers) headers.set(name, value);
+  } else {
+    // 평범한 객체는 `Content-Type`과 `content-type`을 동시에 가질 수 있다.
+    // Headers 생성자에 통째로 넘기면 두 값이 쉼표로 결합되므로 한 항목씩 set한다.
+    for (const [name, value] of Object.entries(init.headers ?? {})) headers.set(name, value);
+  }
+  if (authed) headers.set('authorization', `Bearer ${token}`);
+  if (init.body && !isForm && !headers.has('content-type')) headers.set('content-type', 'application/json');
   const res = await fetch(`${apiBase}${url}`, {
     ...init,
-    headers: {
-      ...(authed ? { authorization: `Bearer ${token}` } : {}),
-      ...(init.body && !isForm ? { 'content-type': 'application/json' } : {}),
-      ...init.headers,
-    },
+    headers,
   });
   if (!res.ok) {
     if (res.status === 401 && authed) {
