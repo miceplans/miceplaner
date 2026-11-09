@@ -125,7 +125,7 @@ export default function ClientNotificationDetailPage() {
             <div className="flex w-full shrink-0 items-center gap-[8px] px-[4px] py-[2px]">
               <img alt="" src={`${A}/caption.svg`} className="size-[14px] shrink-0" />
               <p className="whitespace-nowrap text-base font-semibold text-fg">연계 캘린더</p>
-              <p className="whitespace-nowrap text-xs text-fg-tertiary">Schedule Calendar의 2025년 3월 일정이 그대로 표시돼요</p>
+              <p className="whitespace-nowrap text-xs text-fg-tertiary">2025년 3월 일정이 그대로 표시돼요</p>
               <div className="h-px min-w-px flex-1" />
               <a href="/client/calendar" className="flex items-center gap-[8px]">
                 <span className="whitespace-nowrap text-xs font-medium text-ai">캘린더에서 보기</span>

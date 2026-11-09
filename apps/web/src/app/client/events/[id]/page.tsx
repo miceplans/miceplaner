@@ -24,7 +24,7 @@ export default function ClientEventDetailPage() {
         </div>
         <p className="whitespace-nowrap text-md font-semibold tracking-[0.3px] text-fg">mice planner</p>
         <div className="h-[16px] w-px shrink-0 bg-border-strong" />
-        <p className="whitespace-nowrap text-sm text-fg-secondary">Client Portal</p>
+        <p className="whitespace-nowrap text-sm text-fg-secondary">고객 포털</p>
         <div className="h-px min-w-px flex-1" />
         <p className="whitespace-nowrap text-base text-fg">메디코리아</p>
         <div className="flex size-[28px] shrink-0 items-center justify-center rounded-xl bg-ai-tint">
