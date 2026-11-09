@@ -35,7 +35,7 @@ MICEPLANS는 행사 운영 데이터와 사내 지식을 다루며, 내부 직�
 
 ### 배포
 
-일반 HTTP API는 Vercel Node Function으로 요청 시에만 실행한다. API 함수는 `tsup`으로 workspace 코드를 단일 ESM 번들로 만들고, Vercel 함수 진입점은 그 산출물만 불러온다. ESM 전용 `jose`와 동적 `require`를 사용하는 `pg`는 번들 밖에 두어 Node 런타임이 직접 해석한다. Vercel의 `Other` 프리셋이 요구하는 `public` 출력 디렉터리는 빌드 때 `index.html`을 만들어 비어 있지 않게 하며, API 번들은 정적 산출물이 아니라 함수에만 포함한다. 이는 워크스페이스 TypeScript 소스의 확장자 없는 ESM import를 Vercel 런타임이 개별적으로 해석하는 문제를 피한다. Socket.IO·협업·worker처럼 지속 연결 또는 폴링이 필요한 프로세스는 Vercel 함수에 두지 않는다.
+일반 HTTP API는 Vercel Node Function으로 요청 시에만 실행한다. API 함수는 `tsup`으로 workspace 코드를 단일 ESM 번들로 만들고, Vercel 함수 진입점은 그 산출물만 불러온다. ESM 전용 `jose`와 동적 `require`를 사용하는 `pg`는 번들 밖에 두어 Node 런타임이 직접 해석한다. Vercel의 `Other` 프리셋이 요구하는 `public` 출력 디렉터리는 빌드 때 `index.html`을 만들어 비어 있지 않게 하며, 모든 HTTP 메서드와 중첩 경로는 Vercel `routes` 규칙으로 catch-all 함수 파일에 직접 보낸다. API 번들은 정적 산출물이 아니라 함수에만 포함한다. 이는 워크스페이스 TypeScript 소스의 확장자 없는 ESM import를 Vercel 런타임이 개별적으로 해석하는 문제를 피한다. Socket.IO·협업·worker처럼 지속 연결 또는 폴링이 필요한 프로세스는 Vercel 함수에 두지 않는다.
 
 ### 시스템 경계
 
