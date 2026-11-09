@@ -33,14 +33,11 @@ export function LoginView() {
   return (
     <main className="flex min-h-dvh items-center justify-center bg-surface-sunken px-[16px]">
       <form onSubmit={submit} className="flex w-full max-w-[360px] flex-col gap-[16px] rounded-lg border border-solid border-border bg-surface p-[28px]">
-        <div className="flex flex-col gap-[4px]">
-          <h1 className="text-lg font-semibold text-fg">{copy.title}</h1>
-          <p className="text-sm text-fg-secondary">하이웍스 회사 이메일로 이용할 수 있다</p>
-        </div>
+        <h1 className="text-lg font-semibold text-fg">{copy.title}</h1>
 
         <label className="flex flex-col gap-[6px] text-sm font-medium text-fg-secondary">
           이메일
-          <Input type="email" name="email" autoComplete="username" required size="lg" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@miceplans.com" />
+          <Input type="email" name="email" autoComplete="username" required size="lg" value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
         <label className="flex flex-col gap-[6px] text-sm font-medium text-fg-secondary">
           비밀번호
@@ -61,16 +58,15 @@ export function LoginView() {
           {busy ? '처리 중…' : copy.submit}
         </Button>
 
-        <p className="flex items-center justify-center gap-[6px] text-sm text-fg-secondary">
-          {copy.switchText}
+        <div className="flex justify-center">
           <button
             type="button"
-            className="font-medium text-brand"
+            className="text-sm font-medium text-brand"
             onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
           >
             {copy.switchLabel}
           </button>
-        </p>
+        </div>
       </form>
     </main>
   );
