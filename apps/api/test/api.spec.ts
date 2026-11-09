@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { Controller, Get } from '@nestjs/common';
 import { SignJWT } from 'jose';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -7,6 +8,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module';
 import { HiworksService } from '../src/auth/hiworks';
+import { Public } from '../src/auth/public.decorator';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const U = { pm: id(11), member: id(12), staff: id(13), outsider: id(14), target: id(15), admin: id(16), client: id(17), client2: id(18) };
@@ -26,6 +28,15 @@ const sign = (sub: string, role = 'staff') => new SignJWT({ role }).setProtected
 
 const as = (user: keyof typeof U) => ({ Authorization: `Bearer ${tokens[user]}` });
 const api = () => request(http);
+
+@Public()
+@Controller('__test_boom')
+class BoomController {
+  @Get()
+  boom() {
+    throw new Error('테스트용 폭발');
+  }
+}
 
 beforeAll(async () => {
   admin = await connectTestAdmin(process.env.TEST_PG_ADMIN_URL!);
@@ -52,7 +63,7 @@ beforeAll(async () => {
     ['pm@x.test', { email: 'pm@x.test', name: 'PM' }],
     ['client@x.test', { email: 'client@x.test', name: 'Client' }],
   ]);
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule], controllers: [BoomController] })
     .overrideProvider(HiworksService)
     .useValue({ findMember: async (email: string) => hiworksMembers.get(email.toLowerCase()) })
     .compile();
@@ -297,5 +308,18 @@ describe('행사 문서 열람 범위 (F-09)', () => {
     expect((await api().get(`/events/${EVENT}/docs`).set(as('staff')).expect(200)).body).toHaveLength(2);
     const log = await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'doc.visibility.change'`);
     expect(log.rows[0].n).toBe(1);
+  });
+});
+
+describe('서버 오류 응답', () => {
+  it('예상 못한 오류는 500에 오류 이름·메시지를 담아 낸다', async () => {
+    const res = await api().get('/__test_boom').expect(500);
+    expect(res.body.statusCode).toBe(500);
+    expect(res.body.message).toContain('[054]');
+    expect(res.body.message).toContain('Error: 테스트용 폭발');
+  });
+  it('HttpException 응답 형태는 그대로다', async () => {
+    const res = await api().get(`/events/${id(999)}`).set(as('pm')).expect(404);
+    expect(res.body).toEqual({ statusCode: 404, message: '[030] 행사을 찾을 수 없습니다.', error: 'Not Found' });
   });
 });
