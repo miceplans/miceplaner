@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { DesktopNotificationToggle } from '../desktop-notification-toggle';
 
 const A = '/assets/notifications';
 
@@ -92,6 +93,7 @@ export function NotificationsView() {
             })}
           </div>
           <div className="h-px min-w-px flex-1" />
+          <DesktopNotificationToggle />
           <button
             type="button"
             onClick={() => setReadIds(new Set(GROUPS.flatMap((g) => g.items.map((i) => i.id))))}

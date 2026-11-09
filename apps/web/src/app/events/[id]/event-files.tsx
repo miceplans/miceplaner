@@ -31,6 +31,7 @@ const size = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024)
  */
 export function EventFiles({ eventId, canManage }: { eventId: string; canManage: boolean }) {
   const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const live = UUID.test(eventId) && Boolean(getToken());
   const queryClient = useQueryClient();
@@ -65,16 +66,31 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
     }
   };
 
+  const uploadFile = (file: File) => {
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('파일은 최대 20MB까지 올릴 수 있다');
+      return;
+    }
+    void run(() => upload.mutateAsync({ eventId, data: { file } }));
+  };
+
   return (
-    <section aria-label="자료 파일" className="mt-[24px] flex w-full flex-col gap-[12px] rounded-md border border-border bg-surface p-[16px]">
+    <section
+      aria-label="자료 파일"
+      onDragEnter={canManage ? (event) => { event.preventDefault(); setDragging(true); } : undefined}
+      onDragOver={canManage ? (event) => event.preventDefault() : undefined}
+      onDragLeave={canManage ? (event) => { if (event.currentTarget === event.target) setDragging(false); } : undefined}
+      onDrop={canManage ? (event) => { event.preventDefault(); setDragging(false); const file = event.dataTransfer.files.item(0); if (file) uploadFile(file); } : undefined}
+      className={`mt-[24px] flex w-full flex-col gap-[12px] rounded-md border bg-surface p-[16px] ${dragging ? 'border-brand' : 'border-border'}`}
+    >
       <header className="flex items-center justify-between gap-[12px]">
         <div className="flex flex-col gap-[2px]">
           <h2 className="text-base font-semibold text-fg">자료 파일</h2>
-          <p className="text-2xs text-fg-secondary">txt·md·csv·xlsx·docx·pdf, 최대 20MB. 올리면 변환되어 검색과 AI 출처에 포함된다.</p>
+          <p className="text-2xs text-fg-secondary">txt·md·csv·xlsx·docx·pdf, 최대 20MB. 파일을 끌어 놓거나 올리면 변환되어 검색과 AI 출처에 포함된다.</p>
         </div>
         {canManage && (
           <>
-            <input ref={input} type="file" accept={ACCEPT} hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void run(() => upload.mutateAsync({ eventId, data: { file: f } })); }} />
+            <input ref={input} type="file" accept={ACCEPT} hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadFile(f); }} />
             <button type="button" disabled={busy} onClick={() => input.current?.click()} className="h-[32px] rounded-sm bg-brand px-[12px] text-2xs font-semibold text-fg-inverse disabled:opacity-50">파일 올리기</button>
           </>
         )}
