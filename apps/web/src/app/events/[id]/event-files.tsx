@@ -1,15 +1,27 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@miceplans/ui';
 import Link from 'next/link';
 import type { FileDto } from '@miceplans/contracts';
-import { ApiError, deleteFile, downloadFile, getToken, listFiles, uploadFile } from '@/lib/api';
+import { ApiError, getToken } from '@/lib/api';
+import { downloadFile, getListEventFilesQueryKey, useDeleteFile, useListEventFiles, useUploadEventFile } from '@/lib/api/generated/endpoints';
 
 const STATUS_LABEL: Record<FileDto['status'], string> = { pending: '변환 중', ready: '검색 가능', failed: '변환 실패' };
 const ACCEPT = '.txt,.md,.markdown,.csv,.xlsx,.docx,.pdf';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const POLL_MS = 3000;
+
+/** 토큰이 헤더에 있어야 해서 링크 대신 받아서 저장한다. */
+async function saveFile(file: Pick<FileDto, 'id' | 'name'>): Promise<void> {
+  const url = URL.createObjectURL(await downloadFile(file.id));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file.name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const size = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)}MB` : `${Math.max(1, Math.round(bytes / 1024))}KB`);
 
@@ -18,27 +30,26 @@ const size = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024)
  * 세션 토큰이 없거나 행사 ID가 서버의 것이 아니면(목업 데이터) 표시하지 않는다.
  */
 export function EventFiles({ eventId, canManage }: { eventId: string; canManage: boolean }) {
-  const [files, setFiles] = useState<FileDto[] | null>(null);
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const live = UUID.test(eventId) && Boolean(getToken());
+  const queryClient = useQueryClient();
 
-  const refresh = useCallback(async () => {
-    try {
-      setFiles(await listFiles(eventId));
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : '파일 목록을 불러오지 못했다');
-    }
-  }, [eventId]);
-
-  useEffect(() => { if (live) void refresh(); }, [live, refresh]);
-  // 변환이 끝나기를 기다리는 파일이 있을 때만 갱신한다.
-  const waiting = files?.some((f) => f.status === 'pending') ?? false;
+  // 변환이 끝나기를 기다리는 파일이 있을 때만 폴링한다. TanStack Query가 요청 중복·겹침을 막고,
+  // 숨겨진 탭에서는 멈추며(refetchIntervalInBackground 기본 false), 오류가 나면 폴링을 중단한다.
+  const list = useListEventFiles(eventId, undefined, {
+    query: {
+      enabled: live,
+      refetchInterval: (q) => (q.state.status !== 'error' && q.state.data?.some((f) => f.status === 'pending') ? POLL_MS : false),
+    },
+  });
+  const files = list.data;
   useEffect(() => {
-    if (!waiting) return;
-    const timer = setInterval(() => void refresh(), POLL_MS);
-    return () => clearInterval(timer);
-  }, [waiting, refresh]);
+    if (list.isError) toast.error(list.error instanceof ApiError ? list.error.message : '파일 목록을 불러오지 못했다');
+  }, [list.isError, list.error]);
+
+  const upload = useUploadEventFile();
+  const remove = useDeleteFile();
 
   if (!live) return null;
 
@@ -46,7 +57,7 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
     setBusy(true);
     try {
       await fn();
-      await refresh();
+      await queryClient.invalidateQueries({ queryKey: getListEventFilesQueryKey(eventId) });
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : '요청에 실패했다');
     } finally {
@@ -63,7 +74,7 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
         </div>
         {canManage && (
           <>
-            <input ref={input} type="file" accept={ACCEPT} hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void run(() => uploadFile(eventId, f)); }} />
+            <input ref={input} type="file" accept={ACCEPT} hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void run(() => upload.mutateAsync({ eventId, data: { file: f } })); }} />
             <button type="button" disabled={busy} onClick={() => input.current?.click()} className="h-[32px] rounded-sm bg-brand px-[12px] text-2xs font-semibold text-fg-inverse disabled:opacity-50">파일 올리기</button>
           </>
         )}
@@ -81,8 +92,8 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
             </div>
             <div className="flex items-center gap-[8px] text-2xs">
               {f.docId && <Link href={`/wiki?doc=${f.docId}`} className="text-brand underline">변환 문서</Link>}
-              <button type="button" onClick={() => void run(() => downloadFile(f))} className="text-fg-secondary underline">원본</button>
-              {canManage && <button type="button" disabled={busy} onClick={() => void run(() => deleteFile(f.id))} className="text-notice underline">삭제</button>}
+              <button type="button" onClick={() => void run(() => saveFile(f))} className="text-fg-secondary underline">원본</button>
+              {canManage && <button type="button" disabled={busy} onClick={() => void run(() => remove.mutateAsync({ id: f.id }))} className="text-notice underline">삭제</button>}
             </div>
           </li>
         ))}

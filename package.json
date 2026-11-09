@@ -6,6 +6,7 @@
     "dev": "pnpm --parallel --filter @miceplans/web --filter @miceplans/api dev",
     "dev:api": "pnpm --filter @miceplans/api dev",
     "build": "pnpm --filter @miceplans/web build",
+    "api:spec": "pnpm --filter @miceplans/api openapi && pnpm --filter @miceplans/web api:gen",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r --if-present test"

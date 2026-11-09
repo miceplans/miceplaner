@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { ToastViewport } from '@miceplans/ui';
 import { AgentChat } from './agent-chat';
 import { AuthGuard } from './auth-guard';
+import { Providers } from './providers';
 import './globals.css';
 
 export const metadata = {
@@ -13,8 +14,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ko">
       <body>
-        <AuthGuard>{children}</AuthGuard>
-        <AgentChat />
+        <Providers>
+          <AuthGuard>{children}</AuthGuard>
+          <AgentChat />
+        </Providers>
         <ToastViewport />
       </body>
     </html>

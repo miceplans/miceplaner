@@ -1,4 +1,4 @@
-import type { AuthSessionDto, ChatBody, ChatEvent, DocPageDto, FileDto, ProposalDto } from '@miceplans/contracts';
+import type { ChatBody, ChatEvent } from '@miceplans/contracts';
 
 /** 빌드 시점에 정해지는 공개 주소다. 비밀 값은 두지 않는다. */
 export const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -9,7 +9,9 @@ const TOKEN_KEY = 'miceplans.token';
 /** 세션 토큰은 탭을 닫으면 사라지도록 sessionStorage에 둔다. */
 export const getToken = (): string | null => (typeof window === 'undefined' ? null : window.sessionStorage.getItem(TOKEN_KEY));
 export const setToken = (token: string): void => window.sessionStorage.setItem(TOKEN_KEY, token);
-export const clearToken = (): void => window.sessionStorage.removeItem(TOKEN_KEY);
+export const clearToken = (): void => {
+  window.sessionStorage.removeItem(TOKEN_KEY);
+};
 
 export class ApiError extends Error {
   constructor(readonly status: number, message: string) {
@@ -17,7 +19,7 @@ export class ApiError extends Error {
   }
 }
 
-const STATUS_MESSAGE: Record<number, string> = {
+export const STATUS_MESSAGE: Record<number, string> = {
   401: '로그인이 필요하다',
   403: '권한이 없다',
   404: '대상을 찾을 수 없다',
@@ -72,52 +74,3 @@ export async function streamChat(body: ChatBody, onEvent: (e: ChatEvent) => void
   }
 }
 
-export async function decideProposal(id: string, action: 'approve' | 'reject'): Promise<ProposalDto> {
-  return (await (await request(`/ai/proposals/${id}/${action}`, { method: 'POST', body: '{}' })).json()) as ProposalDto;
-}
-
-export async function getDocPage(docId: string): Promise<DocPageDto> {
-  return (await (await request(`/docs/${docId}`, { method: 'GET' })).json()) as DocPageDto;
-}
-
-/** 이메일·비밀번호로 로그인하거나 가입한다. 성공하면 세션 토큰을 저장한다. 실패 사유는 서버 메시지를 그대로 쓴다. */
-export async function signIn(mode: 'login' | 'register', body: { email: string; password: string }): Promise<AuthSessionDto> {
-  if (!apiBase) throw new ApiError(0, 'API 주소(NEXT_PUBLIC_API_URL)가 설정되지 않았다');
-  const res = await fetch(`${apiBase}/auth/${mode}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  if (!res.ok) {
-    const detail = (await res.json().catch(() => null)) as { message?: unknown } | null;
-    throw new ApiError(res.status, typeof detail?.message === 'string' ? detail.message : `요청에 실패했다 (${res.status})`);
-  }
-  const session = (await res.json()) as AuthSessionDto;
-  setToken(session.accessToken);
-  return session;
-}
-
-export async function getMe(): Promise<{ id: string; name: string; role: string }> {
-  return (await (await request('/auth/me', { method: 'GET' })).json()) as { id: string; name: string; role: string };
-}
-
-export async function listFiles(eventId: string): Promise<FileDto[]> {
-  return (await (await request(`/events/${eventId}/files`, { method: 'GET' })).json()) as FileDto[];
-}
-
-export async function uploadFile(eventId: string, file: File): Promise<FileDto> {
-  const form = new FormData();
-  form.append('file', file);
-  return (await (await request(`/events/${eventId}/files`, { method: 'POST', body: form })).json()) as FileDto;
-}
-
-export async function deleteFile(id: string): Promise<void> {
-  await request(`/files/${id}`, { method: 'DELETE' });
-}
-
-/** 토큰이 헤더에 있어야 해서 링크 대신 받아서 저장한다. */
-export async function downloadFile(file: Pick<FileDto, 'id' | 'name'>): Promise<void> {
-  const blob = await (await request(`/files/${file.id}/download`, { method: 'GET' })).blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = file.name;
-  a.click();
-  URL.revokeObjectURL(url);
-}

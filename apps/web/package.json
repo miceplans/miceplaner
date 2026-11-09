@@ -7,13 +7,15 @@
     "build": "next build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run"
+    "test": "vitest run",
+    "api:gen": "orval"
   },
   "dependencies": {
     "@hocuspocus/provider": "^4.8.0",
     "@miceplans/contracts": "workspace:*",
     "@miceplans/editor-schema": "workspace:*",
     "@miceplans/ui": "workspace:*",
+    "@tanstack/react-query": "^5.107.1",
     "@tiptap/extension-collaboration": "3.32.1",
     "@tiptap/extension-collaboration-caret": "3.32.1",
     "@tiptap/react": "3.32.1",
@@ -28,6 +30,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "orval": "^8.47.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.6.0",
