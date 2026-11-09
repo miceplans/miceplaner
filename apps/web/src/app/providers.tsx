@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApiError } from '../lib/api';
+import { DesktopNotifications } from './desktop-notifications';
 
 /**
  * 서버 상태 캐시. 요청을 줄이는 쪽으로 기본값을 잡는다:
@@ -22,5 +23,5 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }),
   );
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return <QueryClientProvider client={client}><DesktopNotifications />{children}</QueryClientProvider>;
 }
