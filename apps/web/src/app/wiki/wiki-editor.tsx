@@ -10,7 +10,8 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 import type { DocPageDto } from '@miceplans/contracts';
 import { baseExtensions } from '@miceplans/editor-schema';
-import { ApiError, collabUrl, getDocPage, getMe, getToken } from '@/lib/api';
+import { ApiError, collabUrl, getToken } from '@/lib/api';
+import { useGetDocPage, useGetMe } from '@/lib/api/generated/endpoints';
 
 const COLORS = ['#e5484d', '#2f6fed', '#2a9d62', '#c26d00', '#8e4ec6', '#0b8fa3'];
 const colorOf = (name: string) => COLORS[[...name].reduce((n, c) => n + c.charCodeAt(0), 0) % COLORS.length]!;
@@ -26,30 +27,19 @@ type Peer = { clientId: number; name: string; color: string };
  */
 export function WikiEditor() {
   const docId = useSearchParams().get('doc') ?? '';
-  const [page, setPage] = useState<DocPageDto | null>(null);
-  const [me, setMe] = useState<{ name: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const valid = UUID.test(docId);
+  const pageQuery = useGetDocPage(docId, { query: { enabled: valid } });
+  const meQuery = useGetMe({ query: { enabled: valid, staleTime: Infinity } });
+  const error = pageQuery.error ?? meQuery.error;
+  const failure = !valid ? '문서 주소가 올바르지 않다' : error ? (error instanceof ApiError ? error.message : '문서를 불러오지 못했다') : null;
 
   useEffect(() => {
-    if (error) toast.error(error);
-  }, [error]);
+    if (failure) toast.error(failure);
+  }, [failure]);
 
-  useEffect(() => {
-    if (!UUID.test(docId)) {
-      setError('문서 주소가 올바르지 않다');
-      return;
-    }
-    Promise.all([getDocPage(docId), getMe()])
-      .then(([p, m]) => {
-        setPage(p);
-        setMe(m);
-      })
-      .catch((e) => setError(e instanceof ApiError ? e.message : '문서를 불러오지 못했다'));
-  }, [docId]);
-
-  if (error) return null;
-  if (!page || !me) return <p className="p-[24px] text-base text-fg-secondary">불러오는 중…</p>;
-  return <Collaborative page={page} userName={me.name} />;
+  if (failure) return null;
+  if (!pageQuery.data || !meQuery.data) return <p className="p-[24px] text-base text-fg-secondary">불러오는 중…</p>;
+  return <Collaborative page={pageQuery.data} userName={meQuery.data.name} />;
 }
 
 function Collaborative({ page, userName }: { page: DocPageDto; userName: string }) {

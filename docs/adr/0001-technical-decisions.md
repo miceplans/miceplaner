@@ -20,6 +20,7 @@ MICEPLANS는 행사 운영 데이터와 사내 지식을 다루며, 내부 직�
 | 데스크톱 | Tauri 2 | 네이티브 알림·파일 드롭 필요 시 도입. 웹 정적 export를 웹뷰에 로드 |
 | UI | Tailwind CSS, Radix, TanStack Query, Zustand, React Hook Form, Zod | 웹과 포털의 공용 UI |
 | 업무 API | NestJS | REST와 OpenAPI |
+| 웹 API 클라이언트 | orval + TanStack Query | `apps/api`가 내보낸 `openapi.json`(`pnpm api:spec`)에서 fetch 클라이언트와 Query 훅을 생성한다. 토큰·401·오류 메시지는 `apps/web/src/lib/api/http.ts` 한곳에서 처리하고, SSE(`/ai/chat`)는 스트림이라 직접 구현한다. 생성 결과(`apps/web/src/lib/api/generated`)와 `openapi.json`은 커밋한다. |
 | 일반 실시간 | Socket.IO | 행사·태스크·일정·알림 갱신 |
 | AI 스트리밍 | SSE | 토큰 단위 응답 |
 | 협업 편집 | TipTap, Yjs, Hocuspocus | 본문 동시 편집·커서·접속자 |

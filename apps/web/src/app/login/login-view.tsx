@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from 'react';
 import { Button, Input, toast } from '@miceplans/ui';
-import { ApiError, signIn } from '../../lib/api';
+import { ApiError, setToken } from '../../lib/api';
+import { useLogin, useRegister } from '../../lib/api/generated/endpoints';
 
 type Mode = 'login' | 'register';
 
@@ -16,13 +17,16 @@ export function LoginView() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const login = useLogin();
+  const register = useRegister();
   const copy = COPY[mode];
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      await signIn(mode, { email: email.trim(), password });
+      const session = await (mode === 'login' ? login : register).mutateAsync({ data: { email: email.trim(), password } });
+      setToken(session.accessToken);
       window.location.assign('/');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : '요청에 실패했다');

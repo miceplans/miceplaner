@@ -4,7 +4,8 @@ import { useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import type { ChatEvent, ProposalDto } from '@miceplans/contracts';
 import { Input, toast } from '@miceplans/ui';
-import { ApiError, decideProposal, streamChat } from '@/lib/api';
+import { ApiError, streamChat } from '@/lib/api';
+import { useApproveProposal, useRejectProposal } from '@/lib/api/generated/endpoints';
 
 const A = '/assets/ai-chat';
 
@@ -25,6 +26,9 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  const sending = useRef(false);
+  const approve = useApproveProposal();
+  const reject = useRejectProposal();
   const pathname = usePathname();
 
   if (!open) return null;
@@ -40,7 +44,8 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
 
   const send = async (text: string) => {
     const content = text.trim();
-    if (!content || busy) return;
+    if (!content || busy || sending.current) return;
+    sending.current = true;
     const history = [...turns, { role: 'user' as const, content }].filter((t) => t.content).map(({ role, content: c }) => ({ role, content: c }));
     setTurns((prev) => [...prev, { role: 'user', content }, { role: 'assistant', content: '' }]);
     setDraft('');
@@ -51,13 +56,14 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) toast.error(error instanceof ApiError ? error.message : '답변을 받지 못했다');
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   };
 
   const decide = async (turnIndex: number, proposal: ProposalDto, action: 'approve' | 'reject') => {
     try {
-      const updated = await decideProposal(proposal.id, action);
+      const updated = await (action === 'approve' ? approve : reject).mutateAsync({ id: proposal.id });
       setTurns((prev) => prev.map((t, i) => (i === turnIndex ? { ...t, proposals: t.proposals?.map((p) => (p.id === updated.id ? updated : p)) } : t)));
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : '처리하지 못했다');

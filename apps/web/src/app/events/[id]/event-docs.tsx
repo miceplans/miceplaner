@@ -151,13 +151,30 @@ function useCollab(eventId: string) {
     return lastTs.current;
   }, []);
 
-  const persist = useCallback((next: Doc[]) => {
+  // 타이핑마다 전체 문서를 직렬화해 쓰지 않도록 마지막 변경만 잠시 뒤에 저장하고, 페이지를 떠날 때 즉시 비운다.
+  const pendingSave = useRef<{ timer: number; docs: Doc[] } | null>(null);
+  const flush = useCallback(() => {
+    const pending = pendingSave.current;
+    if (!pending) return;
+    window.clearTimeout(pending.timer);
+    pendingSave.current = null;
     try {
-      window.localStorage.setItem(storageKey, JSON.stringify(next));
+      window.localStorage.setItem(storageKey, JSON.stringify(pending.docs));
     } catch {
       // 저장 실패는 화면 상태에만 영향을 주므로 무시한다.
     }
   }, [storageKey]);
+  const persist = useCallback((next: Doc[]) => {
+    if (pendingSave.current) window.clearTimeout(pendingSave.current.timer);
+    pendingSave.current = { docs: next, timer: window.setTimeout(flush, 400) };
+  }, [flush]);
+  useEffect(() => {
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, [flush]);
 
   const commit = useCallback((next: Doc[]) => {
     docsRef.current = next;
