@@ -1,5 +1,5 @@
 import { Controller, Get, HttpCode, Inject, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   changePasswordBody, loginBody, registerBody,
   type ChangePasswordBody, type LoginBody, type RegisterBody,
@@ -16,7 +16,8 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  @ApiOperation({ summary: '하이웍스 구성원 이메일로 가입하고 세션 토큰을 받는다' })
+  @ApiOperation({ summary: '하이웍스 구성원 이메일로 가입하고 세션 토큰을 받는다', operationId: 'register' })
+  @ApiCreatedResponse({ schema: { $ref: '#/components/schemas/AuthSessionDto' } })
   register(@ZodBody(registerBody) body: RegisterBody) {
     return this.auth.register(body);
   }
@@ -24,7 +25,8 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
-  @ApiOperation({ summary: '이메일·비밀번호로 로그인해 세션 토큰을 받는다' })
+  @ApiOperation({ summary: '이메일·비밀번호로 로그인해 세션 토큰을 받는다', operationId: 'login' })
+  @ApiOkResponse({ schema: { $ref: '#/components/schemas/AuthSessionDto' } })
   login(@ZodBody(loginBody) body: LoginBody) {
     return this.auth.login(body);
   }
@@ -37,7 +39,8 @@ export class AuthController {
   }
 
   @Get('me')
-  @ApiOperation({ summary: '현재 세션 사용자' })
+  @ApiOperation({ summary: '현재 세션 사용자', operationId: 'getMe' })
+  @ApiOkResponse({ schema: { $ref: '#/components/schemas/UserDto' } })
   me(@Auth() user: AuthUser) {
     return this.auth.me(user.userId);
   }
