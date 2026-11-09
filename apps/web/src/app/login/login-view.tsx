@@ -29,7 +29,7 @@ export function LoginView() {
       setToken(session.accessToken);
       window.location.assign('/');
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : '요청에 실패했다');
+      toast.error(err instanceof ApiError ? err.message : '[500] 요청에 실패했습니다.');
       setBusy(false);
     }
   };

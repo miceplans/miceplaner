@@ -6,7 +6,7 @@ import { schemaOf } from './openapi';
 /** contracts의 Zod 스키마로 요청 부분을 검증해 핸들러에 넘긴다 (AGENTS.md: HTTP DTO는 contracts에서 정의). */
 const parse = (schema: ZodType, value: unknown) => {
   const result = schema.safeParse(value);
-  if (!result.success) throw new BadRequestException(result.error.issues[0]?.message ?? '요청이 올바르지 않다');
+  if (!result.success) throw new BadRequestException(result.error.issues[0]?.message ?? '[400] 요청이 올바르지 않습니다.');
   return result.data;
 };
 

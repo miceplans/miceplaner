@@ -26,7 +26,7 @@ export class JobQueue implements OnModuleDestroy {
       await (await this.open()).enqueueParseFile(job);
     } catch (error) {
       this.log.error(`변환 작업을 큐에 넣지 못했다: ${String(error)}`);
-      throw new ServiceUnavailableException('작업 큐에 연결하지 못했다');
+      throw new ServiceUnavailableException('[503] 작업 큐에 연결하지 못했습니다.');
     }
   }
 

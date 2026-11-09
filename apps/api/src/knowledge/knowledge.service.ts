@@ -80,7 +80,7 @@ export class KnowledgeService {
   }
 
   private async requireEditor(db: PoolClient, eventId: string) {
-    if (!canEditWiki(await eventRole(db, eventId))) throw new ForbiddenException('위키 편집은 PM·AM만 할 수 있다');
+    if (!canEditWiki(await eventRole(db, eventId))) throw new ForbiddenException('[403] 위키 편집은 PM·AM만 할 수 있습니다.');
   }
 
   async createDoc(user: AuthUser, eventId: string, body: CreateDocBody) {

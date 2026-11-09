@@ -26,7 +26,7 @@ export class HiworksService {
   private async members(): Promise<Map<string, HiworksMember>> {
     if (this.cache && Date.now() - this.cache.at < TTL_MS) return this.cache.members;
     const token = config.hiworksOfficeToken;
-    if (!token) throw new ServiceUnavailableException('OFFICE_TOKEN이 설정되지 않아 가입·로그인을 할 수 없다');
+    if (!token) throw new ServiceUnavailableException('[503] OFFICE_TOKEN이 설정되지 않아 가입·로그인을 할 수 없습니다.');
     let body: unknown;
     try {
       const res = await fetch(`${config.hiworksApiUrl}/hrm/v2/organizations`, {
@@ -37,7 +37,7 @@ export class HiworksService {
       // 하이웍스는 오류도 HTTP 202와 {code, message}로 돌려준다.
       if (!res.ok || !body || typeof body !== 'object' || 'code' in body) throw new Error('unexpected response');
     } catch {
-      throw new ServiceUnavailableException('하이웍스 구성원 확인에 실패했다. 잠시 뒤 다시 시도해 달라');
+      throw new ServiceUnavailableException('[502] 하이웍스 구성원 확인에 실패했습니다. 잠시 뒤 다시 시도해 주세요.');
     }
     const members = new Map<string, HiworksMember>();
     const visit = (node: OrgNode) => {

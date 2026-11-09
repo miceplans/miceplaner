@@ -14,7 +14,7 @@ export type Partner = {
 };
 
 /** 분야 뱃지 스타일 — 분야별 색 구분 없이 공통 무채색으로 표시. */
-export const PARTNER_FIELD_BADGE = 'bg-surface-chip text-fg-secondary';
+export const PARTNER_FIELD_BADGE = 'text-fg-secondary';
 
 export const PARTNERS: Partner[] = [
   { id: 'p1', name: '모어디자인랩', field: '디자인', manager: '배수진 실장', phone: '02-541-0287', email: 'sujin.bae@moredesign.kr', events: '제54회 KIMES 2025 · 글로벌 AI 서밋 2025', memo: '키비주얼·브로슈어 담당. 시안 회신 평균 2일, 급건은 당일 오전 요청 필요.' },

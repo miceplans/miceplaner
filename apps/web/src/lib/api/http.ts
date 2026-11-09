@@ -6,7 +6,7 @@ import { ApiError, apiBase, clearToken, getToken, STATUS_MESSAGE } from '../api'
  */
 export async function http<T>(url: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
-  if (!apiBase) throw new ApiError(0, 'API 주소(NEXT_PUBLIC_API_URL)가 설정되지 않았다');
+  if (!apiBase) throw new ApiError(0, '[503] API 주소(NEXT_PUBLIC_API_URL)가 설정되지 않았습니다.');
   const isForm = init.body instanceof FormData;
   const authed = !url.startsWith('/auth/login') && !url.startsWith('/auth/register');
   if (authed && !token) throw new ApiError(401, STATUS_MESSAGE[401]!);
@@ -25,7 +25,7 @@ export async function http<T>(url: string, init: RequestInit = {}): Promise<T> {
     }
     const detail = (await res.json().catch(() => null)) as { message?: unknown } | null;
     // 로그인·가입은 서버가 준 사유(비밀번호 오류 등)를 그대로 보여 준다.
-    const message = !authed && typeof detail?.message === 'string' ? detail.message : (STATUS_MESSAGE[res.status] ?? `요청에 실패했다 (${res.status})`);
+    const message = !authed && typeof detail?.message === 'string' ? detail.message : (STATUS_MESSAGE[res.status] ?? `[${res.status}] 요청에 실패했습니다.`);
     throw new ApiError(res.status, message);
   }
   if (res.status === 204 || res.headers.get('content-length') === '0') return undefined as T;

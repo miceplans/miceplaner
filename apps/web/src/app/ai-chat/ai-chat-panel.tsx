@@ -54,7 +54,7 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
     try {
       await streamChat({ eventId: eventIdFrom(pathname), messages: history.slice(-40) }, handle, abort.current.signal);
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) toast.error(error instanceof ApiError ? error.message : '답변을 받지 못했다');
+      if (!(error instanceof DOMException && error.name === 'AbortError')) toast.error(error instanceof ApiError ? error.message : '[500] 답변을 받지 못했습니다.');
     } finally {
       sending.current = false;
       setBusy(false);
@@ -66,7 +66,7 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
       const updated = await (action === 'approve' ? approve : reject).mutateAsync({ id: proposal.id });
       setTurns((prev) => prev.map((t, i) => (i === turnIndex ? { ...t, proposals: t.proposals?.map((p) => (p.id === updated.id ? updated : p)) } : t)));
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : '처리하지 못했다');
+      toast.error(error instanceof ApiError ? error.message : '[500] 처리하지 못했습니다.');
     }
   };
 
