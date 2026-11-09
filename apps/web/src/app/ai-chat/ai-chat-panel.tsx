@@ -72,7 +72,7 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
       <div className="flex h-[46.69px] w-full shrink-0 items-center justify-between border-b-[0.834px] border-solid border-border px-[16.675px]">
         <div className="flex items-center gap-[4px]">
           <img alt="" src={`${A}/group15.svg`} className="block h-[19.995px] w-[17.659px] rotate-180" />
-          <span className="whitespace-nowrap text-2xs font-semibold text-fg">Agent</span>
+          <span className="whitespace-nowrap text-2xs font-semibold text-fg">에이전트</span>
         </div>
         <button
           type="button"

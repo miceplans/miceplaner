@@ -71,16 +71,16 @@ export function Topbar(): ReactNode {
         <img alt="" src={`${A}/6fc38.svg`} className="size-[16px]" />
       </button>
       <div className="flex h-full shrink-0 items-center gap-[6px] text-base">
-        <span className="whitespace-nowrap text-fg-secondary">Workspace</span>
+        <span className="whitespace-nowrap text-fg-secondary">워크스페이스</span>
         <img alt="" src={`${A}/a7eff.svg`} className="size-[13px]" />
-        <span className="whitespace-nowrap font-semibold text-fg">Schedules</span>
+        <span className="whitespace-nowrap font-semibold text-fg">일정</span>
       </div>
       <div className="h-px min-w-px flex-1" />
       <label className="flex h-[32px] w-[280px] shrink-0 items-center gap-[8px] rounded-sm bg-surface-chip px-[10px] max-md:hidden">
         <img alt="" src={`${A}/1e4e7.svg`} className="size-[15px] shrink-0" />
         <Input
           type="text"
-          placeholder="Search"
+          placeholder="검색"
           variant="ghost"
           className="min-w-0 flex-1 text-base"
         />
@@ -88,7 +88,7 @@ export function Topbar(): ReactNode {
       </label>
       <a href="/import/upload" className="flex h-[30px] shrink-0 items-center gap-[6px] rounded-sm bg-brand px-[12px] text-base font-semibold text-fg-inverse hover:bg-brand max-md:hidden">
         <img alt="" src={`${A}/05c58.svg`} className="size-[14px]" />
-        <span className="whitespace-nowrap">New 행사</span>
+        <span className="whitespace-nowrap">새 행사</span>
       </a>
       <span className="flex size-[26px] shrink-0 items-center justify-center rounded-xl bg-brand-tint text-2xs font-semibold text-brand">JY</span>
     </div>
@@ -472,5 +472,5 @@ export function MonthCalendar({
 export const SCHEDULE_TABS: ViewTab[] = [
   { label: '전체 일정', icon: 'ffeb6', activeIcon: '753c4', href: '/schedule-table' },
   { label: '내 일정', icon: '10b86' },
-  { label: 'Calendar', icon: 'b0b49', activeIcon: '85cb7', href: '/schedule-calendar' },
+  { label: '캘린더', icon: 'b0b49', activeIcon: '85cb7', href: '/schedule-calendar' },
 ];

@@ -19,7 +19,7 @@ function dDayLabel(start: Date): string {
 const BIPC_DDAY = dDayLabel(BIPC_START);
 
 const PROPS: { icon: string; label: string; value: string }[] = [
-  { icon: 'prop-icon1', label: 'Client', value: '메디코리아' },
+  { icon: 'prop-icon1', label: '고객사', value: '메디코리아' },
   { icon: 'prop-icon2', label: 'PM', value: '박서연' },
   { icon: 'prop-icon2', label: 'AM', value: '최민준' },
   { icon: 'prop-icon3', label: '기간', value: '2026. 03. 13 – 03. 16' },

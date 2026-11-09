@@ -35,7 +35,7 @@ export default function ImportPreviewPage() {
   return (
     <AppShell active="events">
       <PageFrame
-        topbar={<FlowTopbar showToggle showKbd={false} breadcrumb={['행사s', 'Excel Import']} />}
+        topbar={<FlowTopbar showToggle showKbd={false} breadcrumb={['행사', 'Excel 가져오기']} />}
         fab={
           <div className="absolute top-[782px] left-[1134.5px] flex h-[60.328px] w-[59.594px] items-center justify-center">
             <div className="flex-none rotate-[-62.45deg]">
@@ -57,7 +57,7 @@ export default function ImportPreviewPage() {
       >
         <div className="flex shrink-0 flex-col items-start gap-[168px]">
           <div className="flex w-[760px] flex-col items-start py-[60px]">
-            <h1 className="m-0 w-[209px] text-xl font-bold whitespace-nowrap text-fg">Excel에서 행사가져오기</h1>
+            <h1 className="m-0 w-[209px] text-xl font-bold whitespace-nowrap text-fg">Excel에서 행사 가져오기</h1>
             <div className="flex flex-col items-start gap-[28px]">
               <ImportStepper current={4} />
               <div className="flex h-[296px] w-[760px] flex-col items-start rounded-lg bg-surface p-[24px] shadow-card">

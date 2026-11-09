@@ -15,10 +15,10 @@ type ColKey = 'period' | 'client' | 'pm' | 'am' | 'design' | 'status' | 'place';
 
 const COL_DEFS: Record<ColKey, { label: string; icon: string; w: string }> = {
   period: { label: '기간', icon: '7db78', w: 'w-[140px]' },
-  client: { label: 'Client', icon: 'fe6d8', w: 'w-[130px]' },
+  client: { label: '고객사', icon: 'fe6d8', w: 'w-[130px]' },
   pm: { label: 'PM', icon: '15302', w: 'w-[65px]' },
   am: { label: 'AM', icon: '15302', w: 'w-[65px]' },
-  design: { label: 'Design', icon: '15302', w: 'w-[85px]' },
+  design: { label: '디자인', icon: '15302', w: 'w-[85px]' },
   status: { label: '상태', icon: 'f8a2c', w: 'w-[110px]' },
   place: { label: '장소', icon: '7bb84', w: 'min-w-px flex-1' },
 };
@@ -128,10 +128,10 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
           <Input autoFocus required placeholder="행사명" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="col-span-2" />
           <Input type="date" aria-label="시작일" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} />
           <Input type="date" aria-label="종료일" value={form.end} min={form.start} onChange={(e) => setForm({ ...form, end: e.target.value })} />
-          <Input placeholder="Client" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
+          <Input placeholder="고객사" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
           <Input placeholder="PM" value={form.pm} onChange={(e) => setForm({ ...form, pm: e.target.value })} />
           <Input placeholder="AM" value={form.am} onChange={(e) => setForm({ ...form, am: e.target.value })} />
-          <Input placeholder="Design" value={form.design} onChange={(e) => setForm({ ...form, design: e.target.value })} />
+          <Input placeholder="디자인" value={form.design} onChange={(e) => setForm({ ...form, design: e.target.value })} />
           <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as StatusKey })}>
             {STATUSES.map((s) => (
               <option key={s}>{s}</option>

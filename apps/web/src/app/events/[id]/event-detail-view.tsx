@@ -450,10 +450,10 @@ export function EventDetailView({ eventId }: { eventId: string }) {
 
         <div className="flex w-full flex-col py-[16px]">
           <Prop icon="prop-tag" label="상태"><StatusPill status={event.status} /></Prop>
-          <Prop icon="prop-client" label="Client"><ClientSelect value={client} onChange={setClient} /></Prop>
+          <Prop icon="prop-client" label="고객사"><ClientSelect value={client} onChange={setClient} /></Prop>
           <Prop icon="prop-person" label="PM">{event.pm}</Prop>
           <Prop icon="prop-person" label="AM">{event.am}</Prop>
-          <Prop icon="prop-person" label="Design">{event.design}</Prop>
+          <Prop icon="prop-person" label="디자인">{event.design}</Prop>
           {invited.length > 0 && (
             <Prop icon="prop-person" label="초대됨">
               <span className="flex items-center gap-[8px]">

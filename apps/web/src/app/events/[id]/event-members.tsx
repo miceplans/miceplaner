@@ -96,12 +96,12 @@ function MemberGroup({ title, members, fallback }: { title: string; members: Mem
   );
 }
 
-/** 행사 인력: 담당 인력(PM·AM·Design)과 지원 인력(스태프) 명단을 한 탭에 보여준다. */
+/** 행사 인력: 담당 인력(PM·AM·디자인)과 지원 인력(스태프) 명단을 한 탭에 보여준다. */
 export function EventMembers({ event, eventId }: { event: EventLeads; eventId: string }) {
   const leads: MemberInfo[] = [
     { name: event.pm, role: 'PM', phone: '010-4821-3390', email: 'pm@miceplans.kr', note: '행사 총괄' },
     { name: event.am, role: 'AM', phone: '010-9931-2745', email: 'am@miceplans.kr', note: '현장 운영' },
-    { name: event.design, role: 'Design', phone: '010-5517-8023', email: 'design@miceplans.kr', note: '제작 총괄' },
+    { name: event.design, role: '디자인', phone: '010-5517-8023', email: 'design@miceplans.kr', note: '제작 총괄' },
   ];
   const staff = getEventStaff(eventId);
   return (

@@ -5,7 +5,7 @@ import { Dropzone } from './dropzone';
 export default function ImportUploadPage() {
   return (
     <AppShell active="events">
-      <PageFrame topbar={<FlowTopbar showToggle breadcrumb={['행사s', 'Excel Import']} />} mainClassName="items-center">
+      <PageFrame topbar={<FlowTopbar showToggle breadcrumb={['행사', 'Excel 가져오기']} />} mainClassName="items-center">
         <div className="flex w-[760px] shrink-0 flex-col items-start gap-[48px] py-[60px]">
           <div className="flex w-full flex-col items-start gap-[48px]">
             <div className="flex w-full flex-col items-start gap-[24px]">

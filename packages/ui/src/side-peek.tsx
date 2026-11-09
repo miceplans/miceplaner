@@ -25,7 +25,7 @@ const PEEK_COMPONENTS: { key: PeekComponentKey; label: string }[] = [
   { key: 'agenda', label: '이날의 내 일정' },
   { key: 'description', label: '설명' },
   { key: 'clientMemo', label: '클라이언트 메모' },
-  { key: 'tasks', label: 'Task · Subtask' },
+  { key: 'tasks', label: '할 일 · 하위 할 일' },
   { key: 'links', label: '관련 링크 및 첨부' },
 ];
 const PEEK_LAYOUT_KEY = 'miceplans.schedule.sidePeekLayout';
@@ -103,7 +103,7 @@ function AgendaSection({ items }: { items: AgendaItem[] }) {
   );
 }
 
-/* ---------- Task · Subtask 지정 ---------- */
+/* ---------- 할 일 · 하위 할 일 지정 ---------- */
 
 type AssigneeKey = '한' | '최' | '박' | '이' | '김';
 
@@ -211,7 +211,7 @@ export function TaskSubtaskSection(): React.ReactNode {
   return (
     <div className="flex w-full flex-col gap-[12px]">
       <div className="flex items-center gap-[8px]">
-        <p className="whitespace-nowrap text-md font-bold tracking-[0.4695px] text-fg-strong">Task · Subtask</p>
+        <p className="whitespace-nowrap text-md font-bold tracking-[0.4695px] text-fg-strong">할 일 · 하위 할 일</p>
         <span className="flex h-[18px] items-center justify-center rounded-md bg-border-strong px-[6px] text-2xs font-medium text-fg-secondary">
           {doneCount}/{totalCount}
         </span>
@@ -258,14 +258,14 @@ export function TaskSubtaskSection(): React.ReactNode {
                       addSub(task.id);
                     }
                   }}
-                  placeholder="Subtask 추가"
+                  placeholder="하위 할 일 추가"
                   variant="ghost"
                   className="flex-1 text-md"
                 />
                 <Select
                   value={subWhos[task.id] ?? task.who}
                   onChange={(e) => setSubWhos((prev) => ({ ...prev, [task.id]: e.target.value as AssigneeKey }))}
-                  aria-label="Subtask 담당자"
+                  aria-label="하위 할 일 담당자"
                   size="sm"
                   className={selectCls}
                 >
@@ -296,14 +296,14 @@ export function TaskSubtaskSection(): React.ReactNode {
                 addTask();
               }
             }}
-            placeholder="Task 추가"
+            placeholder="할 일 추가"
             size="sm"
             className={draftInputCls}
           />
           <Select
             value={taskWho}
             onChange={(e) => setTaskWho(e.target.value as AssigneeKey)}
-            aria-label="Task 담당자"
+            aria-label="할 일 담당자"
             size="sm"
             className={selectCls}
           >

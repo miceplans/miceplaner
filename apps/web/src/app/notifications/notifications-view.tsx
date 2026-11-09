@@ -66,7 +66,7 @@ export function NotificationsView() {
     <div className="flex min-h-[900px] w-full flex-col leading-[normal]">
       <div className="flex h-[56px] shrink-0 items-center gap-[12px] border-b border-solid border-border bg-surface px-[16px]">
         <div className="flex h-full items-center">
-          <span className="whitespace-nowrap text-base font-medium text-fg">Notifications</span>
+          <span className="whitespace-nowrap text-base font-medium text-fg">알림</span>
         </div>
         <div className="h-px min-w-px flex-1" />
       </div>

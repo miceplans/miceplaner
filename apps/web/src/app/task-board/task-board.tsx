@@ -117,9 +117,9 @@ const ALL = '전체 행사';
 type TabKey = 'board' | 'list' | 'mine';
 
 const TABS: (ViewTab & { key: TabKey })[] = [
-  { key: 'board', label: 'Board', icon: '/assets/task-board/tab-board.svg' },
-  { key: 'list', label: 'List', icon: '/assets/task-board/tab-list.svg' },
-  { key: 'mine', label: '내 Tasks', icon: '/assets/task-board/tab-mine.svg' },
+  { key: 'board', label: '보드', icon: '/assets/task-board/tab-board.svg' },
+  { key: 'list', label: '목록', icon: '/assets/task-board/tab-list.svg' },
+  { key: 'mine', label: '내 할 일', icon: '/assets/task-board/tab-mine.svg' },
 ];
 
 type SortMode = 'default' | 'due-asc' | 'due-desc';
@@ -388,8 +388,8 @@ export function TaskBoard() {
       ) : null}
       {deleting ? (
         <ConfirmDialog
-          title="Task 삭제"
-          body={`'${deleting.title}' Task를 삭제할까요? 삭제 후에는 복구할 수 없습니다.`}
+          title="할 일 삭제"
+          body={`'${deleting.title}' 할 일을 삭제할까요? 삭제 후에는 복구할 수 없습니다.`}
           onConfirm={() => removeTask(deleting.id)}
           onClose={() => setDeleting(null)}
         />

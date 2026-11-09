@@ -5,7 +5,7 @@ import { MappingForm } from './mapping-form';
 export default function ImportMappingPage() {
   return (
     <AppShell active="events">
-      <PageFrame topbar={<FlowTopbar showToggle breadcrumb={['행사s', 'Excel Import']} />} mainClassName="items-center">
+      <PageFrame topbar={<FlowTopbar showToggle breadcrumb={['행사', 'Excel 가져오기']} />} mainClassName="items-center">
         <div className="flex w-[760px] shrink-0 flex-col items-start py-[60px]">
           <div className="flex w-[760px] shrink-0 flex-col items-start gap-[6px]">
             <h1 className="m-0 text-xl font-bold whitespace-nowrap text-fg">Excel에서 행사가져오기</h1>
