@@ -8,7 +8,7 @@ export default defineConfig({
   platform: 'node',
   splitting: false,
   sourcemap: true,
-  dts: true,
+  dts: false,
   clean: true,
   outDir: 'dist',
   noExternal: [/^@miceplans\//],
