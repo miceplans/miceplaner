@@ -1,0 +1,13 @@
+{
+  "name": "@miceplans/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "@miceplans/config": "workspace:*",
+    "@tauri-apps/cli": "^2.9.5"
+  }
+}

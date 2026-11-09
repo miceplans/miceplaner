@@ -6,6 +6,9 @@ out
 .DS_Store
 .idea
 .local
+apps/desktop/src-tauri/tauri.release.conf.json
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/target/
 
 # 비밀 값
 .env

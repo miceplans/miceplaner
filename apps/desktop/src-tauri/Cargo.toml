@@ -1,0 +1,17 @@
+[package]
+name = "miceplans-desktop"
+version = "0.1.0"
+description = "MICEPLANS desktop shell"
+authors = ["MICEPLANS"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "miceplans_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
