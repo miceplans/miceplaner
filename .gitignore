@@ -3,6 +3,7 @@ node_modules
 out
 .turbo
 apps/api/dist
+apps/api/public
 *.tsbuildinfo
 .DS_Store
 .idea
