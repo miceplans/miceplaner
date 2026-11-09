@@ -35,6 +35,7 @@ export class AiService {
     const recent = (this.calls.get(userId) ?? []).filter((t) => now - t < 60_000);
     if (recent.length >= config.aiRequestsPerMinute) throw new HttpException('AI 질의가 너무 잦다. 잠시 후 다시 시도하라', HttpStatus.TOO_MANY_REQUESTS);
     this.calls.set(userId, [...recent, now]);
+    if (this.calls.size > 1000) for (const [id, ts] of this.calls) if (ts.every((t) => now - t >= 60_000)) this.calls.delete(id);
   }
 
   /** 스트리밍을 시작하기 전에 검사한다. 통과하면 chat()을 호출해도 된다. */
@@ -126,8 +127,10 @@ export class AiService {
       propose_task_drafts: async ({ eventId, summary, drafts }) => {
         await this.run(user, async (db) => {
           if (!(await getEvent(db, eventId))) throw new ToolError('행사를 찾을 수 없다');
+          const parents = new Map<string, Awaited<ReturnType<typeof getItem>>>();
+          for (const id of new Set(drafts.map((d) => d.parentId))) parents.set(id, await getItem(db, id));
           for (const d of drafts) {
-            const parent = await getItem(db, d.parentId);
+            const parent = parents.get(d.parentId);
             if (!parent || parent.eventId !== eventId) throw new ToolError(`상위 항목을 이 행사에서 찾을 수 없다: ${d.parentId}`);
             if (parent.kind !== PARENT_KIND[d.kind]) throw new ToolError(`${d.kind}의 상위는 ${PARENT_KIND[d.kind]}이어야 한다`);
           }

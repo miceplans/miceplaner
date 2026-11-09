@@ -48,9 +48,14 @@ export async function softDeleteFile(client: PoolClient, actorId: string, id: st
 // ── dense 검색 ───────────────────────────────────────────────────────────
 
 /** pgvector가 설치된 서버에서만 true다. 아니면 검색은 lexical만 쓴다. */
+let vectorKnown = false;
+
+/** 컬럼은 마이그레이션 뒤에 사라지지 않으므로 있다는 결과만 프로세스 안에서 기억해 검색마다 카탈로그를 조회하지 않는다. */
 export async function hasVector(client: PoolClient): Promise<boolean> {
+  if (vectorKnown) return true;
   const { rows } = await client.query(`SELECT 1 FROM information_schema.columns WHERE table_name = 'knowledge_chunks' AND column_name = 'embedding'`);
-  return rows.length > 0;
+  vectorKnown = rows.length > 0;
+  return vectorKnown;
 }
 
 export type PendingChunk = { id: string; heading: string; content: string };

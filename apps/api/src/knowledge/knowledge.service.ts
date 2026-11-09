@@ -22,10 +22,10 @@ const stripTitle = (heading: string, title: string) => (heading === title ? '' :
 const log = new Logger('search');
 
 /** 질의 임베딩이 켜져 있고 pgvector가 있을 때만 dense 후보를 가져온다. 임베딩 서버 장애는 lexical 검색으로 대체한다. */
-async function denseCandidates(db: PoolClient, q: string, filter: Parameters<typeof searchChunksFts>[2], embedder: Embedder | null | undefined) {
-  if (!embedder || !(await hasVector(db))) return [];
+async function denseCandidates(db: PoolClient, embedding: Promise<number[] | undefined> | null, filter: Parameters<typeof searchChunksFts>[2]) {
+  if (!embedding || !(await hasVector(db))) return [];
   try {
-    const [vector] = await embedder([q]);
+    const vector = await embedding;
     return vector ? await searchChunksDense(db, toVectorLiteral(vector), filter, config.denseMaxDistance) : [];
   } catch (error) {
     log.warn(`dense 검색을 건너뛴다: ${String(error)}`);
@@ -41,9 +41,12 @@ export async function searchKnowledge(db: PoolClient, q: Pick<SearchQuery, 'q' |
   const terms = queryTerms(q.q);
   if (terms.length === 0) return [];
   const filter = { eventId: q.eventId, clientId: q.clientId, since: q.since, limit: q.limit * CANDIDATE_FACTOR };
+  // 임베딩 서버 호출(네트워크)을 DB 조회와 겹쳐 실행한다. 실패는 denseCandidates에서 처리하므로 미리 걸어 둔다.
+  const embedding = embedder ? embedder([q.q]).then(([v]) => v) : null;
+  embedding?.catch(() => undefined);
   const fts = await searchChunksFts(db, toTsQuery(terms), filter);
   const trigram = await searchChunksTrigram(db, terms.join(' '), filter);
-  const dense = await denseCandidates(db, q.q, filter, embedder);
+  const dense = await denseCandidates(db, embedding, filter);
   const byId = new Map([...fts, ...trigram, ...dense].map((h) => [h.id, h]));
   const seenDocs = new Set<string>();
   const hits: SearchHitDto[] = [];
