@@ -227,7 +227,7 @@ export function TaskBoard() {
   const tasks = boardColumns.flatMap((column) =>
     column.tasks.map((task) => ({ ...task, column: column.name, done: column.done, cancelled: column.cancelled })),
   );
-  const visibleTasks = tab === 'mine' ? tasks.filter((task) => task.who === ME) : tasks;
+  const visibleTasks = tab === 'mine' ? tasks.filter((task) => task.createdBy === ME) : tasks;
   /** 마감일 없는 항목은 어느 방향이든 맨 뒤로. 기본은 현행 순서 유지(안정 정렬). */
   const sortedTasks = [...visibleTasks].sort((a, b) => {
     if (sortMode === 'default') return 0;
@@ -337,7 +337,7 @@ export function TaskBoard() {
       ) : (
         <div className="flex flex-1 flex-col gap-[8px] p-[24px] max-md:p-[12px]" role="tabpanel">
           <div className="flex items-center justify-between gap-[12px]">
-            <p className="text-base text-fg-secondary">{tab === 'mine' ? '내가 담당한 Tasks' : '모든 Tasks'}</p>
+            <p className="text-base text-fg-secondary">{tab === 'mine' ? '내가 작성한 Tasks' : '모든 Tasks'}</p>
             <label className="flex items-center gap-[6px] text-sm whitespace-nowrap text-fg-secondary">
               정렬
               <Select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} className="shrink-0">
