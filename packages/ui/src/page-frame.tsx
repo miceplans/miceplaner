@@ -40,7 +40,7 @@ export function FlowTopbar({
       <div className="h-px min-w-px flex-1" />
       <div className="flex h-[32px] w-[280px] shrink-0 items-center gap-[8px] rounded-sm bg-surface-chip px-[10px]">
         <img alt="" src={`${A}/search-icon.svg`} className="size-[15px]" />
-        <p className="whitespace-nowrap text-base text-fg-tertiary">Search</p>
+        <p className="whitespace-nowrap text-base text-fg-tertiary">검색</p>
         <div className="h-px min-w-px flex-1" />
         {showKbd ? (
           <div className="flex h-[20px] items-center justify-center rounded-xs bg-surface px-[5px] text-2xs text-fg-secondary">⌘K</div>
@@ -48,7 +48,7 @@ export function FlowTopbar({
       </div>
       <a href="/import/upload" className="flex h-[30px] shrink-0 items-center gap-[6px] rounded-sm bg-brand px-[12px]">
         <img alt="" src={`${A}/plus-icon.svg`} className="size-[14px]" />
-        <span className="whitespace-nowrap text-base font-semibold text-fg-inverse">New 행사</span>
+        <span className="whitespace-nowrap text-base font-semibold text-fg-inverse">새 행사</span>
       </a>
       <div className="flex size-[26px] shrink-0 items-center justify-center rounded-xl bg-brand-tint text-2xs font-semibold text-brand">
         JY
