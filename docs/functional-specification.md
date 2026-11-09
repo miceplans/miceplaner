@@ -225,7 +225,7 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 파일 업로드와 변환:
 
 - `POST /events/:eventId/files`(multipart `file`, PM·AM·Super Admin)로 올린다. 지원 형식은 txt·md·csv·xlsx·docx·pdf(텍스트 레이어)이고 상한은 20MB(`MAX_FILE_BYTES`)다. 형식은 확장자로만 판정하며 클라이언트가 보낸 MIME은 믿지 않는다. 스캔 이미지 PDF·이미지·구형 doc/xls는 지원하지 않는다.
-- 원본은 S3(`S3_BUCKET`, 로컬 개발은 `FILES_DIR`)에 `events/<eventId>/<uuid>` 키로 저장한다. 저장소 자격 증명은 서버 런타임에만 있고, 다운로드(`GET /files/:id/download`)는 API가 읽어 `attachment`로 전달한다. 서명 URL을 브라우저에 주지 않는다. 저장소 설정이 없으면 업로드는 503이다.
+- 원본은 S3(`S3_BUCKET`, 로컬 개발은 `FILES_DIR`)에 `events/<eventId>/<uuid>` 키로 저장한다. 원본은 저장 용량을 줄이려고 gzip으로 압축해 저장하고(`gzipStore`, 압축 전 객체는 그대로 읽음) 다운로드 때 API가 풀어 준다. 저장소 자격 증명은 서버 런타임에만 있고, 다운로드(`GET /files/:id/download`)는 API가 읽어 `attachment`로 전달한다. 서명 URL을 브라우저에 주지 않는다. 저장소 설정이 없으면 업로드는 503이다.
 - 업로드는 `event_files`(`pending`)를 만들고 pg-boss 작업 `parse-file`을 넣는다. worker가 업로더 권한(작업 입력의 워크스페이스·사용자·역할)으로 원본을 읽어 Markdown으로 바꾸고, 파일명을 제목으로 하는 `event_docs`(열람 범위 `행사 멤버`, PM·AM이 이후 변경)를 만들어 청크를 색인한 뒤 `ready`로 바꾼다. 변환할 수 없으면 사유와 함께 `failed`이며(형식 오류·빈 문서·원본 없음은 재시도하지 않고, 그 밖의 오류는 3회 재시도한 뒤 `failed`) 사용자는 파일 목록에서 사유를 본다.
 - 목록·상세는 변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람만 본다(Client는 항상 불가). 삭제(`DELETE /files/:id`, PM·AM)는 soft delete이며 변환 문서와 색인을 함께 내리고 감사 로그(`file.delete`)를 남긴다.
 - 웹은 행사 상세의 `문서` 탭 위 `자료 파일` 영역에서 올리기·상태 확인(변환 중이면 3초마다 갱신)·원본 받기·변환 문서 열기·삭제를 제공한다. 세션 토큰이 없거나 행사 ID가 서버의 것이 아닌 목업 데이터에서는 표시하지 않는다.
