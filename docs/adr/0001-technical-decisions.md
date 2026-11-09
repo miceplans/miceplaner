@@ -33,6 +33,10 @@ MICEPLANS는 행사 운영 데이터와 사내 지식을 다루며, 내부 직�
 | 내부 인증 | 이메일·비밀번호(scrypt) + 하이웍스 조직도 구성원 검증 | Google OIDC는 철회(2026-11-03). 하이웍스 OAuth는 신규 발급이 중단되어 쓰지 않는다. 메일 소유 확인이 없어 자유 가입 선점 위험을 감수한다. Client 인증은 미결정 |
 | 관측 | Sentry와 OpenTelemetry | AI 호출 로그 별도 저장 |
 
+### 배포
+
+일반 HTTP API는 Vercel Node Function으로 요청 시에만 실행한다. API 함수는 `tsup`으로 단일 CommonJS 번들을 만들고, Vercel 함수 진입점은 그 산출물만 불러온다. 이는 워크스페이스 TypeScript 소스의 확장자 없는 ESM import를 Vercel 런타임이 개별적으로 해석하는 문제와 Node 라이브러리의 동적 `require` 충돌을 피한다. Socket.IO·협업·worker처럼 지속 연결 또는 폴링이 필요한 프로세스는 Vercel 함수에 두지 않는다.
+
 ### 시스템 경계
 
 ```text

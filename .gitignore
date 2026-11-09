@@ -2,6 +2,7 @@ node_modules
 .next
 out
 .turbo
+apps/api/dist
 *.tsbuildinfo
 .DS_Store
 .idea
