@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { DesktopNotificationToggle } from '../desktop-notification-toggle';
 
 const A = '/assets/notifications';
 
@@ -100,6 +101,7 @@ export function NotificationsView() {
             <img alt="" src={`${A}/mark-icon.svg`} className="size-[13px]" />
             <span className="whitespace-nowrap text-base font-medium text-fg-secondary">모두 읽음 처리</span>
           </button>
+          <DesktopNotificationToggle />
           <button type="button" aria-label="알림 설정" className="flex size-[30px] items-center justify-center rounded-sm border border-solid border-border bg-surface">
             <img alt="" src={`${A}/settings-icon.svg`} className="size-[15px]" />
           </button>

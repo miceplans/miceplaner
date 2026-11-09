@@ -16,6 +16,7 @@
     "@miceplans/editor-schema": "workspace:*",
     "@miceplans/ui": "workspace:*",
     "@tanstack/react-query": "^5.107.1",
+    "@tauri-apps/plugin-notification": "^2.8.0",
     "@tiptap/extension-collaboration": "3.32.1",
     "@tiptap/extension-collaboration-caret": "3.32.1",
     "@tiptap/react": "3.32.1",

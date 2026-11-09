@@ -7,7 +7,7 @@ import { DB_POOL } from './tokens';
 @Global()
 @Module({
   providers: [
-    { provide: DB_POOL, useFactory: () => createPool(config.databaseUrl) },
+    { provide: DB_POOL, useFactory: () => createPool(config.databaseUrl, config.databasePoolMax) },
     // 앱 종료 시 Pool을 닫는다. 그래야 테스트 워커가 끝까지 열린 핸들로 멈추지 않는다.
     {
       provide: 'DB_POOL_CLOSE',

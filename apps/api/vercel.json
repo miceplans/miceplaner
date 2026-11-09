@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm typecheck",
+  "functions": {
+    "api/[...path].ts": { "maxDuration": 60 }
+  },
+  "rewrites": [
+    { "source": "/:path*", "destination": "/api/:path*" }
+  ]
+}
