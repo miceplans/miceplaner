@@ -148,6 +148,9 @@ importers:
       '@miceplans/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@miceplans/editor-schema':
+        specifier: workspace:*
+        version: link:../../packages/editor-schema
       '@miceplans/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge

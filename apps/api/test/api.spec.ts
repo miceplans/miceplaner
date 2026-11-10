@@ -17,6 +17,7 @@ const OTHER_EVENT = id(102);
 const CO = id(201);
 const DOC_MEMBERS = id(301);
 const DOC_ALL = id(302);
+let approvedClientUserId = '';
 
 let app: INestApplication;
 let http: Parameters<typeof request>[0];
@@ -105,6 +106,20 @@ describe('인증 (F-01)', () => {
   it('Client 계정은 이메일 로그인·가입을 쓸 수 없다', async () => {
     await api().post('/auth/register').send({ email: 'client@x.test', password: 'client-long-pw' }).expect(403);
   });
+  it('Client는 회사명으로 신청하고 Super Admin 승인 뒤에만 포털에 로그인한다', async () => {
+    const application = await api().post('/auth/client-applications').send({
+      companyName: '테스트사', applicantName: '홍길동', email: 'applicant@x.test', password: 'client-long-password',
+    }).expect(201);
+    expect(application.body).toMatchObject({ companyName: '테스트사', applicantName: '홍길동', status: 'pending' });
+    await api().post('/auth/client/login').send({ email: 'applicant@x.test', password: 'client-long-password' }).expect(401);
+    const notice = await api().get('/notifications?unread=true').set(as('admin')).expect(200);
+    expect(notice.body).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'client_application', title: expect.stringContaining('테스트사의 홍길동님이 신청하셨습니다.') })]));
+    await api().post(`/auth/client-applications/${application.body.id}/approve`).set(as('staff')).expect(403);
+    await api().post(`/auth/client-applications/${application.body.id}/approve`).set(as('admin')).expect(200);
+    const login = await api().post('/auth/client/login').send({ email: 'applicant@x.test', password: 'client-long-password' }).expect(200);
+    expect(login.body.user).toMatchObject({ name: '홍길동', role: 'client' });
+    approvedClientUserId = login.body.user.id;
+  });
   it('비밀번호를 변경한다', async () => {
     const login = await api().post('/auth/login').send({ email: 'new@x.test', password: 'long-enough-pw' }).expect(200);
     const h = { Authorization: `Bearer ${login.body.accessToken}` };
@@ -161,6 +176,14 @@ describe('행사 멤버 관리 (F-02, F-06)', () => {
     await api().delete(`/events/${EVENT}/members/${U.pm}`).set(as('pm')).expect(409);
     const log = await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'member.role.change'`);
     expect(log.rows[0].n).toBe(1);
+  });
+});
+
+describe('Client 지정 무결성 (F-07)', () => {
+  it('내부 직원은 Client로 지정할 수 없고, Client 역할 사용자만 지정한다', async () => {
+    await api().put(`/events/${EVENT}/clients/${U.staff}`).set(as('pm')).expect(400);
+    await api().put(`/events/${EVENT}/clients/${approvedClientUserId}`).set(as('pm')).expect(200);
+    expect((await api().get(`/events/${EVENT}/clients`).set(as('pm')).expect(200)).body).toContain(approvedClientUserId);
   });
 });
 
@@ -244,6 +267,8 @@ describe('Client 포털 (F-07)', () => {
     ]);
   });
   it('PM·AM은 Client를 지정·해제하고 포털에 반영된다', async () => {
+    const count = async () => (await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'event.client.change'`)).rows[0]!.n as number;
+    const before = await count();
     await api().put(`/events/${EVENT}/clients/${U.client2}`).set(as('pm')).expect(200);
     expect((await api().get('/portal/events').set(as('client2')).expect(200)).body).toHaveLength(1);
     await api().delete(`/events/${EVENT}/clients/${U.client2}`).set(as('pm')).expect(200);
@@ -266,8 +291,6 @@ describe('휴가·연차 (F-12)', () => {
   });
   it('연차 현황의 used는 대휴를 제외하고 월별 합계를 낸다', async () => {
     await api().post('/leave').set(as('member')).send({ kind: 'am-half', startDate: '2026-10-22', endDate: '2026-10-22' }).expect(201);
-    const count = async () => (await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'event.client.change'`)).rows[0]!.n as number;
-    const before = await count();
     const res = await api().get('/leave/balances?year=2026').set(as('staff')).expect(200);
     const mine = res.body.find((b: { userId: string }) => b.userId === U.member);
     expect(mine).toMatchObject({ used: 3.5, total: 15 });

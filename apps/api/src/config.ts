@@ -30,8 +30,13 @@ export const config = {
   },
   /** CORS·Socket.IO·Swagger UI의 허용 출처(쉼표 구분). 운영에서는 비우면 CORS를 열지 않고, 개발에서는 웹 개발 서버(localhost:3100)만 허용한다. */
   get webOrigin(): string {
-    if (process.env.WEB_ORIGIN !== undefined) return process.env.WEB_ORIGIN;
-    return process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3100,http://127.0.0.1:3100';
+    const internal = process.env.WEB_ORIGIN ?? (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3100,http://127.0.0.1:3100');
+    const client = process.env.CLIENT_PORTAL_ORIGIN ?? '';
+    return [internal, client].filter(Boolean).join(',');
+  },
+  /** Client 포털의 DNS 접두사. 배포에서 `client.<주 도메인>`과 CLIENT_PORTAL_ORIGIN을 같은 값으로 둔다. */
+  get clientPortalPrefix(): string {
+    return process.env.CLIENT_PORTAL_PREFIX ?? 'client';
   },
   /** 협업 서버 내부 주소와 공유 비밀. Yjs로 편집된 문서의 본문 변경(저장·AI 승인·되돌리기)은 이 서버를 거친다. 없으면 그런 변경은 503이다. */
   get collab(): { url: string; secret: string } | null {

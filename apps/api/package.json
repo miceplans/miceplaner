@@ -18,6 +18,7 @@
     "@miceplans/contracts": "workspace:*",
     "@miceplans/db": "workspace:*",
     "@miceplans/domain": "workspace:*",
+    "@miceplans/editor-schema": "workspace:*",
     "@miceplans/knowledge": "workspace:*",
     "@miceplans/queue": "workspace:*",
     "@miceplans/storage": "workspace:*",

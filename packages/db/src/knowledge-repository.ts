@@ -191,9 +191,9 @@ export async function hasYdoc(client: PoolClient, docId: string): Promise<boolea
 
 /**
  * 협업 서버가 병합된 Yjs 상태와 그 Markdown 파생본을 함께 저장한다. 본문이 달라졌을 때만 version을 올리고 다시 색인한다.
- * 권한이 없으면 RLS가 거부한다(42501). 반환값은 본문이 바뀌었는지 여부다.
+ * 권한이 없으면 RLS가 거부한다(42501). 반환값은 본문 변경 여부이며, expectedVersion이 맞지 않으면 null이다.
  */
-export async function saveCollabState(client: PoolClient, docId: string, state: Uint8Array, bodyMd: string): Promise<boolean> {
+export async function saveCollabState(client: PoolClient, docId: string, state: Uint8Array, bodyMd: string, expectedVersion?: number): Promise<boolean | null> {
   const doc = await getDocPage(client, docId);
   if (!doc) throw Object.assign(new Error('문서를 찾을 수 없다'), { code: '42501' });
   await client.query(
@@ -202,8 +202,9 @@ export async function saveCollabState(client: PoolClient, docId: string, state: 
     [docId, doc.eventId, Buffer.from(state)],
   );
   if (doc.bodyMd === bodyMd) return false;
-  const saved = await saveDocBody(client, docId, { bodyMd });
-  if (saved) await reindexDocPage(client, saved);
+  const saved = await saveDocBody(client, docId, { bodyMd }, expectedVersion);
+  if (!saved) return null;
+  await reindexDocPage(client, saved);
   return true;
 }
 

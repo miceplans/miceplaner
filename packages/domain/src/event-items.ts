@@ -18,7 +18,7 @@ export type ProductPart = (typeof PRODUCT_PARTS)[number];
 export const EVENT_STATUSES = ['진행중', '성공', '확인중', '만료', '제출', '보류중'] as const;
 export type EventStatus = (typeof EVENT_STATUSES)[number];
 
-export const NOTIFICATION_KINDS = ['assigned', 'schedule_changed', 'due_soon', 'member_changed'] as const;
+export const NOTIFICATION_KINDS = ['assigned', 'schedule_changed', 'due_soon', 'member_changed', 'client_application'] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 const ITEM_EDITORS: readonly Role[] = ['super_admin', 'pm', 'am', 'member'];

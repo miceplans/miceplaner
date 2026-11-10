@@ -8,7 +8,7 @@ export async function http<T>(url: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   if (!apiBase) throw new ApiError(0, '[503] API 주소(NEXT_PUBLIC_API_URL)가 설정되지 않았습니다.');
   const isForm = init.body instanceof FormData;
-  const authed = !url.startsWith('/auth/login') && !url.startsWith('/auth/register');
+  const authed = !['/auth/login', '/auth/register', '/auth/client/login', '/auth/client-applications'].includes(url);
   if (authed && !token) throw new ApiError(401, STATUS_MESSAGE[401]!);
   // Orval이 만든 요청은 Content-Type을 넣고, 이 래퍼도 JSON 본문에 기본값을 넣는다.
   // 객체로 합치면 대소문자가 다른 두 키가 Fetch에서 `application/json, application/json`으로

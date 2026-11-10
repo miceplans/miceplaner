@@ -1,8 +1,8 @@
-import { ConflictException, ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import { authSessionDto, userDto } from '@miceplans/contracts';
-import type { ChangePasswordBody, LoginBody, RegisterBody } from '@miceplans/contracts';
+import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { authSessionDto, clientApplicationDto, userDto } from '@miceplans/contracts';
+import type { ChangePasswordBody, CreateClientApplicationBody, LoginBody, RegisterBody } from '@miceplans/contracts';
 import {
-  findUserByEmail, getPasswordHash, getUserById, insertUser, setInitialPasswordHash, setPasswordHash, withContext, type UserRow,
+  approveClientApplication, createClientApplication, findUserByEmail, getPasswordHash, getUserById, insertUser, setInitialPasswordHash, setPasswordHash, withContext, type UserRow,
 } from '@miceplans/db';
 import { randomUUID } from 'node:crypto';
 import type { Pool } from '@miceplans/db';
@@ -11,6 +11,7 @@ import { DB_POOL } from '../tokens';
 import { HiworksService } from './hiworks';
 import { signSession } from './jwt';
 import { hashPassword, verifyPassword } from './password';
+import type { AuthUser } from '../common/auth';
 
 const INVALID = '[401] 이메일 또는 비밀번호가 올바르지 않습니다.';
 
@@ -63,6 +64,52 @@ export class AuthService {
     // 퇴사 등으로 하이웍스 구성원에서 빠진 계정은 로그인할 수 없다.
     if (!(await this.hiworks.findMember(found.user.email))) throw new ForbiddenException('[403] 하이웍스 구성원이 아닙니다.');
     return this.session(found.user);
+  }
+
+  /** Client는 하이웍스 검증 없이, 승인된 Client 역할 계정만 포털 전용 로그인으로 쓴다. */
+  async clientLogin(body: LoginBody) {
+    const found = await withContext(this.pool, this.ctx(randomUUID()), async (db) => {
+      const user = await findUserByEmail(db, body.email);
+      return user ? { user, hash: await getPasswordHash(db, user.id) } : undefined;
+    });
+    const hash = found?.hash ?? (await (this.dummyHash ??= hashPassword(randomUUID())));
+    if (!found?.hash || !(await verifyPassword(body.password, hash)) || found.user.role !== 'client') throw new UnauthorizedException(INVALID);
+    return this.session(found.user);
+  }
+
+  /** 공개 신청은 곧바로 계정을 만들지 않는다. 모든 Super Admin에게 내부 알림을 남긴다. */
+  async createClientApplication(body: CreateClientApplicationBody) {
+    const passwordHash = await hashPassword(body.password);
+    const application = await withContext(this.pool, this.ctx(randomUUID()), async (db) => {
+      if (await findUserByEmail(db, body.email)) throw new ConflictException('[409] 이미 사용 중인 이메일입니다.');
+      const row = await createClientApplication(db, { id: randomUUID(), ...body, passwordHash });
+      const admins = await db.query<{ id: string }>(`SELECT id FROM users WHERE role = 'super_admin'`);
+      await Promise.all(admins.rows.map(({ id }) => db.query(
+        `INSERT INTO notifications (recipient_id, event_id, kind, title) VALUES ($1, NULL, 'client_application', $2)`,
+        [id, `${row.companyName}의 ${row.applicantName}님이 신청하셨습니다. [${row.id}]`],
+      )));
+      return row;
+    }).catch((error: unknown) => {
+      if ((error as { code?: string }).code === '23505') throw new ConflictException('[409] 이미 신청했거나 사용 중인 이메일입니다.');
+      throw error;
+    });
+    return clientApplicationDto.parse(application);
+  }
+
+  /** 승인은 Client 사용자 행 생성과 상태 변경을 같은 트랜잭션으로 처리한다. */
+  async approveClientApplication(user: AuthUser, applicationId: string) {
+    if (user.role !== 'super_admin') throw new ForbiddenException('[403] Client 신청 승인은 Super Admin만 할 수 있습니다.');
+    const application = await withContext(this.pool, user, async (db) => {
+      const approved = await approveClientApplication(db, applicationId, user.userId);
+      if (!approved) throw new NotFoundException('[404] 대기 중인 Client 신청을 찾을 수 없습니다.');
+      await insertUser(db, { id: randomUUID(), name: approved.applicantName, email: approved.email, passwordHash: approved.passwordHash, role: 'client' });
+      await db.query(`INSERT INTO audit_log (actor_id, action, detail) VALUES ($1, 'client.application.approve', $2)`, [user.userId, JSON.stringify({ applicationId, email: approved.email, companyName: approved.companyName })]);
+      return approved;
+    }).catch((error: unknown) => {
+      if ((error as { code?: string }).code === '23505') throw new ConflictException('[409] 이미 사용 중인 이메일입니다.');
+      throw error;
+    });
+    return clientApplicationDto.parse(application);
   }
 
   async changePassword(userId: string, body: ChangePasswordBody) {
