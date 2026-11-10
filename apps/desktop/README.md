@@ -1,4 +1,4 @@
-# MICEPLANS 데스크톱
+# MICEPLANNER 데스크톱
 
 내부 웹의 정적 export를 Tauri 2 WebView로 제공하는 데스크톱 셸이다. 업무 규칙과 DB 접근은 포함하지 않는다.
 

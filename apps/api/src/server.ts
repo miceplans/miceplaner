@@ -8,7 +8,7 @@ import { config } from './config';
 
 /** 컨트롤러 메타데이터와 계약(Zod)에서 OpenAPI 문서를 만든다. 웹 클라이언트 생성(orval)에도 쓴다. */
 export function buildOpenApiDocument(app: INestApplication) {
-  const document = SwaggerModule.createDocument(app, new DocumentBuilder().setTitle('MICEPLANS API').setDescription('행사 운영 업무 API').setVersion('0.1.0').build(), {
+  const document = SwaggerModule.createDocument(app, new DocumentBuilder().setTitle('MICEPLANNER API').setDescription('행사 운영 업무 API').setVersion('0.1.0').build(), {
     // operationId가 곧 웹 훅 이름이 된다: EventsController.list → eventsList. 직접 지정한 operationId가 있으면 그것을 쓴다.
     operationIdFactory: (controllerKey, methodKey) => `${controllerKey.replace(/Controller$/, '').replace(/^./, (c) => c.toLowerCase())}${methodKey.replace(/^./, (c) => c.toUpperCase())}`,
   });

@@ -1,8 +1,8 @@
 [package]
 name = "miceplans-desktop"
 version = "0.1.0"
-description = "MICEPLANS desktop shell"
-authors = ["MICEPLANS"]
+description = "MICEPLANNER desktop shell"
+authors = ["MICEPLANNER"]
 edition = "2021"
 rust-version = "1.77"
 

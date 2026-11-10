@@ -6,7 +6,7 @@ import { Providers } from './providers';
 import './globals.css';
 
 export const metadata = {
-  title: 'mice planner',
+  title: 'MICEPLANNER',
   icons: { icon: '/assets/miceplaner-favicon.png' },
 };
 

@@ -1,4 +1,4 @@
-# MICEPLANS 작업 가이드
+# MICEPLANNER 작업 가이드
 
 ## 문서 우선
 

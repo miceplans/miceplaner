@@ -5,7 +5,7 @@ import { createApiApp } from './server';
 async function bootstrap() {
   const app = await createApiApp();
   await app.listen(config.port);
-  console.log(`MICEPLANS API listening on :${config.port} (docs: /docs)`);
+  console.log(`MICEPLANNER API listening on :${config.port} (docs: /docs)`);
 }
 
 void bootstrap();

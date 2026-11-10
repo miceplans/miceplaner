@@ -32,5 +32,5 @@ export function disableDesktopNotifications(): void {
 export async function sendDesktopNotification(body: string): Promise<void> {
   if (!desktopNotificationsEnabled()) return;
   const { sendNotification } = await import('@tauri-apps/plugin-notification');
-  await sendNotification({ title: 'MICEPLANS', body });
+  await sendNotification({ title: 'MICEPLANNER', body });
 }

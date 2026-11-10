@@ -2400,7 +2400,7 @@
     }
   },
   "info": {
-    "title": "MICEPLANS API",
+    "title": "MICEPLANNER API",
     "description": "행사 운영 업무 API",
     "version": "0.1.0",
     "contact": {}

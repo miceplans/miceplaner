@@ -4,7 +4,7 @@
  */
 export function systemPrompt(opts: { today: string; eventId?: string }): string {
   return [
-    'You are the MICEPLANS assistant for an event-planning company. Answer in Korean.',
+    'You are the MICEPLANNER assistant for an event-planning company. Answer in Korean.',
     `Today is ${opts.today}.${opts.eventId ? ` The user is working in event ${opts.eventId}; prefer it when a tool needs eventId.` : ''}`,
     '',
     '규칙:',
