@@ -8,7 +8,7 @@ const STEPS = ['업로드', '시트 선택', '컬럼 매핑', '미리보기', '�
  */
 export function ImportStepper({ current = 2 }: { current?: 1 | 2 | 3 | 4 | 5 }): ReactNode {
   return (
-    <ol className="m-0 flex w-full max-w-[757px] list-none items-start p-0" aria-label="가져오기 단계">
+    <ol className="m-0 grid w-full max-w-[757px] grid-cols-5 list-none items-start p-0" aria-label="가져오기 단계">
       {STEPS.map((label, i) => {
         const n = i + 1;
         const done = n < current;
@@ -17,9 +17,14 @@ export function ImportStepper({ current = 2 }: { current?: 1 | 2 | 3 | 4 | 5 }):
           <li
             key={label}
             aria-current={active ? 'step' : undefined}
-            className="relative flex min-w-0 flex-1 flex-col items-center gap-[4px] text-center first:flex-none first:items-start last:flex-none last:items-end"
+            className="relative flex min-w-0 flex-col items-center gap-[4px] text-center"
           >
-            {i > 0 ? <span aria-hidden className={`absolute top-[11px] right-1/2 left-[-50%] h-[2px] ${i < current ? 'bg-brand' : 'bg-border-placeholder'}`} /> : null}
+            {i < STEPS.length - 1 ? (
+              <span
+                aria-hidden
+                className={`absolute top-[11px] left-1/2 right-[-1/2] h-[2px] ${i + 1 < current ? 'bg-brand' : 'bg-border-placeholder'}`}
+              />
+            ) : null}
             <span
               className={`relative z-10 flex size-[24px] shrink-0 items-center justify-center rounded-full text-2xs font-semibold ${
                 done || active ? 'bg-brand text-fg-inverse' : 'border border-solid border-border-placeholder bg-surface text-fg-secondary'
@@ -28,7 +33,7 @@ export function ImportStepper({ current = 2 }: { current?: 1 | 2 | 3 | 4 | 5 }):
               {done ? <img alt="" src="/assets/import/check.svg" className="size-[12px]" /> : n}
             </span>
             <span
-              className={`max-w-full break-keep text-sm leading-[1.25] ${
+              className={`max-w-full whitespace-normal break-keep text-sm leading-[1.25] ${
                 active ? 'font-semibold text-fg' : done ? 'text-fg' : 'text-fg-secondary'
               }`}
             >

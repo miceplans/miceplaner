@@ -19,8 +19,10 @@ const norm = (s: string) => s.toLowerCase().replace(/[\s·.\-_/]+/g, '');
  */
 export function guessMapping(columns: { index: number; label: string }[]): Record<string, ImportTargetField> {
   const rules: [RegExp, ImportTargetField][] = [
-    [/행사명|이벤트명|eventname|제목|^name$|행사/, 'name'],
-    [/시작|start/, 'startDate'],
+    // `행사 시작일`처럼 행사라는 단어를 포함한 날짜 헤더를 행사명으로 오인하지 않도록
+    // 단독 `행사`만 행사명으로 취급한다.
+    [/행사명|이벤트명|eventname|제목|^name$|^행사$/, 'name'],
+    [/시작|개최일?|행사일|start|^date$/, 'startDate'],
     [/끝|종료|마감|end/, 'endDate'],
     [/고객사|클|client|company|주최/, 'client'],
     [/^pm$|담당자|pm$/, 'pm'],
