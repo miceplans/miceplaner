@@ -8,6 +8,8 @@
     "./testing": "./src/testing.ts"
   },
   "scripts": {
+    "drizzle:custom": "pnpm dlx drizzle-kit@0.31.11 generate --config=drizzle.config.ts --custom",
+    "migrate": "./scripts/migrate.sh",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "lint": "eslint src test"

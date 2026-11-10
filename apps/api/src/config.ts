@@ -8,6 +8,12 @@ export const config = {
     if (!url) throw new Error('DATABASE_URL이 필요하다 (miceplans_app 역할의 접속 문자열)');
     return url;
   },
+  /** 서버리스 함수는 warm 인스턴스마다 연결 하나만 유지해 Supabase Transaction Pooler를 소진하지 않는다. */
+  get databasePoolMax(): number {
+    const configured = Number(process.env.DATABASE_POOL_MAX);
+    if (Number.isInteger(configured) && configured > 0) return configured;
+    return process.env.VERCEL ? 1 : 10;
+  },
   get jwtSecret(): string {
     const secret = process.env.JWT_SECRET;
     if (secret) return secret;

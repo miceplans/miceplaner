@@ -7,9 +7,9 @@ import { useLogin, useRegister } from '../../lib/api/generated/endpoints';
 
 type Mode = 'login' | 'register';
 
-const COPY: Record<Mode, { title: string; submit: string; switchText: string; switchLabel: string }> = {
-  login: { title: '로그인', submit: '로그인', switchText: '처음이신가요?', switchLabel: '가입하기' },
-  register: { title: '가입', submit: '가입하고 시작', switchText: '이미 계정이 있나요?', switchLabel: '로그인' },
+const COPY: Record<Mode, { title: string; submit: string; switchLabel: string }> = {
+  login: { title: '로그인', submit: '로그인', switchLabel: '가입하기' },
+  register: { title: '가입', submit: '가입하고 시작', switchLabel: '로그인' },
 };
 
 export function LoginView() {
