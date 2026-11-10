@@ -1,0 +1,56 @@
+name: Build macOS desktop app
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'desktop-v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: macOS (${{ matrix.arch }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            rust_target: aarch64-apple-darwin
+          - arch: x64
+            rust_target: x86_64-apple-darwin
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri installer
+        env:
+          # Repository Variables: DESKTOP_API_URL (required), DESKTOP_COLLAB_URL (optional).
+          NEXT_PUBLIC_API_URL: ${{ vars.DESKTOP_API_URL }}
+          NEXT_PUBLIC_COLLAB_URL: ${{ vars.DESKTOP_COLLAB_URL }}
+        run: pnpm --filter @miceplans/desktop build -- --target ${{ matrix.rust_target }}
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: MICEPLANNER-macos-${{ matrix.arch }}
+          if-no-files-found: error
+          path: |
+            apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg/*.dmg
