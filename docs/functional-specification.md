@@ -268,6 +268,7 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 - 위키 제안 승인 시 서버는 에이전트 참여자로서 Yjs 트랜잭션을 수행하고 변경 출처를 남긴다.
 - 승인된 반영은 모두 감사 로그에 기록한다.
 - AI 응답은 SSE로 스트리밍하고, 호출별 프롬프트, 도구 호출, 토큰, 지연을 기록한다.
+- LLM 경계에서 사람 이름은 현재 요청에 한정한 `<PERSON_001>` 형식의 안정적 토큰으로 치환한다. 토큰-이름 대응은 모델·호출 로그·DB에 저장하지 않고 API 프로세스 메모리에만 두며, SSE를 사용자에게 보내기 직전에만 원래 이름으로 복원한다. 예산은 어떤 AI 도구·프롬프트·호출 로그에도 전달하지 않는다. 예산 필드와 위키·검색·대화의 예산 문맥은 비가역적으로 `[REDACTED_BUDGET]`으로 제거하며, AI는 예산 질의에 접근 불가로 응답한다.
 - 구현은 `POST /ai/chat`(SSE: `text`·`tool`·`sources`·`proposal`·`done`·`error` 이벤트), `GET /events/:eventId/ai/proposals`, `POST /ai/proposals/:id/approve|reject`다. 도구는 질문한 사용자의 RLS 컨텍스트에서 실행되어 권한 밖 문서가 모델에 전달되지 않는다. 모델이 쓰는 도구 계약은 `packages/contracts/src/agent-tools.ts`, 어댑터·에이전트 루프·평가는 `packages/ai`다.
 - AI 질의는 내부 직원 전체가 할 수 있고(Client 불가), 제안은 만든 사람과 PM·AM만 볼 수 있으며, 승인·반려는 PM·AM과 Super Admin만 한다. 결정된 제안은 다시 바꿀 수 없다.
 - 승인은 승인자의 권한으로 한 PostgreSQL 트랜잭션 안에서 반영한다. `task_drafts`는 Task·Subtask 생성(상위 항목 검증), `notification`은 알림 생성, `wiki_edit`은 본문 교체와 재색인이다. `wiki_edit`은 제안 당시 `baseVersion`과 다르면 409 `VERSION_CONFLICT`로 거부하고 제안은 대기로 남는다. Yjs 상태가 있는 문서는 API가 에이전트 참여자로서 Yjs 트랜잭션을 수행해 Yjs 원본·Markdown 파생본·재색인·승인 직전 `wiki_revisions`(reason `ai_proposal`)·제안 결정·감사 로그를 함께 커밋한다. 커밋 뒤 협업 서버는 활성 연결에 저장된 Yjs 상태를 전파할 뿐이며, 전파 실패는 이미 커밋된 결정을 되돌리지 않고 재접속 때 DB 원본으로 회복한다.
