@@ -53,13 +53,13 @@ export function LeaveRequestView() {
   const remaining = isComp ? compRemaining : remainingOf(ME) - submittedDays;
   const error =
     days <= 0
-      ? '사용 일수가 0일입니다. 날짜를 확인해 주세요.'
+      ? '[400] 사용 일수가 0일입니다. 날짜를 확인해 주세요.'
       : isComp && compEarned === 0
-        ? '주말 근무를 체크하면 대휴 1일이 발생합니다.'
+        ? '[400] 주말 근무를 체크하면 대휴 1일이 발생합니다.'
         : days > remaining
           ? isComp
-            ? '잔여 대휴를 초과했습니다.'
-            : '잔여 연차를 초과했습니다.'
+            ? '[400] 잔여 대휴를 초과했습니다.'
+            : '[400] 잔여 연차를 초과했습니다.'
           : null;
 
   const submit = (e: React.FormEvent) => {

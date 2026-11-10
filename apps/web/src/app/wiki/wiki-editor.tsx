@@ -31,7 +31,7 @@ export function WikiEditor() {
   const pageQuery = useGetDocPage(docId, { query: { enabled: valid } });
   const meQuery = useGetMe({ query: { enabled: valid, staleTime: Infinity } });
   const error = pageQuery.error ?? meQuery.error;
-  const failure = !valid ? '문서 주소가 올바르지 않다' : error ? (error instanceof ApiError ? error.message : '문서를 불러오지 못했다') : null;
+  const failure = !valid ? '[400] 문서 주소가 올바르지 않습니다.' : error ? (error instanceof ApiError ? error.message : '[500] 문서를 불러오지 못했습니다.') : null;
 
   useEffect(() => {
     if (failure) toast.error(failure);
@@ -53,7 +53,7 @@ function Collaborative({ page, userName }: { page: DocPageDto; userName: string 
   useEffect(() => {
     const token = getToken();
     if (!collabUrl || !token) {
-      setFailure(!token ? '로그인이 필요하다' : '협업 서버 주소(NEXT_PUBLIC_COLLAB_URL)가 설정되지 않았다');
+      setFailure(!token ? '[401] 로그인이 필요합니다.' : '[503] 협업 서버 주소(NEXT_PUBLIC_COLLAB_URL)가 설정되지 않았습니다.');
       return;
     }
     const p = new HocuspocusProvider({
@@ -63,7 +63,7 @@ function Collaborative({ page, userName }: { page: DocPageDto; userName: string 
       document: ydoc,
       onStatus: ({ status: s }) => setStatus(s as typeof status),
       onAuthenticated: ({ scope }) => setReadOnly(scope === 'readonly'),
-      onAuthenticationFailed: () => setFailure('이 문서를 열 권한이 없다'),
+      onAuthenticationFailed: () => setFailure('[403] 이 문서를 열 권한이 없습니다.'),
       onAwarenessChange: ({ states }) =>
         setPeers(states.flatMap((s) => (s.user ? [{ clientId: s.clientId, name: String(s.user.name), color: String(s.user.color) }] : []))),
     });
@@ -85,7 +85,7 @@ function Collaborative({ page, userName }: { page: DocPageDto; userName: string 
           <h1 className="text-xl font-semibold text-fg">{page.title}</h1>
           <p className="text-2xs text-fg-secondary">
             열람 범위 {VISIBILITY_LABEL[page.visibility]} · {readOnly ? '읽기 전용' : '편집 가능'} ·{' '}
-            {status === 'connected' ? '실시간 연결됨' : status === 'connecting' ? '연결 중…' : '연결 끊김, 재접속하면 동기화된다'}
+            {status === 'connected' ? '실시간 연결됨' : status === 'connecting' ? '연결 중…' : '연결 끊김, 재접속하면 동기화됩니다.'}
           </p>
         </div>
         <ul className="flex items-center gap-[6px]" aria-label="접속자">

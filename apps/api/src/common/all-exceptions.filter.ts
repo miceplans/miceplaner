@@ -21,6 +21,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
     this.logger.error(exception instanceof Error ? exception.stack : String(exception));
     const detail = exception instanceof Error ? `${exception.name}: ${exception.message}` : String(exception);
-    res.status(500).json({ statusCode: 500, message: `[054] 서버 오류가 발생했습니다 (${detail})` });
+    res.status(500).json({ statusCode: 500, message: `[500] 서버 오류가 발생했습니다 (${detail})` });
   }
 }

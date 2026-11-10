@@ -44,7 +44,7 @@ export class ProposalsService {
       await this.requireDecider(db, proposal);
       const applied = await this.apply(db, user, proposal);
       const row = await decideProposal(db, user.userId, id, 'approved');
-      if (!row) throw new ConflictException('이미 결정된 제안이다');
+      if (!row) throw new ConflictException('[409] 이미 결정된 제안입니다.');
       // 외부(협업 서버) 반영은 마지막에 한다. 실패하면 결정까지 함께 되돌려 제안이 대기로 남는다.
       await applied.afterDecision?.();
       return { row, applied };
@@ -60,7 +60,7 @@ export class ProposalsService {
       const proposal = await this.loadPending(db, id);
       await this.requireDecider(db, proposal);
       const row = await decideProposal(db, user.userId, id, 'rejected');
-      if (!row) throw new ConflictException('이미 결정된 제안이다');
+      if (!row) throw new ConflictException('[409] 이미 결정된 제안입니다.');
       return row;
     });
     return proposalDto.parse(row);
@@ -68,12 +68,12 @@ export class ProposalsService {
 
   private async loadPending(db: PoolClient, id: string): Promise<ProposalRow> {
     const proposal = assertFound(await getProposal(db, id), '제안');
-    if (proposal.status !== 'pending') throw new ConflictException('이미 결정된 제안이다');
+    if (proposal.status !== 'pending') throw new ConflictException('[409] 이미 결정된 제안입니다.');
     return proposal;
   }
 
   private async requireDecider(db: PoolClient, proposal: ProposalRow) {
-    if (!canDecideProposal(await eventRole(db, proposal.eventId))) throw new ForbiddenException('제안 승인은 PM·AM만 할 수 있다');
+    if (!canDecideProposal(await eventRole(db, proposal.eventId))) throw new ForbiddenException('[403] 제안 승인은 PM·AM만 할 수 있습니다.');
   }
 
   private async apply(db: PoolClient, user: AuthUser, proposal: ProposalRow): Promise<Applied> {
