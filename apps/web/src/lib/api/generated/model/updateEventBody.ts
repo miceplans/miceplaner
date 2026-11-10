@@ -26,4 +26,10 @@ export interface UpdateEventBody {
      * @nullable
      */
   color?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     * @nullable
+     */
+  budget?: number | null;
 }

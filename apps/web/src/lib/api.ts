@@ -20,25 +20,28 @@ export class ApiError extends Error {
 }
 
 export const STATUS_MESSAGE: Record<number, string> = {
-  401: '로그인이 필요하다',
-  403: '권한이 없다',
-  404: '대상을 찾을 수 없다',
-  409: '다른 사용자가 먼저 바꿨거나 이미 결정된 제안이다',
-  429: 'AI 질의가 너무 잦다. 잠시 후 다시 시도하라',
-  413: '파일이 너무 크다 (최대 20MB)',
-  503: 'AI·파일 저장소 등 서버 기능이 설정되지 않았다',
+  401: '[401] 로그인이 필요합니다.',
+  403: '[403] 권한이 없습니다.',
+  404: '[404] 대상을 찾을 수 없습니다.',
+  409: '[409] 다른 사용자가 먼저 바꿨거나 이미 결정된 제안입니다.',
+  429: '[429] AI 질의가 너무 잦습니다. 잠시 후 다시 시도해 주세요.',
+  413: '[413] 파일이 너무 큽니다 (최대 20MB).',
+  503: '[503] AI·파일 저장소 등 서버 기능이 설정되지 않았습니다.',
 };
 
 async function request(path: string, init: RequestInit): Promise<Response> {
   const token = getToken();
-  if (!apiBase) throw new ApiError(0, 'API 주소(NEXT_PUBLIC_API_URL)가 설정되지 않았다');
+  if (!apiBase) throw new ApiError(0, '[503] API 주소(NEXT_PUBLIC_API_URL)가 설정되지 않았습니다.');
   if (!token) throw new ApiError(401, STATUS_MESSAGE[401]!);
   const res = await fetch(`${apiBase}${path}`, { ...init, headers: { ...init.headers, authorization: `Bearer ${token}`, ...(init.body instanceof FormData ? {} : { 'content-type': 'application/json' }) } });
   if (res.status === 401) {
     clearToken();
     window.location.replace('/login');
   }
-  if (!res.ok) throw new ApiError(res.status, STATUS_MESSAGE[res.status] ?? `요청에 실패했다 (${res.status})`);
+  if (!res.ok) {
+    const detail = (await res.json().catch(() => null)) as { message?: unknown } | null;
+    throw new ApiError(res.status, typeof detail?.message === 'string' && detail.message ? detail.message : `[${res.status}] 요청에 실패했습니다.`);
+  }
   return res;
 }
 
@@ -61,7 +64,7 @@ export function parseSse(buffer: string): { events: ChatEvent[]; rest: string } 
 
 export async function streamChat(body: ChatBody, onEvent: (e: ChatEvent) => void, signal?: AbortSignal): Promise<void> {
   const res = await request('/ai/chat', { method: 'POST', body: JSON.stringify(body), signal });
-  if (!res.body) throw new ApiError(res.status, '응답 본문이 없다');
+  if (!res.body) throw new ApiError(res.status, '[502] 응답 본문이 없습니다.');
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
   let buffer = '';
   for (;;) {

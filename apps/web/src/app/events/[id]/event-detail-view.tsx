@@ -14,6 +14,7 @@ import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event
 const ScheduleList = dynamic(() => import('./event-schedule-list').then((module) => module.ScheduleList));
 const EventTasks = dynamic(() => import('./event-tasks').then((module) => module.EventTasks));
 const EventFiles = dynamic(() => import('./event-files').then((module) => module.EventFiles));
+const EventInfoSheet = dynamic(() => import('./event-info-sheet').then((module) => module.EventInfoSheet));
 const EventDocs = dynamic(() => import('./event-docs').then((module) => module.EventDocs));
 const EventStats = dynamic(() => import('./event-stats').then((module) => module.EventStats));
 const InviteDialog = dynamic(() => import('./invite-dialog').then((module) => module.InviteDialog));
@@ -37,15 +38,12 @@ type EventInfo = {
   color: string; // 행사 대표색(primary)
 };
 
-const EVENTS: Record<string, EventInfo> = {
-  e1: { name: '제54회 KIMES 2025', period: '2025. 03. 13 – 03. 16', client: '메디코리아', pm: '박서연', am: '최민준', design: '이하은', place: '코엑스 Hall A·B', status: '진행중', dday: 'D-14', color: '#f567a5' },
-  e2: { name: '글로벌 AI 서밋 2025', period: '2025. 04. 02 – 04. 03', client: '테크노웨이', pm: '김도현', am: '한지우', design: '오세민', place: '인터컨티넨탈 파르나스', status: '성공', dday: 'D-30', color: '#ffa83f' },
-  e3: { name: '삼성 파트너스 데이', period: '2025. 04. 18', client: '삼성전자', pm: '박서연', am: '이준호', design: '윤서준', place: '코엑스 오디토리움', status: '진행중', dday: 'D-46', color: '#ffc53d' },
-  e4: { name: '제12회 프랜차이즈 엑스포', period: '2025. 05. 08 – 05. 10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', design: '강예린', place: '일산 킨텍스 Hall 1', status: '제출', dday: 'D-66', color: '#ff7a45' },
-  e5: { name: '현대자동차 신차 발표회', period: '2025. 05. 22', client: '현대자동차', pm: '김도현', am: '한지우', design: '이하은', place: '잠실 롯데월드타워', status: '보류중', dday: 'D-80', color: '#ff4c50' },
-};
+const EVENTS: Record<string, EventInfo> = {};
 
-const CLIENTS = ['메디코리아', '글로벌AI서밋 조직위', '삼성전자', '한국프랜차이즈협회', '로진컴퍼니', '테크노웨이', '프랜차이즈협회', '현대자동차'];
+/** 행사 정보를 불러오기 전(또는 없을 때) 쓰는 빈 값. */
+const EMPTY_EVENT: EventInfo = { name: '행사', period: '', client: '', pm: '', am: '', design: '', place: '', status: '진행중', dday: '', color: '#9aa0a6' };
+
+const CLIENTS: string[] = [];
 
 function ClientSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -79,21 +77,13 @@ function ClientSelect({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
-const c = (id: string, title: string, done = false): CheckItem => ({ id, title, done });
 
 /** 스케줄의 children은 할 일, 할 일의 children은 하위 할 일이다. 할 일 탭에서 계층으로 다룬다. */
-const INITIAL_SCHEDULE: CheckItem[] = [
-  { id: 's1', title: '홈페이지 오픈', done: true, date: '02.24', owner: '박', part: '디자인', children: [c('s1a', '디자인 확정', true), c('s1b', '퍼블리싱', true), c('s1c', '오픈 점검', true)] },
-  { id: 's2', title: '초청장 발송', done: true, date: '03.03', owner: '최', children: [c('s2a', '명단 확정', true), c('s2b', '시안 제작', true), c('s2c', '발송', true), { id: 't3', title: '초청장 발송 대상 검토', done: true, date: '3월 8일', owner: '김' }] },
-  { id: 's3', title: '브로슈어 인쇄', done: false, late: true, date: '03.06', owner: '한', part: '디자인', children: [c('s3a', '원고 확정', true), c('s3b', '인쇄소 발주', true), c('s3c', '최종 교정'), { id: 't1', title: '브로슈어 인쇄 최종 확인', done: false, date: '오늘', owner: '박', children: [c('t1a', '색상 교정', true), c('t1b', '사이즈 확인', true), c('t1c', '입고 일정 확인')] }] },
-  { id: 's4', title: '디자인 승인', done: true, date: '03.05', owner: '박', part: '디자인' },
-  { id: 's5', title: '리허설', done: false, date: '03.12', owner: '최', part: '영상', children: [c('s5a', '동선 점검'), c('s5b', '음향 테스트')] },
-  { id: 's6', title: '행사 당일 운영', done: false, date: '03.13 – 03.16', owner: '박', children: [{ id: 't2', title: '참가 업체 부스 배치 확정', done: false, date: '3월 7일', owner: '최', children: [c('t2a', '업체 의견 취합', true), c('t2b', '도면 수정'), c('t2c', '최종 승인')] }, { id: 't4', title: '운영 인력 배치표 공유', done: false, date: '3월 10일', owner: '박' }] },
-];
+const INITIAL_SCHEDULE: CheckItem[] = [];
 
 const TABS_BY_TEAM = {
-  planning: ['스케줄', '할 일', '문서', '통계', '제작물', '인력'],
-  design: ['스케줄', '할 일', '문서', '통계', '인력'],
+  planning: ['스케줄', '할 일', '문서', '통계', '제작물', '행사 정보', '인력'],
+  design: ['스케줄', '할 일', '문서', '통계', '행사 정보', '인력'],
 } as const;
 type TabName = (typeof TABS_BY_TEAM)['planning'][number];
 const MEMBER_TABS: TabName[] = ['인력'];
@@ -102,38 +92,9 @@ const PART_OPTIONS = PART_FILTERS.map((p) => ({ value: p, label: p }));
 
 type Task = { title: string; meta: string; done?: boolean };
 
-const COLUMNS: { title: string; dot: string; count: number; badge: string; more: string; moreTone: string; tasks: Task[] }[] = [
-  {
-    title: '진행', dot: 'bg-brand-blue', count: 5, badge: 'bg-info-bg text-info', more: '+ 3 more', moreTone: 'text-error-delay',
-    tasks: [
-      { title: 'Onboarding flow v2', meta: 'Due Today · 4 comments' },
-      { title: 'Mobile navigation', meta: 'Due Wednesday' },
-    ],
-  },
-  {
-    title: '편집', dot: 'bg-brand-pink', count: 2, badge: 'bg-error-bg text-error', more: '+ 2 more', moreTone: 'text-error-delay',
-    tasks: [
-      { title: 'Brand guidelines', meta: 'Due Today' },
-      { title: 'Case study · Acme', meta: 'Due Monday' },
-    ],
-  },
-  {
-    title: '완료', dot: 'bg-success-solid', count: 8, badge: 'bg-success-bg text-success-deep', more: '+ 6 more', moreTone: 'text-success-deep',
-    tasks: [
-      { title: 'Pricing page revamp', meta: 'Shipped May 12', done: true },
-      { title: 'Design tokens v1.2', meta: 'Shipped May 10', done: true },
-    ],
-  },
-  {
-    title: '보류', dot: 'bg-fg-tertiary', count: 3, badge: 'bg-surface-chip text-fg-secondary', more: '+ 5 more', moreTone: 'text-fg-secondary',
-    tasks: [
-      { title: 'Website copy rewrite', meta: 'Due Tomorrow' },
-      { title: 'Q3 research plan', meta: 'Due Friday' },
-    ],
-  },
-];
+const COLUMNS: { title: string; dot: string; count: number; badge: string; more: string; moreTone: string; tasks: Task[] }[] = [];
 
-const TODOS = ['연사자 정리', '연사자 정리', '연사자 정리'];
+const TODOS: string[] = [];
 
 const CAL_VIEWS = [
   { value: 'Day', label: 'Day' },
@@ -142,8 +103,14 @@ const CAL_VIEWS = [
 ] as const;
 
 const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-const BASE_MONDAY = new Date(2026, 9, 12); // 디자인 기준 주(10월 12~18)
-const TODAY_INDEX = 2; // BASE_MONDAY 기준 오늘(수요일)
+// 실제 이번 주 월요일을 기준으로 삼는다. 고정 날짜를 쓰면 '오늘' 표시와 주 이동이 실제 날짜와 어긋난다.
+const BASE_MONDAY = (() => {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  t.setDate(t.getDate() - ((t.getDay() + 6) % 7));
+  return t;
+})();
+const TODAY_INDEX = (new Date().getDay() + 6) % 7; // 월=0 … 일=6
 const dateOf = (abs: number) => new Date(BASE_MONDAY.getFullYear(), BASE_MONDAY.getMonth(), BASE_MONDAY.getDate() + abs);
 
 const HOURS = ['9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM'];
@@ -160,22 +127,7 @@ type CalEvent = { id: string; eventId: string; day: number; title: string; start
 const OTHER_EVENT_OPACITY = 0.3;
 
 // day: BASE_MONDAY 기준 일수, start/end: 9시 기준 시간(h)
-const INITIAL_EVENTS: CalEvent[] = [
-  { id: 'c1', eventId: 'e1', day: 0, title: 'Design Review', start: 1, end: 2.5 },
-  { id: 'c2', eventId: 'e2', day: 0, title: 'Team Sync', start: 5, end: 6 },
-  { id: 'c3', eventId: 'e2', day: 1, title: 'Sprint Planning', start: 0.5, end: 2 },
-  { id: 'c4', eventId: 'e3', day: 1, title: 'Client Call', start: 4, end: 5.5 },
-  { id: 'c5', eventId: 'e5', day: 1, title: '1:1 · Sara', start: 7, end: 8 },
-  { id: 'c6', eventId: 'e3', day: 2, title: 'Standup', start: 0, end: 1 },
-  { id: 'c7', eventId: 'e5', day: 2, title: 'UX Workshop', start: 2, end: 4 },
-  { id: 'c8', eventId: 'e1', day: 2, title: 'Roadmap Review', start: 6, end: 7.5 },
-  { id: 'c9', eventId: 'e2', day: 3, title: 'Design Critique', start: 1.5, end: 3 },
-  { id: 'c10', eventId: 'e4', day: 3, title: 'Interview · FE', start: 5, end: 6.5 },
-  { id: 'c11', eventId: 'e4', day: 4, title: 'Retro', start: 0, end: 1 },
-  { id: 'c12', eventId: 'e1', day: 4, title: 'Demo Day', start: 2, end: 3 },
-  { id: 'c13', eventId: 'e2', day: 4, title: 'Design Sprint', start: 5, end: 7 },
-  { id: 'c14', eventId: 'e5', day: 5, title: 'Team Lunch', start: 2.5, end: 4 },
-];
+const INITIAL_EVENTS: CalEvent[] = [];
 
 function formatClock(h: number) {
   const total = DAY_START + h;
@@ -204,7 +156,7 @@ function Prop({ icon, label, children }: { icon: string; label: string; children
 }
 
 export function EventDetailView({ eventId }: { eventId: string }) {
-  const event = EVENTS[eventId] ?? EVENTS.e1;
+  const event = EVENTS[eventId] ?? EMPTY_EVENT;
   const [isPublic, setIsPublic] = useState(true);
   const [client, setClient] = useState(event.client);
   // TODO: 팀 구분 기준(역할·소속)이 확정되면 인증 정보에서 가져온다. 그전에는 ?team=design 으로 디자인팀 화면을 본다.
@@ -510,6 +462,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
             <VideoSection eventId={eventId} />
           </div>
         )}
+        {tab === '행사 정보' && <EventInfoSheet eventId={eventId} canEdit={event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />}
         {tab === '인력' && isMember && <EventMembers event={event} eventId={eventId} />}
       </div>
 
@@ -548,9 +501,9 @@ export function EventDetailView({ eventId }: { eventId: string }) {
       <div className="flex items-stretch gap-[20px] px-[5px] max-lg:flex-col">
         <div
           className="relative flex h-[230px] w-[369px] shrink-0 items-end overflow-hidden rounded-[27px] border-[10px] border-solid border-brand-pink bg-brand-gradient p-[24px] shadow-card max-lg:w-full"
-          aria-label={`BIPC ${event.dday}`}
+          aria-label={`${event.name} ${event.dday}`}
         >
-          <span className="relative z-[2] mr-[-108px] shrink-0 whitespace-nowrap text-[56px] font-bold leading-none tracking-[-0.8px] text-fg-inverse">BIPC</span>
+          <span className="relative z-[2] mr-[-108px] shrink-0 whitespace-nowrap text-[56px] font-bold leading-none tracking-[-0.8px] text-fg-inverse">{event.name}</span>
           <span className="relative z-[1] shrink-0 whitespace-nowrap text-[128px] font-bold leading-[0.9] tracking-[-0.9px] text-fg-inverse/60">{event.dday}</span>
         </div>
 
@@ -570,11 +523,6 @@ export function EventDetailView({ eventId }: { eventId: string }) {
               </label>
             ))}
           </div>
-        </section>
-
-        <section className={`flex w-[272px] shrink-0 flex-col gap-[24px] p-[24px] ${CARD} rounded-lg max-lg:w-full`}>
-          <h2 className="m-0 text-xl font-semibold text-black">새 알림</h2>
-          <div className="rounded-md bg-surface-muted px-[11px] py-[10px] text-sm font-semibold text-fg">[BIPC] 포스터 변경 부탁드립니다.</div>
         </section>
       </div>
 

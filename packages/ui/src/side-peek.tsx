@@ -5,17 +5,11 @@ import { Input, Select } from './field';
 
 const A = '/assets/schedule';
 
-const PROPS = [
-  { icon: 'f7145', label: '기간', value: '6월 13일 (금) · 오후 2:00 ~ 오후 3:30' },
-  { icon: '5b17e', label: '장소', value: '메인 스테이지 · 음향 감독 구역' },
-] as const;
+const PROPS = [] as readonly { icon: string; label: string; value: string }[];
 
-const LINKS = [
-  { icon: '04dda', name: '사운드 세팅 시트', meta: 'Google Sheets' },
-  { icon: '7197f', name: '스테이지 도면.pdf', meta: '2.4 MB' },
-] as const;
+const LINKS = [] as readonly { icon: string; name: string; meta: string }[];
 
-const MEMO = '메인 스테이지 전체 사운드 밸런싱 작업입니다. 음향 업체와 협의한 세팅 시트를 참고해 진행하세요.';
+const MEMO = '';
 
 type PeekComponentKey = 'period' | 'place' | 'assignee' | 'agenda' | 'description' | 'clientMemo' | 'tasks' | 'links';
 const PEEK_COMPONENTS: { key: PeekComponentKey; label: string }[] = [
@@ -108,33 +102,17 @@ function AgendaSection({ items }: { items: AgendaItem[] }) {
 type AssigneeKey = '한' | '최' | '박' | '이' | '김';
 
 const ASSIGNEE: Record<AssigneeKey, { name: string }> = {
-  한: { name: '한지우' },
-  최: { name: '최민준' },
-  박: { name: '박서연' },
-  이: { name: '이준호' },
-  김: { name: '김도현' },
+  한: { name: '한' },
+  최: { name: '최' },
+  박: { name: '박' },
+  이: { name: '이' },
+  김: { name: '김' },
 };
 
 type SubtaskItem = { id: string; title: string; who: AssigneeKey; done: boolean };
 type TaskItem = { id: string; title: string; who: AssigneeKey; subs: SubtaskItem[] };
 
-const INITIAL_TASKS: TaskItem[] = [
-  {
-    id: 'task-1',
-    title: '장비 세팅',
-    who: '최',
-    subs: [
-      { id: 'sub-1', title: '스피커 배치 확인', who: '한', done: true },
-      { id: 'sub-2', title: '믹싱 콘솔 테스트', who: '최', done: false },
-    ],
-  },
-  {
-    id: 'task-2',
-    title: '리허설 준비',
-    who: '박',
-    subs: [{ id: 'sub-3', title: '리허설 순서표 작성', who: '박', done: false }],
-  },
-];
+const INITIAL_TASKS: TaskItem[] = [];
 
 function AssigneeAvatar({ who, size = 'md' }: { who: AssigneeKey; size?: 'md' | 'sm' }): React.ReactNode {
   const cls = size === 'sm' ? 'text-2xs' : 'text-xs';

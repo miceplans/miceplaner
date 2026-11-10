@@ -32,8 +32,11 @@ import type {
   ChangeEventMemberRoleBody,
   ChangePasswordBody,
   ChatBody,
+  ClientApplicationDto,
   ClientDto,
+  CreateClientApplicationBody,
   CreateDocBody,
+  CreateEventBody,
   CreateItemBody,
   DocPageDto,
   EventDocDto,
@@ -43,6 +46,8 @@ import type {
   EventMemberDto,
   EventsListParams,
   FileDto,
+  ImportExcelUploadBody,
+  ImportJobDto,
   KnowledgeSearchParams,
   LeaveBalanceDto,
   LeaveBalancesParams,
@@ -55,8 +60,10 @@ import type {
   NotificationDto,
   NotificationsListParams,
   NotificationsMarkRead200,
+  ParseImportBody,
   PortalEventDto,
   PortalProgramDto,
+  PreviewImportBody,
   ProposalDto,
   RegisterBody,
   RequestLeaveBody,
@@ -361,6 +368,250 @@ export const useLogin = <TError = unknown,
       return useMutation(getLoginMutationOptions(options), queryClient);
     }
 
+export const getClientLoginUrl = () => {
+
+
+
+
+  return `/auth/client/login`
+}
+
+/**
+ * @summary 승인된 Client 포털 계정 로그인
+ */
+export const clientLogin = async (loginBody: LoginBody, options?: Parameters<typeof http>[1]): Promise<AuthSessionDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<AuthSessionDto>(getClientLoginUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(loginBody)
+  }
+);}
+
+
+
+
+
+export const getClientLoginMutationKey = () => ['clientLogin'] as const;
+
+export const getClientLoginMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clientLogin>>, TError,ClientLoginMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof clientLogin>>, TError,ClientLoginMutationVariables, TContext> => {
+
+const mutationKey = getClientLoginMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clientLogin>>, ClientLoginMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  clientLogin(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClientLoginMutationResult = NonNullable<Awaited<ReturnType<typeof clientLogin>>>
+    export type ClientLoginMutationBody = LoginBody
+    export type ClientLoginMutationError = unknown
+    export type ClientLoginMutationVariables = {data: LoginBody}
+
+    /** @summary 승인된 Client 포털 계정 로그인 */
+export const useClientLogin = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clientLogin>>, TError,ClientLoginMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof clientLogin>>,
+        TError,
+        ClientLoginMutationVariables,
+        TContext
+      > => {
+      return useMutation(getClientLoginMutationOptions(options), queryClient);
+    }
+
+export const getCreateClientApplicationUrl = () => {
+
+
+
+
+  return `/auth/client-applications`
+}
+
+/**
+ * @summary Client 포털 계정 신청 (회사명·이름·이메일)
+ */
+export const createClientApplication = async (createClientApplicationBody: CreateClientApplicationBody, options?: Parameters<typeof http>[1]): Promise<ClientApplicationDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ClientApplicationDto>(getCreateClientApplicationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createClientApplicationBody)
+  }
+);}
+
+
+
+
+
+export const getCreateClientApplicationMutationKey = () => ['createClientApplication'] as const;
+
+export const getCreateClientApplicationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClientApplication>>, TError,CreateClientApplicationMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof createClientApplication>>, TError,CreateClientApplicationMutationVariables, TContext> => {
+
+const mutationKey = getCreateClientApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createClientApplication>>, CreateClientApplicationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createClientApplication(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateClientApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof createClientApplication>>>
+    export type CreateClientApplicationMutationBody = CreateClientApplicationBody
+    export type CreateClientApplicationMutationError = unknown
+    export type CreateClientApplicationMutationVariables = {data: CreateClientApplicationBody}
+
+    /** @summary Client 포털 계정 신청 (회사명·이름·이메일) */
+export const useCreateClientApplication = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClientApplication>>, TError,CreateClientApplicationMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createClientApplication>>,
+        TError,
+        CreateClientApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateClientApplicationMutationOptions(options), queryClient);
+    }
+
+export const getApproveClientApplicationUrl = (id: string,) => {
+
+
+
+
+  return `/auth/client-applications/${id}/approve`
+}
+
+/**
+ * @summary Client 계정 신청 승인 (Super Admin)
+ */
+export const approveClientApplication = async (id: string, options?: Parameters<typeof http>[1]): Promise<ClientApplicationDto> => {
+
+  return http<ClientApplicationDto>(getApproveClientApplicationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveClientApplicationMutationKey = () => ['approveClientApplication'] as const;
+
+export const getApproveClientApplicationMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveClientApplication>>, TError,ApproveClientApplicationMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveClientApplication>>, TError,ApproveClientApplicationMutationVariables, TContext> => {
+
+const mutationKey = getApproveClientApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveClientApplication>>, ApproveClientApplicationMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  approveClientApplication(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveClientApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof approveClientApplication>>>
+
+    export type ApproveClientApplicationMutationError = unknown
+    export type ApproveClientApplicationMutationVariables = {id: string}
+
+    /** @summary Client 계정 신청 승인 (Super Admin) */
+export const useApproveClientApplication = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveClientApplication>>, TError,ApproveClientApplicationMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveClientApplication>>,
+        TError,
+        ApproveClientApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveClientApplicationMutationOptions(options), queryClient);
+    }
+
 export const getAuthChangePasswordUrl = () => {
 
 
@@ -655,6 +906,92 @@ export function useEventsList<TData = Awaited<ReturnType<typeof eventsList>>, TE
 
 
 
+
+export const getEventsCreateUrl = () => {
+
+
+
+
+  return `/events`
+}
+
+/**
+ * @summary 행사 생성 (고객사·PM·AM·예산 지정, 감사 로그 대상)
+ */
+export const eventsCreate = async (createEventBody: CreateEventBody, options?: Parameters<typeof http>[1]): Promise<EventDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<EventDto>(getEventsCreateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createEventBody)
+  }
+);}
+
+
+
+
+
+export const getEventsCreateMutationKey = () => ['eventsCreate'] as const;
+
+export const getEventsCreateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventsCreate>>, TError,EventsCreateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof eventsCreate>>, TError,EventsCreateMutationVariables, TContext> => {
+
+const mutationKey = getEventsCreateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof eventsCreate>>, EventsCreateMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  eventsCreate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EventsCreateMutationResult = NonNullable<Awaited<ReturnType<typeof eventsCreate>>>
+    export type EventsCreateMutationBody = CreateEventBody
+    export type EventsCreateMutationError = unknown
+    export type EventsCreateMutationVariables = {data: CreateEventBody}
+
+    /** @summary 행사 생성 (고객사·PM·AM·예산 지정, 감사 로그 대상) */
+export const useEventsCreate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventsCreate>>, TError,EventsCreateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof eventsCreate>>,
+        TError,
+        EventsCreateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEventsCreateMutationOptions(options), queryClient);
+    }
 
 export const getEventsGetUrl = (id: string,) => {
 
@@ -1515,6 +1852,1475 @@ export const useEventsUnassignClient = <TError = unknown,
       > => {
       return useMutation(getEventsUnassignClientMutationOptions(options), queryClient);
     }
+
+export const getKnowledgeCreateUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/docs`
+}
+
+/**
+ * @summary 위키 문서 생성 (PM·AM, 본문 색인 포함)
+ */
+export const knowledgeCreate = async (eventId: string,
+    createDocBody: CreateDocBody, options?: Parameters<typeof http>[1]): Promise<DocPageDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<DocPageDto>(getKnowledgeCreateUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createDocBody)
+  }
+);}
+
+
+
+
+
+export const getKnowledgeCreateMutationKey = () => ['knowledgeCreate'] as const;
+
+export const getKnowledgeCreateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeCreate>>, TError,KnowledgeCreateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof knowledgeCreate>>, TError,KnowledgeCreateMutationVariables, TContext> => {
+
+const mutationKey = getKnowledgeCreateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof knowledgeCreate>>, KnowledgeCreateMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  knowledgeCreate(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type KnowledgeCreateMutationResult = NonNullable<Awaited<ReturnType<typeof knowledgeCreate>>>
+    export type KnowledgeCreateMutationBody = CreateDocBody
+    export type KnowledgeCreateMutationError = unknown
+    export type KnowledgeCreateMutationVariables = {eventId: string;data: CreateDocBody}
+
+    /** @summary 위키 문서 생성 (PM·AM, 본문 색인 포함) */
+export const useKnowledgeCreate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeCreate>>, TError,KnowledgeCreateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof knowledgeCreate>>,
+        TError,
+        KnowledgeCreateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getKnowledgeCreateMutationOptions(options), queryClient);
+    }
+
+export const getDocsListUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/docs`
+}
+
+/**
+ * @summary 행사 문서 목록 (열람 범위는 RLS가 필터링)
+ */
+export const docsList = async (eventId: string, options?: Parameters<typeof http>[1]): Promise<EventDocDto[]> => {
+
+  return http<EventDocDto[]>(getDocsListUrl(eventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDocsListQueryKey = (eventId: string,) => {
+    return [
+    `/events/${eventId}/docs`
+    ] as const;
+    }
+
+
+export const getDocsListQueryOptions = <TData = Awaited<ReturnType<typeof docsList>>, TError = unknown>(eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof docsList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDocsListQueryKey(eventId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof docsList>>> = ({ signal }) => docsList(eventId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: eventId !== null && eventId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof docsList>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type DocsListQueryResult = NonNullable<Awaited<ReturnType<typeof docsList>>>
+export type DocsListQueryError = unknown
+
+
+/** @summary 행사 문서 목록 (열람 범위는 RLS가 필터링) */
+export function useDocsList<TData = Awaited<ReturnType<typeof docsList>>, TError = unknown>(
+ eventId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof docsList>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof docsList>>,
+          TError,
+          Awaited<ReturnType<typeof docsList>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 행사 문서 목록 (열람 범위는 RLS가 필터링) */
+export function useDocsList<TData = Awaited<ReturnType<typeof docsList>>, TError = unknown>(
+ eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof docsList>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof docsList>>,
+          TError,
+          Awaited<ReturnType<typeof docsList>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 행사 문서 목록 (열람 범위는 RLS가 필터링) */
+export function useDocsList<TData = Awaited<ReturnType<typeof docsList>>, TError = unknown>(
+ eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof docsList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 행사 문서 목록 (열람 범위는 RLS가 필터링) */
+export function useDocsList<TData = Awaited<ReturnType<typeof docsList>>, TError = unknown>(
+ eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof docsList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getDocsListQueryOptions(eventId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDocPageUrl = (docId: string,) => {
+
+
+
+
+  return `/docs/${docId}`
+}
+
+/**
+ * @summary 위키 문서 본문 (열람 범위는 RLS가 강제)
+ */
+export const getDocPage = async (docId: string, options?: Parameters<typeof http>[1]): Promise<DocPageDto> => {
+
+  return http<DocPageDto>(getGetDocPageUrl(docId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDocPageQueryKey = (docId: string,) => {
+    return [
+    `/docs/${docId}`
+    ] as const;
+    }
+
+
+export const getGetDocPageQueryOptions = <TData = Awaited<ReturnType<typeof getDocPage>>, TError = unknown>(docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocPage>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDocPageQueryKey(docId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDocPage>>> = ({ signal }) => getDocPage(docId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: docId !== null && docId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDocPage>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDocPageQueryResult = NonNullable<Awaited<ReturnType<typeof getDocPage>>>
+export type GetDocPageQueryError = unknown
+
+
+/** @summary 위키 문서 본문 (열람 범위는 RLS가 강제) */
+export function useGetDocPage<TData = Awaited<ReturnType<typeof getDocPage>>, TError = unknown>(
+ docId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocPage>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDocPage>>,
+          TError,
+          Awaited<ReturnType<typeof getDocPage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 위키 문서 본문 (열람 범위는 RLS가 강제) */
+export function useGetDocPage<TData = Awaited<ReturnType<typeof getDocPage>>, TError = unknown>(
+ docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocPage>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDocPage>>,
+          TError,
+          Awaited<ReturnType<typeof getDocPage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 위키 문서 본문 (열람 범위는 RLS가 강제) */
+export function useGetDocPage<TData = Awaited<ReturnType<typeof getDocPage>>, TError = unknown>(
+ docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocPage>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 위키 문서 본문 (열람 범위는 RLS가 강제) */
+export function useGetDocPage<TData = Awaited<ReturnType<typeof getDocPage>>, TError = unknown>(
+ docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocPage>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDocPageQueryOptions(docId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getKnowledgeRemoveUrl = (docId: string,) => {
+
+
+
+
+  return `/docs/${docId}`
+}
+
+/**
+ * @summary 위키 문서 삭제 (soft delete, PM·AM, 감사 로그)
+ */
+export const knowledgeRemove = async (docId: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getKnowledgeRemoveUrl(docId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getKnowledgeRemoveMutationKey = () => ['knowledgeRemove'] as const;
+
+export const getKnowledgeRemoveMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeRemove>>, TError,KnowledgeRemoveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof knowledgeRemove>>, TError,KnowledgeRemoveMutationVariables, TContext> => {
+
+const mutationKey = getKnowledgeRemoveMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof knowledgeRemove>>, KnowledgeRemoveMutationVariables> = (props) => {
+          const {docId} = props ?? {};
+
+          return  knowledgeRemove(docId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type KnowledgeRemoveMutationResult = NonNullable<Awaited<ReturnType<typeof knowledgeRemove>>>
+
+    export type KnowledgeRemoveMutationError = unknown
+    export type KnowledgeRemoveMutationVariables = {docId: string}
+
+    /** @summary 위키 문서 삭제 (soft delete, PM·AM, 감사 로그) */
+export const useKnowledgeRemove = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeRemove>>, TError,KnowledgeRemoveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof knowledgeRemove>>,
+        TError,
+        KnowledgeRemoveMutationVariables,
+        TContext
+      > => {
+      return useMutation(getKnowledgeRemoveMutationOptions(options), queryClient);
+    }
+
+export const getKnowledgeSaveUrl = (docId: string,) => {
+
+
+
+
+  return `/docs/${docId}/body`
+}
+
+/**
+ * @summary 위키 제목·본문 저장 (PM·AM, 마지막 저장 우선, 색인 갱신)
+ */
+export const knowledgeSave = async (docId: string,
+    saveDocBodyBody: SaveDocBodyBody, options?: Parameters<typeof http>[1]): Promise<DocPageDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<DocPageDto>(getKnowledgeSaveUrl(docId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saveDocBodyBody)
+  }
+);}
+
+
+
+
+
+export const getKnowledgeSaveMutationKey = () => ['knowledgeSave'] as const;
+
+export const getKnowledgeSaveMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeSave>>, TError,KnowledgeSaveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof knowledgeSave>>, TError,KnowledgeSaveMutationVariables, TContext> => {
+
+const mutationKey = getKnowledgeSaveMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof knowledgeSave>>, KnowledgeSaveMutationVariables> = (props) => {
+          const {docId,data} = props ?? {};
+
+          return  knowledgeSave(docId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type KnowledgeSaveMutationResult = NonNullable<Awaited<ReturnType<typeof knowledgeSave>>>
+    export type KnowledgeSaveMutationBody = SaveDocBodyBody
+    export type KnowledgeSaveMutationError = unknown
+    export type KnowledgeSaveMutationVariables = {docId: string;data: SaveDocBodyBody}
+
+    /** @summary 위키 제목·본문 저장 (PM·AM, 마지막 저장 우선, 색인 갱신) */
+export const useKnowledgeSave = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeSave>>, TError,KnowledgeSaveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof knowledgeSave>>,
+        TError,
+        KnowledgeSaveMutationVariables,
+        TContext
+      > => {
+      return useMutation(getKnowledgeSaveMutationOptions(options), queryClient);
+    }
+
+export const getKnowledgeCreateRevisionUrl = (docId: string,) => {
+
+
+
+
+  return `/docs/${docId}/revisions`
+}
+
+/**
+ * @summary 현재 내용을 버전으로 저장 (PM·AM)
+ */
+export const knowledgeCreateRevision = async (docId: string, options?: Parameters<typeof http>[1]): Promise<WikiRevisionDto> => {
+
+  return http<WikiRevisionDto>(getKnowledgeCreateRevisionUrl(docId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getKnowledgeCreateRevisionMutationKey = () => ['knowledgeCreateRevision'] as const;
+
+export const getKnowledgeCreateRevisionMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeCreateRevision>>, TError,KnowledgeCreateRevisionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof knowledgeCreateRevision>>, TError,KnowledgeCreateRevisionMutationVariables, TContext> => {
+
+const mutationKey = getKnowledgeCreateRevisionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof knowledgeCreateRevision>>, KnowledgeCreateRevisionMutationVariables> = (props) => {
+          const {docId} = props ?? {};
+
+          return  knowledgeCreateRevision(docId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type KnowledgeCreateRevisionMutationResult = NonNullable<Awaited<ReturnType<typeof knowledgeCreateRevision>>>
+
+    export type KnowledgeCreateRevisionMutationError = unknown
+    export type KnowledgeCreateRevisionMutationVariables = {docId: string}
+
+    /** @summary 현재 내용을 버전으로 저장 (PM·AM) */
+export const useKnowledgeCreateRevision = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeCreateRevision>>, TError,KnowledgeCreateRevisionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof knowledgeCreateRevision>>,
+        TError,
+        KnowledgeCreateRevisionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getKnowledgeCreateRevisionMutationOptions(options), queryClient);
+    }
+
+export const getKnowledgeListRevisionsUrl = (docId: string,) => {
+
+
+
+
+  return `/docs/${docId}/revisions`
+}
+
+/**
+ * @summary 문서 버전 목록 (열람 범위는 RLS가 강제)
+ */
+export const knowledgeListRevisions = async (docId: string, options?: Parameters<typeof http>[1]): Promise<WikiRevisionDto[]> => {
+
+  return http<WikiRevisionDto[]>(getKnowledgeListRevisionsUrl(docId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getKnowledgeListRevisionsQueryKey = (docId: string,) => {
+    return [
+    `/docs/${docId}/revisions`
+    ] as const;
+    }
+
+
+export const getKnowledgeListRevisionsQueryOptions = <TData = Awaited<ReturnType<typeof knowledgeListRevisions>>, TError = unknown>(docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeListRevisions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getKnowledgeListRevisionsQueryKey(docId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof knowledgeListRevisions>>> = ({ signal }) => knowledgeListRevisions(docId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: docId !== null && docId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof knowledgeListRevisions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type KnowledgeListRevisionsQueryResult = NonNullable<Awaited<ReturnType<typeof knowledgeListRevisions>>>
+export type KnowledgeListRevisionsQueryError = unknown
+
+
+/** @summary 문서 버전 목록 (열람 범위는 RLS가 강제) */
+export function useKnowledgeListRevisions<TData = Awaited<ReturnType<typeof knowledgeListRevisions>>, TError = unknown>(
+ docId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeListRevisions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof knowledgeListRevisions>>,
+          TError,
+          Awaited<ReturnType<typeof knowledgeListRevisions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 문서 버전 목록 (열람 범위는 RLS가 강제) */
+export function useKnowledgeListRevisions<TData = Awaited<ReturnType<typeof knowledgeListRevisions>>, TError = unknown>(
+ docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeListRevisions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof knowledgeListRevisions>>,
+          TError,
+          Awaited<ReturnType<typeof knowledgeListRevisions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 문서 버전 목록 (열람 범위는 RLS가 강제) */
+export function useKnowledgeListRevisions<TData = Awaited<ReturnType<typeof knowledgeListRevisions>>, TError = unknown>(
+ docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeListRevisions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 문서 버전 목록 (열람 범위는 RLS가 강제) */
+export function useKnowledgeListRevisions<TData = Awaited<ReturnType<typeof knowledgeListRevisions>>, TError = unknown>(
+ docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeListRevisions>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getKnowledgeListRevisionsQueryOptions(docId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getKnowledgeGetRevisionUrl = (docId: string,
+    revisionId: string,) => {
+
+
+
+
+  return `/docs/${docId}/revisions/${revisionId}`
+}
+
+/**
+ * @summary 문서 버전 상세 (본문 포함)
+ */
+export const knowledgeGetRevision = async (docId: string,
+    revisionId: string, options?: Parameters<typeof http>[1]): Promise<WikiRevisionDetailDto> => {
+
+  return http<WikiRevisionDetailDto>(getKnowledgeGetRevisionUrl(docId,revisionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getKnowledgeGetRevisionQueryKey = (docId: string,
+    revisionId: string,) => {
+    return [
+    `/docs/${docId}/revisions/${revisionId}`
+    ] as const;
+    }
+
+
+export const getKnowledgeGetRevisionQueryOptions = <TData = Awaited<ReturnType<typeof knowledgeGetRevision>>, TError = unknown>(docId: string,
+    revisionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeGetRevision>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getKnowledgeGetRevisionQueryKey(docId,revisionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof knowledgeGetRevision>>> = ({ signal }) => knowledgeGetRevision(docId,revisionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: docId !== null && docId !== undefined && revisionId !== null && revisionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof knowledgeGetRevision>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type KnowledgeGetRevisionQueryResult = NonNullable<Awaited<ReturnType<typeof knowledgeGetRevision>>>
+export type KnowledgeGetRevisionQueryError = unknown
+
+
+/** @summary 문서 버전 상세 (본문 포함) */
+export function useKnowledgeGetRevision<TData = Awaited<ReturnType<typeof knowledgeGetRevision>>, TError = unknown>(
+ docId: string,
+    revisionId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeGetRevision>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof knowledgeGetRevision>>,
+          TError,
+          Awaited<ReturnType<typeof knowledgeGetRevision>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 문서 버전 상세 (본문 포함) */
+export function useKnowledgeGetRevision<TData = Awaited<ReturnType<typeof knowledgeGetRevision>>, TError = unknown>(
+ docId: string,
+    revisionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeGetRevision>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof knowledgeGetRevision>>,
+          TError,
+          Awaited<ReturnType<typeof knowledgeGetRevision>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 문서 버전 상세 (본문 포함) */
+export function useKnowledgeGetRevision<TData = Awaited<ReturnType<typeof knowledgeGetRevision>>, TError = unknown>(
+ docId: string,
+    revisionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeGetRevision>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 문서 버전 상세 (본문 포함) */
+export function useKnowledgeGetRevision<TData = Awaited<ReturnType<typeof knowledgeGetRevision>>, TError = unknown>(
+ docId: string,
+    revisionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeGetRevision>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getKnowledgeGetRevisionQueryOptions(docId,revisionId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getKnowledgeRestoreRevisionUrl = (docId: string,
+    revisionId: string,) => {
+
+
+
+
+  return `/docs/${docId}/revisions/${revisionId}/restore`
+}
+
+/**
+ * @summary 버전으로 되돌리기 (PM·AM, 현재 내용을 먼저 버전으로 남기고 감사 로그)
+ */
+export const knowledgeRestoreRevision = async (docId: string,
+    revisionId: string, options?: Parameters<typeof http>[1]): Promise<DocPageDto> => {
+
+  return http<DocPageDto>(getKnowledgeRestoreRevisionUrl(docId,revisionId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getKnowledgeRestoreRevisionMutationKey = () => ['knowledgeRestoreRevision'] as const;
+
+export const getKnowledgeRestoreRevisionMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeRestoreRevision>>, TError,KnowledgeRestoreRevisionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof knowledgeRestoreRevision>>, TError,KnowledgeRestoreRevisionMutationVariables, TContext> => {
+
+const mutationKey = getKnowledgeRestoreRevisionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof knowledgeRestoreRevision>>, KnowledgeRestoreRevisionMutationVariables> = (props) => {
+          const {docId,revisionId} = props ?? {};
+
+          return  knowledgeRestoreRevision(docId,revisionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type KnowledgeRestoreRevisionMutationResult = NonNullable<Awaited<ReturnType<typeof knowledgeRestoreRevision>>>
+
+    export type KnowledgeRestoreRevisionMutationError = unknown
+    export type KnowledgeRestoreRevisionMutationVariables = {docId: string;revisionId: string}
+
+    /** @summary 버전으로 되돌리기 (PM·AM, 현재 내용을 먼저 버전으로 남기고 감사 로그) */
+export const useKnowledgeRestoreRevision = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeRestoreRevision>>, TError,KnowledgeRestoreRevisionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof knowledgeRestoreRevision>>,
+        TError,
+        KnowledgeRestoreRevisionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getKnowledgeRestoreRevisionMutationOptions(options), queryClient);
+    }
+
+export const getKnowledgeSearchUrl = (params: KnowledgeSearchParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/search?${stringifiedParams}` : `/search`
+}
+
+/**
+ * @summary 위키 검색 (권한 필터 후 FTS + pg_trgm 병합, 출처 포함)
+ */
+export const knowledgeSearch = async (params: KnowledgeSearchParams, options?: Parameters<typeof http>[1]): Promise<SearchHitDto[]> => {
+
+  return http<SearchHitDto[]>(getKnowledgeSearchUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getKnowledgeSearchQueryKey = (params?: KnowledgeSearchParams,) => {
+    return [
+    `/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getKnowledgeSearchQueryOptions = <TData = Awaited<ReturnType<typeof knowledgeSearch>>, TError = unknown>(params: KnowledgeSearchParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeSearch>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getKnowledgeSearchQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof knowledgeSearch>>> = ({ signal }) => knowledgeSearch(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof knowledgeSearch>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type KnowledgeSearchQueryResult = NonNullable<Awaited<ReturnType<typeof knowledgeSearch>>>
+export type KnowledgeSearchQueryError = unknown
+
+
+/** @summary 위키 검색 (권한 필터 후 FTS + pg_trgm 병합, 출처 포함) */
+export function useKnowledgeSearch<TData = Awaited<ReturnType<typeof knowledgeSearch>>, TError = unknown>(
+ params: KnowledgeSearchParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeSearch>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof knowledgeSearch>>,
+          TError,
+          Awaited<ReturnType<typeof knowledgeSearch>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 위키 검색 (권한 필터 후 FTS + pg_trgm 병합, 출처 포함) */
+export function useKnowledgeSearch<TData = Awaited<ReturnType<typeof knowledgeSearch>>, TError = unknown>(
+ params: KnowledgeSearchParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeSearch>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof knowledgeSearch>>,
+          TError,
+          Awaited<ReturnType<typeof knowledgeSearch>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 위키 검색 (권한 필터 후 FTS + pg_trgm 병합, 출처 포함) */
+export function useKnowledgeSearch<TData = Awaited<ReturnType<typeof knowledgeSearch>>, TError = unknown>(
+ params: KnowledgeSearchParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeSearch>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 위키 검색 (권한 필터 후 FTS + pg_trgm 병합, 출처 포함) */
+export function useKnowledgeSearch<TData = Awaited<ReturnType<typeof knowledgeSearch>>, TError = unknown>(
+ params: KnowledgeSearchParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeSearch>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getKnowledgeSearchQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadEventFileUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/files`
+}
+
+/**
+ * @summary 파일 업로드 (PM·AM). 원본은 저장소에 두고 worker가 변환·색인한다
+ */
+export const uploadEventFile = async (eventId: string,
+    uploadEventFileBody: UploadEventFileBody, options?: Parameters<typeof http>[1]): Promise<FileDto> => {
+    const formData = new FormData();
+if(uploadEventFileBody.file !== undefined) {
+ formData.append(`file`, uploadEventFileBody.file);
+ }
+if(uploadEventFileBody.itemId !== undefined && uploadEventFileBody.itemId !== null) {
+ formData.append(`itemId`, uploadEventFileBody.itemId);
+ }
+
+  return http<FileDto>(getUploadEventFileUrl(eventId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadEventFileMutationKey = () => ['uploadEventFile'] as const;
+
+export const getUploadEventFileMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadEventFile>>, TError,UploadEventFileMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadEventFile>>, TError,UploadEventFileMutationVariables, TContext> => {
+
+const mutationKey = getUploadEventFileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadEventFile>>, UploadEventFileMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  uploadEventFile(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadEventFileMutationResult = NonNullable<Awaited<ReturnType<typeof uploadEventFile>>>
+    export type UploadEventFileMutationBody = UploadEventFileBody
+    export type UploadEventFileMutationError = unknown
+    export type UploadEventFileMutationVariables = {eventId: string;data: UploadEventFileBody}
+
+    /** @summary 파일 업로드 (PM·AM). 원본은 저장소에 두고 worker가 변환·색인한다 */
+export const useUploadEventFile = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadEventFile>>, TError,UploadEventFileMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof uploadEventFile>>,
+        TError,
+        UploadEventFileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadEventFileMutationOptions(options), queryClient);
+    }
+
+export const getListEventFilesUrl = (eventId: string,
+    params?: ListEventFilesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/events/${eventId}/files?${stringifiedParams}` : `/events/${eventId}/files`
+}
+
+/**
+ * @summary 행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링
+ */
+export const listEventFiles = async (eventId: string,
+    params?: ListEventFilesParams, options?: Parameters<typeof http>[1]): Promise<FileDto[]> => {
+
+  return http<FileDto[]>(getListEventFilesUrl(eventId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEventFilesQueryKey = (eventId: string,
+    params?: ListEventFilesParams,) => {
+    return [
+    `/events/${eventId}/files`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListEventFilesQueryOptions = <TData = Awaited<ReturnType<typeof listEventFiles>>, TError = unknown>(eventId: string,
+    params?: ListEventFilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEventFiles>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEventFilesQueryKey(eventId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEventFiles>>> = ({ signal }) => listEventFiles(eventId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: eventId !== null && eventId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEventFiles>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListEventFilesQueryResult = NonNullable<Awaited<ReturnType<typeof listEventFiles>>>
+export type ListEventFilesQueryError = unknown
+
+
+/** @summary 행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링 */
+export function useListEventFiles<TData = Awaited<ReturnType<typeof listEventFiles>>, TError = unknown>(
+ eventId: string,
+    params: undefined |  ListEventFilesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEventFiles>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEventFiles>>,
+          TError,
+          Awaited<ReturnType<typeof listEventFiles>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링 */
+export function useListEventFiles<TData = Awaited<ReturnType<typeof listEventFiles>>, TError = unknown>(
+ eventId: string,
+    params?: ListEventFilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEventFiles>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEventFiles>>,
+          TError,
+          Awaited<ReturnType<typeof listEventFiles>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링 */
+export function useListEventFiles<TData = Awaited<ReturnType<typeof listEventFiles>>, TError = unknown>(
+ eventId: string,
+    params?: ListEventFilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEventFiles>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링 */
+export function useListEventFiles<TData = Awaited<ReturnType<typeof listEventFiles>>, TError = unknown>(
+ eventId: string,
+    params?: ListEventFilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEventFiles>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListEventFilesQueryOptions(eventId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getFilesGetUrl = (id: string,) => {
+
+
+
+
+  return `/files/${id}`
+}
+
+/**
+ * @summary 파일 상태 (pending·ready·failed와 실패 사유)
+ */
+export const filesGet = async (id: string, options?: Parameters<typeof http>[1]): Promise<FileDto> => {
+
+  return http<FileDto>(getFilesGetUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getFilesGetQueryKey = (id: string,) => {
+    return [
+    `/files/${id}`
+    ] as const;
+    }
+
+
+export const getFilesGetQueryOptions = <TData = Awaited<ReturnType<typeof filesGet>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof filesGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getFilesGetQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof filesGet>>> = ({ signal }) => filesGet(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof filesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type FilesGetQueryResult = NonNullable<Awaited<ReturnType<typeof filesGet>>>
+export type FilesGetQueryError = unknown
+
+
+/** @summary 파일 상태 (pending·ready·failed와 실패 사유) */
+export function useFilesGet<TData = Awaited<ReturnType<typeof filesGet>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof filesGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof filesGet>>,
+          TError,
+          Awaited<ReturnType<typeof filesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 파일 상태 (pending·ready·failed와 실패 사유) */
+export function useFilesGet<TData = Awaited<ReturnType<typeof filesGet>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof filesGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof filesGet>>,
+          TError,
+          Awaited<ReturnType<typeof filesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 파일 상태 (pending·ready·failed와 실패 사유) */
+export function useFilesGet<TData = Awaited<ReturnType<typeof filesGet>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof filesGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 파일 상태 (pending·ready·failed와 실패 사유) */
+export function useFilesGet<TData = Awaited<ReturnType<typeof filesGet>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof filesGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getFilesGetQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getFilesMoveUrl = (id: string,) => {
+
+
+
+
+  return `/files/${id}`
+}
+
+/**
+ * @summary 첨부 대상 항목 이동 (PM·AM). null이면 행사 루트 첨부로 옮긴다. 같은 행사의 항목이어야 한다
+ */
+export const filesMove = async (id: string,
+    moveFileBody: MoveFileBody, options?: Parameters<typeof http>[1]): Promise<FileDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<FileDto>(getFilesMoveUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(moveFileBody)
+  }
+);}
+
+
+
+
+
+export const getFilesMoveMutationKey = () => ['filesMove'] as const;
+
+export const getFilesMoveMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof filesMove>>, TError,FilesMoveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof filesMove>>, TError,FilesMoveMutationVariables, TContext> => {
+
+const mutationKey = getFilesMoveMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof filesMove>>, FilesMoveMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  filesMove(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FilesMoveMutationResult = NonNullable<Awaited<ReturnType<typeof filesMove>>>
+    export type FilesMoveMutationBody = MoveFileBody
+    export type FilesMoveMutationError = unknown
+    export type FilesMoveMutationVariables = {id: string;data: MoveFileBody}
+
+    /** @summary 첨부 대상 항목 이동 (PM·AM). null이면 행사 루트 첨부로 옮긴다. 같은 행사의 항목이어야 한다 */
+export const useFilesMove = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof filesMove>>, TError,FilesMoveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof filesMove>>,
+        TError,
+        FilesMoveMutationVariables,
+        TContext
+      > => {
+      return useMutation(getFilesMoveMutationOptions(options), queryClient);
+    }
+
+export const getDeleteFileUrl = (id: string,) => {
+
+
+
+
+  return `/files/${id}`
+}
+
+/**
+ * @summary 파일 삭제 (soft delete, PM·AM, 변환 문서·색인 제거, 감사 로그)
+ */
+export const deleteFile = async (id: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getDeleteFileUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteFileMutationKey = () => ['deleteFile'] as const;
+
+export const getDeleteFileMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFile>>, TError,DeleteFileMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteFile>>, TError,DeleteFileMutationVariables, TContext> => {
+
+const mutationKey = getDeleteFileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFile>>, DeleteFileMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteFile(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteFileMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFile>>>
+
+    export type DeleteFileMutationError = unknown
+    export type DeleteFileMutationVariables = {id: string}
+
+    /** @summary 파일 삭제 (soft delete, PM·AM, 변환 문서·색인 제거, 감사 로그) */
+export const useDeleteFile = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFile>>, TError,DeleteFileMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteFile>>,
+        TError,
+        DeleteFileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteFileMutationOptions(options), queryClient);
+    }
+
+export const getDownloadFileUrl = (id: string,) => {
+
+
+
+
+  return `/files/${id}/download`
+}
+
+/**
+ * @summary 원본 다운로드 (API가 저장소에서 읽어 전달한다. 저장소 자격 증명·서명 URL을 브라우저에 주지 않는다)
+ */
+export const downloadFile = async (id: string, options?: Parameters<typeof http>[1]): Promise<Blob> => {
+
+  return http<Blob>(getDownloadFileUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadFileQueryKey = (id: string,) => {
+    return [
+    `/files/${id}/download`
+    ] as const;
+    }
+
+
+export const getDownloadFileQueryOptions = <TData = Awaited<ReturnType<typeof downloadFile>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadFileQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadFile>>> = ({ signal }) => downloadFile(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type DownloadFileQueryResult = NonNullable<Awaited<ReturnType<typeof downloadFile>>>
+export type DownloadFileQueryError = unknown
+
+
+/** @summary 원본 다운로드 (API가 저장소에서 읽어 전달한다. 저장소 자격 증명·서명 URL을 브라우저에 주지 않는다) */
+export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadFile>>,
+          TError,
+          Awaited<ReturnType<typeof downloadFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 원본 다운로드 (API가 저장소에서 읽어 전달한다. 저장소 자격 증명·서명 URL을 브라우저에 주지 않는다) */
+export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadFile>>,
+          TError,
+          Awaited<ReturnType<typeof downloadFile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 원본 다운로드 (API가 저장소에서 읽어 전달한다. 저장소 자격 증명·서명 URL을 브라우저에 주지 않는다) */
+export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 원본 다운로드 (API가 저장소에서 읽어 전달한다. 저장소 자격 증명·서명 URL을 브라우저에 주지 않는다) */
+export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getDownloadFileQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getEventItemsListUrl = (eventId: string,
     params?: EventItemsListParams,) => {
@@ -3197,194 +5003,6 @@ export const useLeaveSetWeekendWork = <TError = unknown,
       return useMutation(getLeaveSetWeekendWorkMutationOptions(options), queryClient);
     }
 
-export const getDocsListUrl = (eventId: string,) => {
-
-
-
-
-  return `/events/${eventId}/docs`
-}
-
-/**
- * @summary 행사 문서 목록 (열람 범위는 RLS가 필터링)
- */
-export const docsList = async (eventId: string, options?: Parameters<typeof http>[1]): Promise<EventDocDto[]> => {
-
-  return http<EventDocDto[]>(getDocsListUrl(eventId),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getDocsListQueryKey = (eventId: string,) => {
-    return [
-    `/events/${eventId}/docs`
-    ] as const;
-    }
-
-
-export const getDocsListQueryOptions = <TData = Awaited<ReturnType<typeof docsList>>, TError = unknown>(eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof docsList>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getDocsListQueryKey(eventId);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof docsList>>> = ({ signal }) => docsList(eventId, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: eventId !== null && eventId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof docsList>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type DocsListQueryResult = NonNullable<Awaited<ReturnType<typeof docsList>>>
-export type DocsListQueryError = unknown
-
-
-/** @summary 행사 문서 목록 (열람 범위는 RLS가 필터링) */
-export function useDocsList<TData = Awaited<ReturnType<typeof docsList>>, TError = unknown>(
- eventId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof docsList>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof docsList>>,
-          TError,
-          Awaited<ReturnType<typeof docsList>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 행사 문서 목록 (열람 범위는 RLS가 필터링) */
-export function useDocsList<TData = Awaited<ReturnType<typeof docsList>>, TError = unknown>(
- eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof docsList>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof docsList>>,
-          TError,
-          Awaited<ReturnType<typeof docsList>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 행사 문서 목록 (열람 범위는 RLS가 필터링) */
-export function useDocsList<TData = Awaited<ReturnType<typeof docsList>>, TError = unknown>(
- eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof docsList>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 행사 문서 목록 (열람 범위는 RLS가 필터링) */
-export function useDocsList<TData = Awaited<ReturnType<typeof docsList>>, TError = unknown>(
- eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof docsList>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getDocsListQueryOptions(eventId,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getKnowledgeCreateUrl = (eventId: string,) => {
-
-
-
-
-  return `/events/${eventId}/docs`
-}
-
-/**
- * @summary 위키 문서 생성 (PM·AM, 본문 색인 포함)
- */
-export const knowledgeCreate = async (eventId: string,
-    createDocBody: CreateDocBody, options?: Parameters<typeof http>[1]): Promise<DocPageDto> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<DocPageDto>(getKnowledgeCreateUrl(eventId),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(createDocBody)
-  }
-);}
-
-
-
-
-
-export const getKnowledgeCreateMutationKey = () => ['knowledgeCreate'] as const;
-
-export const getKnowledgeCreateMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeCreate>>, TError,KnowledgeCreateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof knowledgeCreate>>, TError,KnowledgeCreateMutationVariables, TContext> => {
-
-const mutationKey = getKnowledgeCreateMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof knowledgeCreate>>, KnowledgeCreateMutationVariables> = (props) => {
-          const {eventId,data} = props ?? {};
-
-          return  knowledgeCreate(eventId,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type KnowledgeCreateMutationResult = NonNullable<Awaited<ReturnType<typeof knowledgeCreate>>>
-    export type KnowledgeCreateMutationBody = CreateDocBody
-    export type KnowledgeCreateMutationError = unknown
-    export type KnowledgeCreateMutationVariables = {eventId: string;data: CreateDocBody}
-
-    /** @summary 위키 문서 생성 (PM·AM, 본문 색인 포함) */
-export const useKnowledgeCreate = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeCreate>>, TError,KnowledgeCreateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof knowledgeCreate>>,
-        TError,
-        KnowledgeCreateMutationVariables,
-        TContext
-      > => {
-      return useMutation(getKnowledgeCreateMutationOptions(options), queryClient);
-    }
-
 export const getDocsSetVisibilityUrl = (eventId: string,
     docId: string,) => {
 
@@ -3473,1287 +5091,6 @@ export const useDocsSetVisibility = <TError = unknown,
       > => {
       return useMutation(getDocsSetVisibilityMutationOptions(options), queryClient);
     }
-
-export const getGetDocPageUrl = (docId: string,) => {
-
-
-
-
-  return `/docs/${docId}`
-}
-
-/**
- * @summary 위키 문서 본문 (열람 범위는 RLS가 강제)
- */
-export const getDocPage = async (docId: string, options?: Parameters<typeof http>[1]): Promise<DocPageDto> => {
-
-  return http<DocPageDto>(getGetDocPageUrl(docId),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetDocPageQueryKey = (docId: string,) => {
-    return [
-    `/docs/${docId}`
-    ] as const;
-    }
-
-
-export const getGetDocPageQueryOptions = <TData = Awaited<ReturnType<typeof getDocPage>>, TError = unknown>(docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocPage>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetDocPageQueryKey(docId);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDocPage>>> = ({ signal }) => getDocPage(docId, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: docId !== null && docId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDocPage>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetDocPageQueryResult = NonNullable<Awaited<ReturnType<typeof getDocPage>>>
-export type GetDocPageQueryError = unknown
-
-
-/** @summary 위키 문서 본문 (열람 범위는 RLS가 강제) */
-export function useGetDocPage<TData = Awaited<ReturnType<typeof getDocPage>>, TError = unknown>(
- docId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocPage>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getDocPage>>,
-          TError,
-          Awaited<ReturnType<typeof getDocPage>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 위키 문서 본문 (열람 범위는 RLS가 강제) */
-export function useGetDocPage<TData = Awaited<ReturnType<typeof getDocPage>>, TError = unknown>(
- docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocPage>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getDocPage>>,
-          TError,
-          Awaited<ReturnType<typeof getDocPage>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 위키 문서 본문 (열람 범위는 RLS가 강제) */
-export function useGetDocPage<TData = Awaited<ReturnType<typeof getDocPage>>, TError = unknown>(
- docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocPage>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 위키 문서 본문 (열람 범위는 RLS가 강제) */
-export function useGetDocPage<TData = Awaited<ReturnType<typeof getDocPage>>, TError = unknown>(
- docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocPage>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getGetDocPageQueryOptions(docId,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getKnowledgeRemoveUrl = (docId: string,) => {
-
-
-
-
-  return `/docs/${docId}`
-}
-
-/**
- * @summary 위키 문서 삭제 (soft delete, PM·AM, 감사 로그)
- */
-export const knowledgeRemove = async (docId: string, options?: Parameters<typeof http>[1]): Promise<void> => {
-
-  return http<void>(getKnowledgeRemoveUrl(docId),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-
-
-
-export const getKnowledgeRemoveMutationKey = () => ['knowledgeRemove'] as const;
-
-export const getKnowledgeRemoveMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeRemove>>, TError,KnowledgeRemoveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof knowledgeRemove>>, TError,KnowledgeRemoveMutationVariables, TContext> => {
-
-const mutationKey = getKnowledgeRemoveMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof knowledgeRemove>>, KnowledgeRemoveMutationVariables> = (props) => {
-          const {docId} = props ?? {};
-
-          return  knowledgeRemove(docId,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type KnowledgeRemoveMutationResult = NonNullable<Awaited<ReturnType<typeof knowledgeRemove>>>
-
-    export type KnowledgeRemoveMutationError = unknown
-    export type KnowledgeRemoveMutationVariables = {docId: string}
-
-    /** @summary 위키 문서 삭제 (soft delete, PM·AM, 감사 로그) */
-export const useKnowledgeRemove = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeRemove>>, TError,KnowledgeRemoveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof knowledgeRemove>>,
-        TError,
-        KnowledgeRemoveMutationVariables,
-        TContext
-      > => {
-      return useMutation(getKnowledgeRemoveMutationOptions(options), queryClient);
-    }
-
-export const getKnowledgeSaveUrl = (docId: string,) => {
-
-
-
-
-  return `/docs/${docId}/body`
-}
-
-/**
- * @summary 위키 제목·본문 저장 (PM·AM, 마지막 저장 우선, 색인 갱신)
- */
-export const knowledgeSave = async (docId: string,
-    saveDocBodyBody: SaveDocBodyBody, options?: Parameters<typeof http>[1]): Promise<DocPageDto> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<DocPageDto>(getKnowledgeSaveUrl(docId),
-  {
-    ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(saveDocBodyBody)
-  }
-);}
-
-
-
-
-
-export const getKnowledgeSaveMutationKey = () => ['knowledgeSave'] as const;
-
-export const getKnowledgeSaveMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeSave>>, TError,KnowledgeSaveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof knowledgeSave>>, TError,KnowledgeSaveMutationVariables, TContext> => {
-
-const mutationKey = getKnowledgeSaveMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof knowledgeSave>>, KnowledgeSaveMutationVariables> = (props) => {
-          const {docId,data} = props ?? {};
-
-          return  knowledgeSave(docId,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type KnowledgeSaveMutationResult = NonNullable<Awaited<ReturnType<typeof knowledgeSave>>>
-    export type KnowledgeSaveMutationBody = SaveDocBodyBody
-    export type KnowledgeSaveMutationError = unknown
-    export type KnowledgeSaveMutationVariables = {docId: string;data: SaveDocBodyBody}
-
-    /** @summary 위키 제목·본문 저장 (PM·AM, 마지막 저장 우선, 색인 갱신) */
-export const useKnowledgeSave = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeSave>>, TError,KnowledgeSaveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof knowledgeSave>>,
-        TError,
-        KnowledgeSaveMutationVariables,
-        TContext
-      > => {
-      return useMutation(getKnowledgeSaveMutationOptions(options), queryClient);
-    }
-
-export const getKnowledgeCreateRevisionUrl = (docId: string,) => {
-
-
-
-
-  return `/docs/${docId}/revisions`
-}
-
-/**
- * @summary 현재 내용을 버전으로 저장 (PM·AM)
- */
-export const knowledgeCreateRevision = async (docId: string, options?: Parameters<typeof http>[1]): Promise<WikiRevisionDto> => {
-
-  return http<WikiRevisionDto>(getKnowledgeCreateRevisionUrl(docId),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-
-
-
-export const getKnowledgeCreateRevisionMutationKey = () => ['knowledgeCreateRevision'] as const;
-
-export const getKnowledgeCreateRevisionMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeCreateRevision>>, TError,KnowledgeCreateRevisionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof knowledgeCreateRevision>>, TError,KnowledgeCreateRevisionMutationVariables, TContext> => {
-
-const mutationKey = getKnowledgeCreateRevisionMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof knowledgeCreateRevision>>, KnowledgeCreateRevisionMutationVariables> = (props) => {
-          const {docId} = props ?? {};
-
-          return  knowledgeCreateRevision(docId,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type KnowledgeCreateRevisionMutationResult = NonNullable<Awaited<ReturnType<typeof knowledgeCreateRevision>>>
-
-    export type KnowledgeCreateRevisionMutationError = unknown
-    export type KnowledgeCreateRevisionMutationVariables = {docId: string}
-
-    /** @summary 현재 내용을 버전으로 저장 (PM·AM) */
-export const useKnowledgeCreateRevision = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeCreateRevision>>, TError,KnowledgeCreateRevisionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof knowledgeCreateRevision>>,
-        TError,
-        KnowledgeCreateRevisionMutationVariables,
-        TContext
-      > => {
-      return useMutation(getKnowledgeCreateRevisionMutationOptions(options), queryClient);
-    }
-
-export const getKnowledgeListRevisionsUrl = (docId: string,) => {
-
-
-
-
-  return `/docs/${docId}/revisions`
-}
-
-/**
- * @summary 문서 버전 목록 (열람 범위는 RLS가 강제)
- */
-export const knowledgeListRevisions = async (docId: string, options?: Parameters<typeof http>[1]): Promise<WikiRevisionDto[]> => {
-
-  return http<WikiRevisionDto[]>(getKnowledgeListRevisionsUrl(docId),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getKnowledgeListRevisionsQueryKey = (docId: string,) => {
-    return [
-    `/docs/${docId}/revisions`
-    ] as const;
-    }
-
-
-export const getKnowledgeListRevisionsQueryOptions = <TData = Awaited<ReturnType<typeof knowledgeListRevisions>>, TError = unknown>(docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeListRevisions>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getKnowledgeListRevisionsQueryKey(docId);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof knowledgeListRevisions>>> = ({ signal }) => knowledgeListRevisions(docId, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: docId !== null && docId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof knowledgeListRevisions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type KnowledgeListRevisionsQueryResult = NonNullable<Awaited<ReturnType<typeof knowledgeListRevisions>>>
-export type KnowledgeListRevisionsQueryError = unknown
-
-
-/** @summary 문서 버전 목록 (열람 범위는 RLS가 강제) */
-export function useKnowledgeListRevisions<TData = Awaited<ReturnType<typeof knowledgeListRevisions>>, TError = unknown>(
- docId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeListRevisions>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof knowledgeListRevisions>>,
-          TError,
-          Awaited<ReturnType<typeof knowledgeListRevisions>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 문서 버전 목록 (열람 범위는 RLS가 강제) */
-export function useKnowledgeListRevisions<TData = Awaited<ReturnType<typeof knowledgeListRevisions>>, TError = unknown>(
- docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeListRevisions>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof knowledgeListRevisions>>,
-          TError,
-          Awaited<ReturnType<typeof knowledgeListRevisions>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 문서 버전 목록 (열람 범위는 RLS가 강제) */
-export function useKnowledgeListRevisions<TData = Awaited<ReturnType<typeof knowledgeListRevisions>>, TError = unknown>(
- docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeListRevisions>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 문서 버전 목록 (열람 범위는 RLS가 강제) */
-export function useKnowledgeListRevisions<TData = Awaited<ReturnType<typeof knowledgeListRevisions>>, TError = unknown>(
- docId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeListRevisions>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getKnowledgeListRevisionsQueryOptions(docId,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getKnowledgeGetRevisionUrl = (docId: string,
-    revisionId: string,) => {
-
-
-
-
-  return `/docs/${docId}/revisions/${revisionId}`
-}
-
-/**
- * @summary 문서 버전 상세 (본문 포함)
- */
-export const knowledgeGetRevision = async (docId: string,
-    revisionId: string, options?: Parameters<typeof http>[1]): Promise<WikiRevisionDetailDto> => {
-
-  return http<WikiRevisionDetailDto>(getKnowledgeGetRevisionUrl(docId,revisionId),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getKnowledgeGetRevisionQueryKey = (docId: string,
-    revisionId: string,) => {
-    return [
-    `/docs/${docId}/revisions/${revisionId}`
-    ] as const;
-    }
-
-
-export const getKnowledgeGetRevisionQueryOptions = <TData = Awaited<ReturnType<typeof knowledgeGetRevision>>, TError = unknown>(docId: string,
-    revisionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeGetRevision>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getKnowledgeGetRevisionQueryKey(docId,revisionId);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof knowledgeGetRevision>>> = ({ signal }) => knowledgeGetRevision(docId,revisionId, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: docId !== null && docId !== undefined && revisionId !== null && revisionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof knowledgeGetRevision>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type KnowledgeGetRevisionQueryResult = NonNullable<Awaited<ReturnType<typeof knowledgeGetRevision>>>
-export type KnowledgeGetRevisionQueryError = unknown
-
-
-/** @summary 문서 버전 상세 (본문 포함) */
-export function useKnowledgeGetRevision<TData = Awaited<ReturnType<typeof knowledgeGetRevision>>, TError = unknown>(
- docId: string,
-    revisionId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeGetRevision>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof knowledgeGetRevision>>,
-          TError,
-          Awaited<ReturnType<typeof knowledgeGetRevision>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 문서 버전 상세 (본문 포함) */
-export function useKnowledgeGetRevision<TData = Awaited<ReturnType<typeof knowledgeGetRevision>>, TError = unknown>(
- docId: string,
-    revisionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeGetRevision>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof knowledgeGetRevision>>,
-          TError,
-          Awaited<ReturnType<typeof knowledgeGetRevision>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 문서 버전 상세 (본문 포함) */
-export function useKnowledgeGetRevision<TData = Awaited<ReturnType<typeof knowledgeGetRevision>>, TError = unknown>(
- docId: string,
-    revisionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeGetRevision>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 문서 버전 상세 (본문 포함) */
-export function useKnowledgeGetRevision<TData = Awaited<ReturnType<typeof knowledgeGetRevision>>, TError = unknown>(
- docId: string,
-    revisionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeGetRevision>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getKnowledgeGetRevisionQueryOptions(docId,revisionId,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getKnowledgeRestoreRevisionUrl = (docId: string,
-    revisionId: string,) => {
-
-
-
-
-  return `/docs/${docId}/revisions/${revisionId}/restore`
-}
-
-/**
- * @summary 버전으로 되돌리기 (PM·AM, 현재 내용을 먼저 버전으로 남기고 감사 로그)
- */
-export const knowledgeRestoreRevision = async (docId: string,
-    revisionId: string, options?: Parameters<typeof http>[1]): Promise<DocPageDto> => {
-
-  return http<DocPageDto>(getKnowledgeRestoreRevisionUrl(docId,revisionId),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-
-
-
-export const getKnowledgeRestoreRevisionMutationKey = () => ['knowledgeRestoreRevision'] as const;
-
-export const getKnowledgeRestoreRevisionMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeRestoreRevision>>, TError,KnowledgeRestoreRevisionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof knowledgeRestoreRevision>>, TError,KnowledgeRestoreRevisionMutationVariables, TContext> => {
-
-const mutationKey = getKnowledgeRestoreRevisionMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof knowledgeRestoreRevision>>, KnowledgeRestoreRevisionMutationVariables> = (props) => {
-          const {docId,revisionId} = props ?? {};
-
-          return  knowledgeRestoreRevision(docId,revisionId,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type KnowledgeRestoreRevisionMutationResult = NonNullable<Awaited<ReturnType<typeof knowledgeRestoreRevision>>>
-
-    export type KnowledgeRestoreRevisionMutationError = unknown
-    export type KnowledgeRestoreRevisionMutationVariables = {docId: string;revisionId: string}
-
-    /** @summary 버전으로 되돌리기 (PM·AM, 현재 내용을 먼저 버전으로 남기고 감사 로그) */
-export const useKnowledgeRestoreRevision = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof knowledgeRestoreRevision>>, TError,KnowledgeRestoreRevisionMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof knowledgeRestoreRevision>>,
-        TError,
-        KnowledgeRestoreRevisionMutationVariables,
-        TContext
-      > => {
-      return useMutation(getKnowledgeRestoreRevisionMutationOptions(options), queryClient);
-    }
-
-export const getKnowledgeSearchUrl = (params: KnowledgeSearchParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/search?${stringifiedParams}` : `/search`
-}
-
-/**
- * @summary 위키 검색 (권한 필터 후 FTS + pg_trgm 병합, 출처 포함)
- */
-export const knowledgeSearch = async (params: KnowledgeSearchParams, options?: Parameters<typeof http>[1]): Promise<SearchHitDto[]> => {
-
-  return http<SearchHitDto[]>(getKnowledgeSearchUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getKnowledgeSearchQueryKey = (params?: KnowledgeSearchParams,) => {
-    return [
-    `/search`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getKnowledgeSearchQueryOptions = <TData = Awaited<ReturnType<typeof knowledgeSearch>>, TError = unknown>(params: KnowledgeSearchParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeSearch>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getKnowledgeSearchQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof knowledgeSearch>>> = ({ signal }) => knowledgeSearch(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof knowledgeSearch>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type KnowledgeSearchQueryResult = NonNullable<Awaited<ReturnType<typeof knowledgeSearch>>>
-export type KnowledgeSearchQueryError = unknown
-
-
-/** @summary 위키 검색 (권한 필터 후 FTS + pg_trgm 병합, 출처 포함) */
-export function useKnowledgeSearch<TData = Awaited<ReturnType<typeof knowledgeSearch>>, TError = unknown>(
- params: KnowledgeSearchParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeSearch>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof knowledgeSearch>>,
-          TError,
-          Awaited<ReturnType<typeof knowledgeSearch>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 위키 검색 (권한 필터 후 FTS + pg_trgm 병합, 출처 포함) */
-export function useKnowledgeSearch<TData = Awaited<ReturnType<typeof knowledgeSearch>>, TError = unknown>(
- params: KnowledgeSearchParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeSearch>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof knowledgeSearch>>,
-          TError,
-          Awaited<ReturnType<typeof knowledgeSearch>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 위키 검색 (권한 필터 후 FTS + pg_trgm 병합, 출처 포함) */
-export function useKnowledgeSearch<TData = Awaited<ReturnType<typeof knowledgeSearch>>, TError = unknown>(
- params: KnowledgeSearchParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeSearch>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 위키 검색 (권한 필터 후 FTS + pg_trgm 병합, 출처 포함) */
-export function useKnowledgeSearch<TData = Awaited<ReturnType<typeof knowledgeSearch>>, TError = unknown>(
- params: KnowledgeSearchParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof knowledgeSearch>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getKnowledgeSearchQueryOptions(params,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getUploadEventFileUrl = (eventId: string,) => {
-
-
-
-
-  return `/events/${eventId}/files`
-}
-
-/**
- * @summary 파일 업로드 (PM·AM). 원본은 저장소에 두고 worker가 변환·색인한다
- */
-export const uploadEventFile = async (eventId: string,
-    uploadEventFileBody: UploadEventFileBody, options?: Parameters<typeof http>[1]): Promise<FileDto> => {
-    const formData = new FormData();
-if(uploadEventFileBody.file !== undefined) {
- formData.append(`file`, uploadEventFileBody.file);
- }
-if(uploadEventFileBody.itemId !== undefined && uploadEventFileBody.itemId !== null) {
- formData.append(`itemId`, uploadEventFileBody.itemId);
- }
-
-  return http<FileDto>(getUploadEventFileUrl(eventId),
-  {
-    ...options,
-    method: 'POST'
-    ,
-    body: formData
-  }
-);}
-
-
-
-
-
-export const getUploadEventFileMutationKey = () => ['uploadEventFile'] as const;
-
-export const getUploadEventFileMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadEventFile>>, TError,UploadEventFileMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof uploadEventFile>>, TError,UploadEventFileMutationVariables, TContext> => {
-
-const mutationKey = getUploadEventFileMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadEventFile>>, UploadEventFileMutationVariables> = (props) => {
-          const {eventId,data} = props ?? {};
-
-          return  uploadEventFile(eventId,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UploadEventFileMutationResult = NonNullable<Awaited<ReturnType<typeof uploadEventFile>>>
-    export type UploadEventFileMutationBody = UploadEventFileBody
-    export type UploadEventFileMutationError = unknown
-    export type UploadEventFileMutationVariables = {eventId: string;data: UploadEventFileBody}
-
-    /** @summary 파일 업로드 (PM·AM). 원본은 저장소에 두고 worker가 변환·색인한다 */
-export const useUploadEventFile = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadEventFile>>, TError,UploadEventFileMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof uploadEventFile>>,
-        TError,
-        UploadEventFileMutationVariables,
-        TContext
-      > => {
-      return useMutation(getUploadEventFileMutationOptions(options), queryClient);
-    }
-
-export const getListEventFilesUrl = (eventId: string,
-    params?: ListEventFilesParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/events/${eventId}/files?${stringifiedParams}` : `/events/${eventId}/files`
-}
-
-/**
- * @summary 행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링
- */
-export const listEventFiles = async (eventId: string,
-    params?: ListEventFilesParams, options?: Parameters<typeof http>[1]): Promise<FileDto[]> => {
-
-  return http<FileDto[]>(getListEventFilesUrl(eventId,params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListEventFilesQueryKey = (eventId: string,
-    params?: ListEventFilesParams,) => {
-    return [
-    `/events/${eventId}/files`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getListEventFilesQueryOptions = <TData = Awaited<ReturnType<typeof listEventFiles>>, TError = unknown>(eventId: string,
-    params?: ListEventFilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEventFiles>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListEventFilesQueryKey(eventId,params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEventFiles>>> = ({ signal }) => listEventFiles(eventId,params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: eventId !== null && eventId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEventFiles>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListEventFilesQueryResult = NonNullable<Awaited<ReturnType<typeof listEventFiles>>>
-export type ListEventFilesQueryError = unknown
-
-
-/** @summary 행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링 */
-export function useListEventFiles<TData = Awaited<ReturnType<typeof listEventFiles>>, TError = unknown>(
- eventId: string,
-    params: undefined |  ListEventFilesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEventFiles>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listEventFiles>>,
-          TError,
-          Awaited<ReturnType<typeof listEventFiles>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링 */
-export function useListEventFiles<TData = Awaited<ReturnType<typeof listEventFiles>>, TError = unknown>(
- eventId: string,
-    params?: ListEventFilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEventFiles>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listEventFiles>>,
-          TError,
-          Awaited<ReturnType<typeof listEventFiles>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링 */
-export function useListEventFiles<TData = Awaited<ReturnType<typeof listEventFiles>>, TError = unknown>(
- eventId: string,
-    params?: ListEventFilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEventFiles>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링 */
-export function useListEventFiles<TData = Awaited<ReturnType<typeof listEventFiles>>, TError = unknown>(
- eventId: string,
-    params?: ListEventFilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEventFiles>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getListEventFilesQueryOptions(eventId,params,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getFilesGetUrl = (id: string,) => {
-
-
-
-
-  return `/files/${id}`
-}
-
-/**
- * @summary 파일 상태 (pending·ready·failed와 실패 사유)
- */
-export const filesGet = async (id: string, options?: Parameters<typeof http>[1]): Promise<FileDto> => {
-
-  return http<FileDto>(getFilesGetUrl(id),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getFilesGetQueryKey = (id: string,) => {
-    return [
-    `/files/${id}`
-    ] as const;
-    }
-
-
-export const getFilesGetQueryOptions = <TData = Awaited<ReturnType<typeof filesGet>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof filesGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getFilesGetQueryKey(id);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof filesGet>>> = ({ signal }) => filesGet(id, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof filesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type FilesGetQueryResult = NonNullable<Awaited<ReturnType<typeof filesGet>>>
-export type FilesGetQueryError = unknown
-
-
-/** @summary 파일 상태 (pending·ready·failed와 실패 사유) */
-export function useFilesGet<TData = Awaited<ReturnType<typeof filesGet>>, TError = unknown>(
- id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof filesGet>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof filesGet>>,
-          TError,
-          Awaited<ReturnType<typeof filesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 파일 상태 (pending·ready·failed와 실패 사유) */
-export function useFilesGet<TData = Awaited<ReturnType<typeof filesGet>>, TError = unknown>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof filesGet>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof filesGet>>,
-          TError,
-          Awaited<ReturnType<typeof filesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 파일 상태 (pending·ready·failed와 실패 사유) */
-export function useFilesGet<TData = Awaited<ReturnType<typeof filesGet>>, TError = unknown>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof filesGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 파일 상태 (pending·ready·failed와 실패 사유) */
-export function useFilesGet<TData = Awaited<ReturnType<typeof filesGet>>, TError = unknown>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof filesGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getFilesGetQueryOptions(id,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getFilesMoveUrl = (id: string,) => {
-
-
-
-
-  return `/files/${id}`
-}
-
-/**
- * @summary 첨부 대상 항목 이동 (PM·AM). null이면 행사 루트 첨부로 옮긴다. 같은 행사의 항목이어야 한다
- */
-export const filesMove = async (id: string,
-    moveFileBody: MoveFileBody, options?: Parameters<typeof http>[1]): Promise<FileDto> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return http<FileDto>(getFilesMoveUrl(id),
-  {
-    ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(moveFileBody)
-  }
-);}
-
-
-
-
-
-export const getFilesMoveMutationKey = () => ['filesMove'] as const;
-
-export const getFilesMoveMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof filesMove>>, TError,FilesMoveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof filesMove>>, TError,FilesMoveMutationVariables, TContext> => {
-
-const mutationKey = getFilesMoveMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof filesMove>>, FilesMoveMutationVariables> = (props) => {
-          const {id,data} = props ?? {};
-
-          return  filesMove(id,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type FilesMoveMutationResult = NonNullable<Awaited<ReturnType<typeof filesMove>>>
-    export type FilesMoveMutationBody = MoveFileBody
-    export type FilesMoveMutationError = unknown
-    export type FilesMoveMutationVariables = {id: string;data: MoveFileBody}
-
-    /** @summary 첨부 대상 항목 이동 (PM·AM). null이면 행사 루트 첨부로 옮긴다. 같은 행사의 항목이어야 한다 */
-export const useFilesMove = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof filesMove>>, TError,FilesMoveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof filesMove>>,
-        TError,
-        FilesMoveMutationVariables,
-        TContext
-      > => {
-      return useMutation(getFilesMoveMutationOptions(options), queryClient);
-    }
-
-export const getDeleteFileUrl = (id: string,) => {
-
-
-
-
-  return `/files/${id}`
-}
-
-/**
- * @summary 파일 삭제 (soft delete, PM·AM, 변환 문서·색인 제거, 감사 로그)
- */
-export const deleteFile = async (id: string, options?: Parameters<typeof http>[1]): Promise<void> => {
-
-  return http<void>(getDeleteFileUrl(id),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-
-
-
-export const getDeleteFileMutationKey = () => ['deleteFile'] as const;
-
-export const getDeleteFileMutationOptions = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFile>>, TError,DeleteFileMutationVariables, TContext>, request?: SecondParameter<typeof http>}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteFile>>, TError,DeleteFileMutationVariables, TContext> => {
-
-const mutationKey = getDeleteFileMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFile>>, DeleteFileMutationVariables> = (props) => {
-          const {id} = props ?? {};
-
-          return  deleteFile(id,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DeleteFileMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFile>>>
-
-    export type DeleteFileMutationError = unknown
-    export type DeleteFileMutationVariables = {id: string}
-
-    /** @summary 파일 삭제 (soft delete, PM·AM, 변환 문서·색인 제거, 감사 로그) */
-export const useDeleteFile = <TError = unknown,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFile>>, TError,DeleteFileMutationVariables, TContext>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof deleteFile>>,
-        TError,
-        DeleteFileMutationVariables,
-        TContext
-      > => {
-      return useMutation(getDeleteFileMutationOptions(options), queryClient);
-    }
-
-export const getDownloadFileUrl = (id: string,) => {
-
-
-
-
-  return `/files/${id}/download`
-}
-
-/**
- * @summary 원본 다운로드 (API가 저장소에서 읽어 전달한다. 저장소 자격 증명·서명 URL을 브라우저에 주지 않는다)
- */
-export const downloadFile = async (id: string, options?: Parameters<typeof http>[1]): Promise<Blob> => {
-
-  return http<Blob>(getDownloadFileUrl(id),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getDownloadFileQueryKey = (id: string,) => {
-    return [
-    `/files/${id}/download`
-    ] as const;
-    }
-
-
-export const getDownloadFileQueryOptions = <TData = Awaited<ReturnType<typeof downloadFile>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getDownloadFileQueryKey(id);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadFile>>> = ({ signal }) => downloadFile(id, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type DownloadFileQueryResult = NonNullable<Awaited<ReturnType<typeof downloadFile>>>
-export type DownloadFileQueryError = unknown
-
-
-/** @summary 원본 다운로드 (API가 저장소에서 읽어 전달한다. 저장소 자격 증명·서명 URL을 브라우저에 주지 않는다) */
-export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = unknown>(
- id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>> & Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof downloadFile>>,
-          TError,
-          Awaited<ReturnType<typeof downloadFile>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 원본 다운로드 (API가 저장소에서 읽어 전달한다. 저장소 자격 증명·서명 URL을 브라우저에 주지 않는다) */
-export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = unknown>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>> & Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof downloadFile>>,
-          TError,
-          Awaited<ReturnType<typeof downloadFile>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 원본 다운로드 (API가 저장소에서 읽어 전달한다. 저장소 자격 증명·서명 URL을 브라우저에 주지 않는다) */
-export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = unknown>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-/** @summary 원본 다운로드 (API가 저장소에서 읽어 전달한다. 저장소 자격 증명·서명 URL을 브라우저에 주지 않는다) */
-export function useDownloadFile<TData = Awaited<ReturnType<typeof downloadFile>>, TError = unknown>(
- id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadFile>>, TError, TData>>, request?: SecondParameter<typeof http>}
- , queryClient?: QueryClient
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-
-  const queryOptions = getDownloadFileQueryOptions(id,options)
-
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
 
 export const getAiChatUrl = () => {
 
@@ -5296,3 +5633,432 @@ export function useDirectoryClients<TData = Awaited<ReturnType<typeof directoryC
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
+export const getImportExcelUploadUrl = () => {
+
+
+
+
+  return `/import/excel`
+}
+
+/**
+ * @summary Excel 업로드와 시트 목록 파싱 (낮은 권한 이상). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다
+ */
+export const importExcelUpload = async (importExcelUploadBody: ImportExcelUploadBody, options?: Parameters<typeof http>[1]): Promise<ImportJobDto> => {
+    const formData = new FormData();
+if(importExcelUploadBody.file !== undefined) {
+ formData.append(`file`, importExcelUploadBody.file);
+ }
+
+  return http<ImportJobDto>(getImportExcelUploadUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getImportExcelUploadMutationKey = () => ['importExcelUpload'] as const;
+
+export const getImportExcelUploadMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importExcelUpload>>, TError,ImportExcelUploadMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof importExcelUpload>>, TError,ImportExcelUploadMutationVariables, TContext> => {
+
+const mutationKey = getImportExcelUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importExcelUpload>>, ImportExcelUploadMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  importExcelUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportExcelUploadMutationResult = NonNullable<Awaited<ReturnType<typeof importExcelUpload>>>
+    export type ImportExcelUploadMutationBody = ImportExcelUploadBody
+    export type ImportExcelUploadMutationError = unknown
+    export type ImportExcelUploadMutationVariables = {data: ImportExcelUploadBody}
+
+    /** @summary Excel 업로드와 시트 목록 파싱 (낮은 권한 이상). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다 */
+export const useImportExcelUpload = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importExcelUpload>>, TError,ImportExcelUploadMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importExcelUpload>>,
+        TError,
+        ImportExcelUploadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportExcelUploadMutationOptions(options), queryClient);
+    }
+
+export const getImportGetUrl = (id: string,) => {
+
+
+
+
+  return `/import/${id}`
+}
+
+/**
+ * @summary 가져오기 작업 상태 (시트·컬럼·매핑·검증·실행 결과)
+ */
+export const importGet = async (id: string, options?: Parameters<typeof http>[1]): Promise<ImportJobDto> => {
+
+  return http<ImportJobDto>(getImportGetUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getImportGetQueryKey = (id: string,) => {
+    return [
+    `/import/${id}`
+    ] as const;
+    }
+
+
+export const getImportGetQueryOptions = <TData = Awaited<ReturnType<typeof importGet>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof importGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getImportGetQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof importGet>>> = ({ signal }) => importGet(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof importGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ImportGetQueryResult = NonNullable<Awaited<ReturnType<typeof importGet>>>
+export type ImportGetQueryError = unknown
+
+
+/** @summary 가져오기 작업 상태 (시트·컬럼·매핑·검증·실행 결과) */
+export function useImportGet<TData = Awaited<ReturnType<typeof importGet>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof importGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importGet>>,
+          TError,
+          Awaited<ReturnType<typeof importGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 가져오기 작업 상태 (시트·컬럼·매핑·검증·실행 결과) */
+export function useImportGet<TData = Awaited<ReturnType<typeof importGet>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof importGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importGet>>,
+          TError,
+          Awaited<ReturnType<typeof importGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 가져오기 작업 상태 (시트·컬럼·매핑·검증·실행 결과) */
+export function useImportGet<TData = Awaited<ReturnType<typeof importGet>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof importGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 가져오기 작업 상태 (시트·컬럼·매핑·검증·실행 결과) */
+export function useImportGet<TData = Awaited<ReturnType<typeof importGet>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof importGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getImportGetQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportParseUrl = (id: string,) => {
+
+
+
+
+  return `/import/${id}/parse`
+}
+
+/**
+ * @summary 시트·헤더 선택 후 원본 그리드 파싱
+ */
+export const importParse = async (id: string,
+    parseImportBody: ParseImportBody, options?: Parameters<typeof http>[1]): Promise<ImportJobDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ImportJobDto>(getImportParseUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(parseImportBody)
+  }
+);}
+
+
+
+
+
+export const getImportParseMutationKey = () => ['importParse'] as const;
+
+export const getImportParseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importParse>>, TError,ImportParseMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof importParse>>, TError,ImportParseMutationVariables, TContext> => {
+
+const mutationKey = getImportParseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importParse>>, ImportParseMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  importParse(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportParseMutationResult = NonNullable<Awaited<ReturnType<typeof importParse>>>
+    export type ImportParseMutationBody = ParseImportBody
+    export type ImportParseMutationError = unknown
+    export type ImportParseMutationVariables = {id: string;data: ParseImportBody}
+
+    /** @summary 시트·헤더 선택 후 원본 그리드 파싱 */
+export const useImportParse = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importParse>>, TError,ImportParseMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importParse>>,
+        TError,
+        ImportParseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportParseMutationOptions(options), queryClient);
+    }
+
+export const getImportPreviewUrl = (id: string,) => {
+
+
+
+
+  return `/import/${id}/preview`
+}
+
+/**
+ * @summary 컬럼 매핑으로 전체 행 검증과 미리보기 생성
+ */
+export const importPreview = async (id: string,
+    previewImportBody: PreviewImportBody, options?: Parameters<typeof http>[1]): Promise<ImportJobDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ImportJobDto>(getImportPreviewUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(previewImportBody)
+  }
+);}
+
+
+
+
+
+export const getImportPreviewMutationKey = () => ['importPreview'] as const;
+
+export const getImportPreviewMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importPreview>>, TError,ImportPreviewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof importPreview>>, TError,ImportPreviewMutationVariables, TContext> => {
+
+const mutationKey = getImportPreviewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importPreview>>, ImportPreviewMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  importPreview(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportPreviewMutationResult = NonNullable<Awaited<ReturnType<typeof importPreview>>>
+    export type ImportPreviewMutationBody = PreviewImportBody
+    export type ImportPreviewMutationError = unknown
+    export type ImportPreviewMutationVariables = {id: string;data: PreviewImportBody}
+
+    /** @summary 컬럼 매핑으로 전체 행 검증과 미리보기 생성 */
+export const useImportPreview = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importPreview>>, TError,ImportPreviewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importPreview>>,
+        TError,
+        ImportPreviewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportPreviewMutationOptions(options), queryClient);
+    }
+
+export const getImportExecuteUrl = (id: string,) => {
+
+
+
+
+  return `/import/${id}/execute`
+}
+
+/**
+ * @summary 검증 통과 행으로 행사·행사 위키 생성. 실패 행은 걸러내고 사유를 남기고, 원본은 즉시 파기한다
+ */
+export const importExecute = async (id: string, options?: Parameters<typeof http>[1]): Promise<ImportJobDto> => {
+
+  return http<ImportJobDto>(getImportExecuteUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getImportExecuteMutationKey = () => ['importExecute'] as const;
+
+export const getImportExecuteMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importExecute>>, TError,ImportExecuteMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof importExecute>>, TError,ImportExecuteMutationVariables, TContext> => {
+
+const mutationKey = getImportExecuteMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importExecute>>, ImportExecuteMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  importExecute(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportExecuteMutationResult = NonNullable<Awaited<ReturnType<typeof importExecute>>>
+
+    export type ImportExecuteMutationError = unknown
+    export type ImportExecuteMutationVariables = {id: string}
+
+    /** @summary 검증 통과 행으로 행사·행사 위키 생성. 실패 행은 걸러내고 사유를 남기고, 원본은 즉시 파기한다 */
+export const useImportExecute = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importExecute>>, TError,ImportExecuteMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importExecute>>,
+        TError,
+        ImportExecuteMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportExecuteMutationOptions(options), queryClient);
+    }

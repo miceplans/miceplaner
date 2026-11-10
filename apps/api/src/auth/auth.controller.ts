@@ -1,8 +1,8 @@
-import { Controller, Get, HttpCode, Inject, Post } from '@nestjs/common';
+import { Controller, Get, HttpCode, Inject, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
-  changePasswordBody, loginBody, registerBody,
-  type ChangePasswordBody, type LoginBody, type RegisterBody,
+  changePasswordBody, createClientApplicationBody, loginBody, registerBody,
+  type ChangePasswordBody, type CreateClientApplicationBody, type LoginBody, type RegisterBody,
 } from '@miceplans/contracts';
 import { Auth, type AuthUser } from '../common/auth';
 import { ZodBody } from '../common/zod';
@@ -29,6 +29,31 @@ export class AuthController {
   @ApiOkResponse({ schema: { $ref: '#/components/schemas/AuthSessionDto' } })
   login(@ZodBody(loginBody) body: LoginBody) {
     return this.auth.login(body);
+  }
+
+  @Public()
+  @Post('client/login')
+  @HttpCode(200)
+  @ApiOperation({ summary: '승인된 Client 포털 계정 로그인', operationId: 'clientLogin' })
+  @ApiOkResponse({ schema: { $ref: '#/components/schemas/AuthSessionDto' } })
+  clientLogin(@ZodBody(loginBody) body: LoginBody) {
+    return this.auth.clientLogin(body);
+  }
+
+  @Public()
+  @Post('client-applications')
+  @ApiOperation({ summary: 'Client 포털 계정 신청 (회사명·이름·이메일)', operationId: 'createClientApplication' })
+  @ApiCreatedResponse({ schema: { $ref: '#/components/schemas/ClientApplicationDto' } })
+  createClientApplication(@ZodBody(createClientApplicationBody) body: CreateClientApplicationBody) {
+    return this.auth.createClientApplication(body);
+  }
+
+  @Post('client-applications/:id/approve')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Client 계정 신청 승인 (Super Admin)', operationId: 'approveClientApplication' })
+  @ApiOkResponse({ schema: { $ref: '#/components/schemas/ClientApplicationDto' } })
+  approveClientApplication(@Auth() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.auth.approveClientApplication(user, id);
   }
 
   @Post('password')

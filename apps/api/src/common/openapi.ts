@@ -2,17 +2,17 @@ import { applyDecorators } from '@nestjs/common';
 import { ApiCreatedResponse, ApiOkResponse, type SchemaObject } from '@nestjs/swagger';
 import { z, type ZodType } from 'zod';
 import {
-  addEventMemberBody, weekendWorkBody, markNotificationsReadBody, assignItemBody, authSessionDto, chatBody, changeEventMemberRoleBody, changePasswordBody, clientDto, createDocBody, createItemBody, docPageDto,
+  addEventMemberBody, weekendWorkBody, markNotificationsReadBody, assignItemBody, authSessionDto, chatBody, changeEventMemberRoleBody, changePasswordBody, clientApplicationDto, clientDto, createClientApplicationBody, createDocBody, createEventBody, createItemBody, docPageDto,
   eventDocDto, eventDto, eventItemDto, eventMemberDto, leaveBalanceDto, leaveRecordDto, loginBody, moveFileBody, notificationDto,
   proposalDto, registerBody, requestLeaveBody, rescheduleItemBody, saveDocBodyBody, searchHitDto, setClientVisibleBody, setDocVisibilityBody, updateEventBody, updateItemBody,
-  fileDto, userDto, weekendWorkDto, wikiRevisionDetailDto, wikiRevisionDto,
+  fileDto, userDto, weekendWorkDto, wikiRevisionDetailDto, wikiRevisionDto, importJobDto, parseImportBody, previewImportBody,
 } from '@miceplans/contracts';
 import { portalEventDto, portalProgramDto } from '@miceplans/contracts/portal';
 
 /** OpenAPI components에 올리는 계약 스키마. 웹 클라이언트(orval)의 타입 이름이 된다. */
 export const API_SCHEMAS: Record<string, ZodType> = {
-  LoginBody: loginBody, RegisterBody: registerBody, ChangePasswordBody: changePasswordBody, AuthSessionDto: authSessionDto, UserDto: userDto, ClientDto: clientDto,
-  EventDto: eventDto, UpdateEventBody: updateEventBody, EventMemberDto: eventMemberDto, AddEventMemberBody: addEventMemberBody,
+  LoginBody: loginBody, RegisterBody: registerBody, ChangePasswordBody: changePasswordBody, CreateClientApplicationBody: createClientApplicationBody, ClientApplicationDto: clientApplicationDto, AuthSessionDto: authSessionDto, UserDto: userDto, ClientDto: clientDto,
+  EventDto: eventDto, CreateEventBody: createEventBody, UpdateEventBody: updateEventBody, EventMemberDto: eventMemberDto, AddEventMemberBody: addEventMemberBody,
   ChangeEventMemberRoleBody: changeEventMemberRoleBody, EventItemDto: eventItemDto, CreateItemBody: createItemBody, UpdateItemBody: updateItemBody,
   AssignItemBody: assignItemBody, RescheduleItemBody: rescheduleItemBody, SetClientVisibleBody: setClientVisibleBody, NotificationDto: notificationDto,
   PortalEventDto: portalEventDto, PortalProgramDto: portalProgramDto, LeaveRecordDto: leaveRecordDto, LeaveBalanceDto: leaveBalanceDto,
@@ -20,6 +20,7 @@ export const API_SCHEMAS: Record<string, ZodType> = {
   DocPageDto: docPageDto, CreateDocBody: createDocBody, SaveDocBodyBody: saveDocBodyBody, SearchHitDto: searchHitDto, WikiRevisionDto: wikiRevisionDto,
   WikiRevisionDetailDto: wikiRevisionDetailDto, ChatBody: chatBody, ProposalDto: proposalDto, MoveFileBody: moveFileBody, FileDto: fileDto,
   WeekendWorkBody: weekendWorkBody, MarkNotificationsReadBody: markNotificationsReadBody,
+  ImportJobDto: importJobDto, ParseImportBody: parseImportBody, PreviewImportBody: previewImportBody,
 };
 
 const NAME_OF = new Map<ZodType, string>(Object.entries(API_SCHEMAS).map(([name, schema]) => [schema, name]));

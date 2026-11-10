@@ -44,41 +44,12 @@ const BLOCK_MENU: { type: BlockType; label: string; hint: string }[] = [
   { type: 'bullet', label: '글머리 기호', hint: '목록' },
 ];
 
-const PEOPLE = ['지민', '하준', '서윤', '도윤', '아린', '시우', '유나', '이안'];
 // avatarPalette 4색에 대응하는 토큰 클래스 + 딥 핑크(임의 색상 미사용).
 const COLORS = ['bg-brand-green', 'bg-brand-blue', 'bg-brand-pink', 'bg-brand-amber', 'bg-brand-deep'];
 const HEARTBEAT_MS = 2000;
 const PRESENCE_TTL_MS = 6000;
 
-const seedBlock = (docId: string, n: number, type: BlockType, text: string, checked?: boolean): Block => ({
-  id: `${docId}-b${n}`, type, text, checked, pos: n, ts: 1, by: 'seed',
-});
-
-const seedDocs = (): Doc[] => [
-  {
-    id: 'd1', title: '운영 체크리스트', titleTs: 1, titleBy: 'seed', createdTs: 2, updatedTs: 1,
-    blocks: [
-      seedBlock('d1', 1, 'p', '행사 전·당일 운영에 필요한 항목을 팀원과 함께 정리합니다.'),
-      seedBlock('d1', 2, 'h2', '사전 준비'),
-      seedBlock('d1', 3, 'todo', '참가 업체 부스 배치도 확정', true),
-      seedBlock('d1', 4, 'todo', '운영 인력 배치표 공유', false),
-      seedBlock('d1', 5, 'bullet', '인쇄물은 3월 6일까지 입고'),
-    ],
-  },
-  {
-    id: 'd2', title: '회의록 · 3월 4일', titleTs: 1, titleBy: 'seed', createdTs: 1, updatedTs: 1, part: '디자인',
-    blocks: [seedBlock('d2', 1, 'p', '브로슈어 인쇄 일정과 현장 리허설 동선을 논의했습니다.')],
-  },
-  {
-    id: 'd3', title: '오프닝 영상 콘티', titleTs: 1, titleBy: 'seed', createdTs: 3, updatedTs: 1, part: '영상',
-    blocks: [
-      seedBlock('d3', 1, 'p', '행사 오프닝 영상 30초 콘티 초안입니다.'),
-      seedBlock('d3', 2, 'h2', '콘티 구성'),
-      seedBlock('d3', 3, 'todo', '1안 내레이션 확정', false),
-      seedBlock('d3', 4, 'bullet', 'BGM 후보 3곳 전달'),
-    ],
-  },
-];
+const seedDocs = (): Doc[] => [];
 
 const newer = (a: { ts: number; by: string }, b: { ts: number; by: string }) => b.ts > a.ts || (b.ts === a.ts && b.by > a.by);
 
@@ -193,7 +164,7 @@ function useCollab(eventId: string) {
     }
     if (!identity) {
       const clientId = `c${Math.random().toString(36).slice(2, 8)}`;
-      identity = { clientId, name: PEOPLE[Math.floor(Math.random() * PEOPLE.length)], color: COLORS[Math.floor(Math.random() * COLORS.length)] };
+      identity = { clientId, name: `사용자 ${clientId}`, color: COLORS[Math.floor(Math.random() * COLORS.length)] };
       try {
         window.sessionStorage.setItem('miceplans.collab-identity', JSON.stringify(identity));
       } catch {
@@ -555,7 +526,7 @@ export function EventDocs({ eventId, part = '전체', canManage = false }: { eve
   const { docs, peers } = collab;
   const [openId, setOpenId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  // 열람 인원 설정은 목업 상태로 컴포넌트 state만 유지한다. 서버 연동 시 문서 메타로 옮긴다.
+  // 열람 인원 설정은 컴포넌트 state만 유지한다. 서버 연동 시 문서 메타로 옮긴다.
   const [visibilityByDoc, setVisibilityByDoc] = useState<Record<string, DocVisibility>>({});
   const visibilityKey = `miceplans.docs.visibility.${eventId}`;
 

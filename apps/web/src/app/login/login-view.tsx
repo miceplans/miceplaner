@@ -29,7 +29,7 @@ export function LoginView() {
       setToken(session.accessToken);
       window.location.assign('/');
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : '요청에 실패했다');
+      toast.error(err instanceof ApiError ? err.message : '[500] 요청에 실패했습니다.');
       setBusy(false);
     }
   };
@@ -55,7 +55,7 @@ export function LoginView() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          {mode === 'register' ? <span className="text-xs font-normal text-fg-tertiary">10자 이상</span> : null}
+          {mode === 'register' ? <span className="text-xs font-normal text-fg-tertiary">8자 이상</span> : null}
         </label>
 
         <Button type="submit" disabled={busy} className="h-[40px] w-full">

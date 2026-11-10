@@ -35,7 +35,7 @@ export function DesktopNotificationToggle() {
           return;
         }
         void enableDesktopNotifications().then((granted) => {
-          if (!granted) toast.error('운영체제 알림 권한이 필요하다');
+          if (!granted) toast.error('[403] 운영체제 알림 권한이 필요합니다.');
         });
       }}
       className="flex h-[30px] items-center rounded-sm border border-solid border-border bg-surface px-[11px] text-xs font-medium text-fg-secondary"

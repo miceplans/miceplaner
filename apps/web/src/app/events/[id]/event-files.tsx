@@ -27,7 +27,7 @@ const size = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024)
 
 /**
  * 행사 자료 파일(명세 F-10). 올린 파일은 서버가 Markdown으로 변환해 위키 검색과 AI 출처에 포함한다.
- * 세션 토큰이 없거나 행사 ID가 서버의 것이 아니면(목업 데이터) 표시하지 않는다.
+ * 세션 토큰이 없거나 행사 ID가 서버에 없으면 표시하지 않는다.
  */
 export function EventFiles({ eventId, canManage }: { eventId: string; canManage: boolean }) {
   const [busy, setBusy] = useState(false);
@@ -46,7 +46,7 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
   });
   const files = list.data;
   useEffect(() => {
-    if (list.isError) toast.error(list.error instanceof ApiError ? list.error.message : '파일 목록을 불러오지 못했다');
+    if (list.isError) toast.error(list.error instanceof ApiError ? list.error.message : '[500] 파일 목록을 불러오지 못했습니다.');
   }, [list.isError, list.error]);
 
   const upload = useUploadEventFile();
@@ -60,7 +60,7 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
       await fn();
       await queryClient.invalidateQueries({ queryKey: getListEventFilesQueryKey(eventId) });
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : '요청에 실패했다');
+      toast.error(e instanceof ApiError ? e.message : '[500] 요청에 실패했습니다.');
     } finally {
       setBusy(false);
     }
@@ -68,7 +68,7 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
 
   const uploadFile = (file: File) => {
     if (file.size > 20 * 1024 * 1024) {
-      toast.error('파일은 최대 20MB까지 올릴 수 있다');
+      toast.error('[413] 파일은 최대 20MB까지 올릴 수 없습니다.');
       return;
     }
     void run(() => upload.mutateAsync({ eventId, data: { file } }));

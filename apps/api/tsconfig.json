@@ -5,5 +5,5 @@
     "emitDecoratorMetadata": true,
     "types": ["node"]
   },
-  "include": ["api", "src", "test", "vitest.config.ts"]
+  "include": ["api", "src", "test", "tsup.config.ts", "vitest.config.ts"]
 }

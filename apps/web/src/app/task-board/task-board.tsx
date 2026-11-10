@@ -5,20 +5,23 @@ import { Button, ConfirmDialog, Dialog, FlowTopbar, Input, PageFrame, Select, Vi
 
 const A = '/assets/task-board';
 
-type Avatar = '한' | '최' | '박' | '이' | '김';
-/** 목업 현재 사용자. 내 Tasks 필터와 권한 판정의 기준. */
-const ME: Avatar = '박';
+/** 담당자는 자유 이름(문자열)이다. 인증 연동 전 현재 사용자는 비어 있다. */
+type Avatar = string;
+const ME: Avatar = '';
 
-const AVATAR: Record<Avatar, string> = {
-  한: 'bg-notice-bg text-notice',
-  최: 'bg-success-bg text-success-deep',
-  박: 'bg-info-bg text-brand-blue',
-  이: 'bg-surface-chip text-fg-secondary',
-  김: 'bg-submit-bg text-brand-soft',
-};
-
-/** 이니셜 키에 대응하는 담당자 이름. 카드·목록에는 이름으로 표시한다. */
-const AVATAR_NAME: Record<Avatar, string> = { 한: '한지우', 최: '최민준', 박: '박서연', 이: '이준호', 김: '김도현' };
+/** 담당자 배지 톤. 고정 명단 대신 이름 문자 합으로 정해 같은 사람은 같은 색을 쓰게 한다. */
+const AVATAR_TONES = [
+  'bg-notice-bg text-notice',
+  'bg-success-bg text-success-deep',
+  'bg-info-bg text-brand-blue',
+  'bg-surface-chip text-fg-secondary',
+  'bg-submit-bg text-brand-soft',
+];
+function avatarTone(name: string): string {
+  let h = 0;
+  for (const ch of name) h = (h + ch.charCodeAt(0)) % 997;
+  return AVATAR_TONES[h % AVATAR_TONES.length]!;
+}
 
 /** 저장 형식은 yyyy-mm-dd. 화면에는 MM.DD로 표시. */
 const fmtDue = (due: string | null) => (due ? `${due.slice(5, 7)}.${due.slice(8, 10)}` : '-');
@@ -35,78 +38,11 @@ type Task = {
 };
 type Column = { id: string; name: string; dot: string; done?: boolean; cancelled?: boolean; tasks: Task[] };
 
-const COLUMNS: Column[] = [
-  {
-    id: '할 일',
-    name: '할 일',
-    dot: 'dot-todo',
-    tasks: [
-      { id: 't1', event: 'KIMES', schedule: '브로슈어 인쇄', title: '브로슈어 인쇄 견적 3사 비교', due: '2026-03-04', late: true, who: '한', createdBy: '박' },
-      { id: 't2', event: 'KIMES', schedule: '리허설', title: '리허설 장비 체크리스트 작성', due: '2026-03-10', who: '최', createdBy: '최' },
-      { id: 't3', event: 'KIMES', schedule: '행사 당일 운영', title: '스태프 배치도 초안', due: '2026-03-08', who: '박', createdBy: '박' },
-      { id: 't4', event: '파트너스 데이', schedule: '초청장 발송', title: '파트너스 데이 초청 명단 확정', due: '2026-04-01', who: '이', createdBy: '박' },
-    ],
-  },
-  {
-    id: '진행 중',
-    name: '진행 중',
-    dot: 'dot-progress',
-    tasks: [
-      { id: 't5', event: 'KIMES', schedule: '디자인 승인', title: 'KIMES 부스 3D 렌더링 수정', due: '2026-03-05', late: true, who: '박', createdBy: '김' },
-      { id: 't6', event: 'AI 서밋', schedule: '홈페이지 오픈', title: 'AI서밋 등록 폼 API 연동', due: null, who: '김', createdBy: '김' },
-      { id: 't7', event: 'KIMES', schedule: '초청장 발송', title: '초청장 수신처 리스트 정리', due: '2026-03-02', who: '최', createdBy: '한' },
-    ],
-  },
-  {
-    id: '검토 대기',
-    name: '검토 대기',
-    dot: 'dot-review',
-    tasks: [
-      { id: 't8', event: 'KIMES', schedule: '디자인 승인', title: 'KIMES 메인 키비주얼 v3', due: '2026-03-05', who: '박', createdBy: '박' },
-      { id: 't9', event: 'AI 서밋', schedule: '홈페이지 오픈', title: 'AI서밋 발표 자료 템플릿', due: null, who: '김', createdBy: '김' },
-    ],
-  },
-  {
-    id: '보류',
-    name: '보류',
-    dot: 'dot-hold',
-    tasks: [
-      { id: 't13', event: 'KIMES', schedule: '디자인 승인', title: '부스 조명 업체 섭외 보류', due: null, who: '최', createdBy: '박' },
-      { id: 't14', event: '파트너스 데이', schedule: '초청장 발송', title: '초청장 다국어 번역', due: '2026-04-05', who: '이', createdBy: '이' },
-    ],
-  },
-  {
-    id: '취소',
-    name: '취소',
-    dot: 'dot-cancel',
-    cancelled: true,
-    tasks: [
-      { id: 't15', event: 'KIMES', schedule: '행사 당일 운영', title: '스태프 유니폼 제작', due: '2026-03-06', who: '한', createdBy: '박' },
-      { id: 't16', event: '뷰티 엑스포', schedule: '홈페이지 오픈', title: '뷰티 엑스포 사전등록 페이지', due: null, who: '김', createdBy: '김' },
-    ],
-  },
-  {
-    id: '완료',
-    name: '완료',
-    dot: 'dot-done',
-    done: true,
-    tasks: [
-      { id: 't10', event: 'KIMES', schedule: '홈페이지 오픈', title: 'KIMES 홈페이지 워크플로우 설정', due: '2026-02-20', who: '박', createdBy: '박' },
-      { id: 't11', event: 'KIMES', schedule: '초청장 발송', title: '초청장 디자인 시안 1안', due: '2026-02-26', who: '최', createdBy: '최' },
-      { id: 't12', event: 'KIMES', schedule: '리허설', title: '행사장 실사 예약', due: '2026-02-28', who: '한', createdBy: '박' },
-    ],
-  },
-];
+const COLUMNS: Column[] = [];
 
 type EventOption = { name: string; startDate: string; mine: boolean };
 
-const EVENTS: EventOption[] = [
-  { name: 'KIMES', startDate: '2026-03-12', mine: true },
-  { name: 'AI 서밋', startDate: '2026-05-20', mine: true },
-  { name: '파트너스 데이', startDate: '2026-04-15', mine: false },
-  { name: '헬스케어 포럼', startDate: '2026-02-03', mine: false },
-  { name: '뷰티 엑스포', startDate: '2025-11-08', mine: true },
-];
+const EVENTS: EventOption[] = [];
 
 /** 내 행사 우선, 같은 그룹 안에서는 최근 행사 순. */
 const SORTED_EVENTS = [...EVENTS].sort(
@@ -174,8 +110,8 @@ function TaskCard({
           <span className="text-2xs whitespace-nowrap text-fg-secondary">마감일 없음</span>
         )}
         <div className="h-px min-w-px flex-1" />
-        <span className={`flex h-[22px] items-center justify-center rounded-lg px-[6px] text-2xs font-semibold whitespace-nowrap ${AVATAR[task.who]}`}>
-          {AVATAR_NAME[task.who]}
+        <span className={`flex h-[22px] items-center justify-center rounded-lg px-[6px] text-2xs font-semibold whitespace-nowrap ${avatarTone(task.who)}`}>
+          {task.who}
         </span>
       </div>
       {canEdit || canComplete ? (
@@ -227,7 +163,7 @@ export function TaskBoard() {
   const tasks = boardColumns.flatMap((column) =>
     column.tasks.map((task) => ({ ...task, column: column.name, done: column.done, cancelled: column.cancelled })),
   );
-  const visibleTasks = tab === 'mine' ? tasks.filter((task) => task.who === ME) : tasks;
+  const visibleTasks = tab === 'mine' ? tasks.filter((task) => task.createdBy === ME) : tasks;
   /** 마감일 없는 항목은 어느 방향이든 맨 뒤로. 기본은 현행 순서 유지(안정 정렬). */
   const sortedTasks = [...visibleTasks].sort((a, b) => {
     if (sortMode === 'default') return 0;
@@ -337,7 +273,7 @@ export function TaskBoard() {
       ) : (
         <div className="flex flex-1 flex-col gap-[8px] p-[24px] max-md:p-[12px]" role="tabpanel">
           <div className="flex items-center justify-between gap-[12px]">
-            <p className="text-base text-fg-secondary">{tab === 'mine' ? '내가 담당한 Tasks' : '모든 Tasks'}</p>
+            <p className="text-base text-fg-secondary">{tab === 'mine' ? '내가 작성한 Tasks' : '모든 Tasks'}</p>
             <label className="flex items-center gap-[6px] text-sm whitespace-nowrap text-fg-secondary">
               정렬
               <Select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} className="shrink-0">
@@ -354,7 +290,7 @@ export function TaskBoard() {
                   <span className="w-[100px] shrink-0 text-fg-secondary">{task.column}</span>
                   <span className={`min-w-0 flex-1 font-medium ${task.cancelled ? 'text-fg-secondary line-through' : 'text-fg'}`}>{task.title}</span>
                   <span className={`w-[100px] shrink-0 whitespace-nowrap ${task.late && task.due ? 'text-error-delay' : 'text-fg-secondary'}`}>{fmtDue(task.due)}</span>
-                  <span className={`flex h-[22px] shrink-0 items-center justify-center rounded-lg px-[6px] text-2xs font-semibold whitespace-nowrap ${AVATAR[task.who]}`}>{AVATAR_NAME[task.who]}</span>
+                  <span className={`flex h-[22px] shrink-0 items-center justify-center rounded-lg px-[6px] text-2xs font-semibold whitespace-nowrap ${avatarTone(task.who)}`}>{task.who}</span>
                 </div>
               ))}
             </div>
@@ -529,13 +465,7 @@ function TaskDialog({
           </label>
           <label className={`${label} flex-1`}>
             담당자
-            <Select value={who} onChange={(e) => setWho(e.target.value as Avatar)} className="w-full">
-              {(Object.keys(AVATAR) as Avatar[]).map((a) => (
-                <option key={a} value={a}>
-                  {AVATAR_NAME[a]}
-                </option>
-              ))}
-            </Select>
+            <Input value={who} onChange={(e) => setWho(e.target.value)} placeholder="담당자 이름" className="w-full" />
           </label>
         </div>
         <div className="flex justify-end gap-[8px]">

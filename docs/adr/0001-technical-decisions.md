@@ -30,18 +30,18 @@ MICEPLANS는 행사 운영 데이터와 사내 지식을 다루며, 내부 직�
 | 임베딩 | BGE-M3 dense, TEI | 초기 검색 구성 |
 | 검색 | PostgreSQL FTS, `pg_trgm`, pgvector | 애플리케이션에서 결과 병합 |
 | LLM | GLM | OpenAI 호환 어댑터 뒤에 배치 |
-| 내부 인증 | 이메일·비밀번호(scrypt) + 하이웍스 조직도 구성원 검증 | Google OIDC는 철회(2026-11-03). 하이웍스 OAuth는 신규 발급이 중단되어 쓰지 않는다. 메일 소유 확인이 없어 자유 가입 선점 위험을 감수한다. Client 인증은 미결정 |
+| 내부 인증 | 이메일·비밀번호(scrypt) + 하이웍스 조직도 구성원 검증 | Google OIDC는 철회(2026-11-03). 하이웍스 OAuth는 신규 발급이 중단되어 쓰지 않는다. 메일 소유 확인이 없어 자유 가입 선점 위험을 감수한다. Client는 `client.` 포털에서 회사명·이름·이메일·비밀번호로 신청하고 Super Admin 승인 뒤 로그인한다. |
 | 관측 | Sentry와 OpenTelemetry | AI 호출 로그 별도 저장 |
 
-### 배포 (2026-11-09)
+### 배포
 
-초기 웹은 Vercel 정적 배포로, HTTP API는 별도 Vercel Node.js 함수 프로젝트로 배포한다. 공유 데이터베이스는 기존 Supabase PostgreSQL을 사용한다. 서버리스 API는 Supabase Transaction Pooler에 연결하고 warm 함수 인스턴스당 DB 연결 수를 1개로 제한한다. 마이그레이션은 함수가 아닌 배포 전 전용 연결로 실행한다.
+일반 HTTP API는 Vercel Node Function으로 요청 시에만 실행한다. API 함수는 `tsup`으로 workspace 코드를 단일 ESM 번들로 만들고, Vercel 함수 진입점은 그 산출물만 불러온다. ESM 전용 `jose`와 동적 `require`를 사용하는 `pg`는 번들 밖에 두어 Node 런타임이 직접 해석한다. Vercel의 `Other` 프리셋이 요구하는 `public` 출력 디렉터리는 빌드 때 `index.html`을 만들어 비어 있지 않게 하며, 모든 HTTP 메서드와 중첩 경로는 Vercel `routes` 규칙으로 catch-all 함수 파일에 직접 보낸다. API 번들은 정적 산출물이 아니라 함수에만 포함한다. 이는 워크스페이스 TypeScript 소스의 확장자 없는 ESM import를 Vercel 런타임이 개별적으로 해석하는 문제를 피한다. Socket.IO·협업·worker처럼 지속 연결 또는 폴링이 필요한 프로세스는 Vercel 함수에 두지 않는다.
+
+공유 데이터베이스는 기존 Supabase PostgreSQL을 사용한다. 서버리스 API는 Supabase Transaction Pooler에 연결하고 warm 함수 인스턴스당 DB 연결 수를 1개로 제한한다. 마이그레이션은 함수가 아닌 배포 전 전용 연결로 실행한다.
 
 DB 스키마 변경은 Drizzle Kit custom SQL migration으로 커밋하고, `main` 병합 시 GitHub Actions가 `SUPABASE_MIGRATION_URL`(마이그레이션 소유자 직접 연결)로 적용한다. 운영 DB에 대한 Drizzle `push` 자동 실행은 RLS·권한 함수·감사 트리거를 예기치 않게 변경할 수 있어 사용하지 않는다.
 
-Vercel 함수의 요청·응답 크기 제한과 지속 연결 제약 때문에 Socket.IO·Hocuspocus, pg-boss worker, 4.5MB 초과 파일 처리에는 사용하지 않는다. 해당 기능은 실제 출시 시점에 최소 규모의 별도 지속 실행 환경 또는 직접 업로드 경로를 결정한다. 이는 권한 검증과 PostgreSQL RLS 원칙을 변경하지 않는다.
-
-비용 기준 잠정 선택(2026-11-09): 협업 서버(Hocuspocus)는 Fly.io의 최소 shared VM 한 대에 두고 유휴 시 자동 정지를 허용한다. Yjs 스냅샷이 PostgreSQL에 있어 서버는 무상태이므로 재시작 시 클라이언트 자동 재연결로 복구한다. 업로드 원본은 Supabase Storage의 비공개 버킷에 두고 `S3_ENDPOINT`로 S3 호환 API에 연결한다. 무료 플랜은 비활성 시 프로젝트가 일시정지되므로 운영 시작 전 Pro로 전환한다. 두 선택 모두 출시 시점에 가격을 다시 확인한다.
+Vercel 함수의 요청·응답 크기 제한 때문에 4.5MB 초과 파일 처리는 직접 업로드 경로 등 별도 방법으로 결정한다. 이는 권한 검증과 PostgreSQL RLS 원칙을 변경하지 않는다.
 
 ### 시스템 경계
 
@@ -93,7 +93,7 @@ Client 포털은 API만 호출한다. 협업 서버는 Client 연결을 받지 �
 
 업로드 파일은 worker가 Markdown으로 변환해 `event_docs`와 `knowledge_chunks`로 들어가므로 위키와 같은 RLS를 따른다. 원본은 S3에 두고 API가 대신 전달한다. dense 임베딩 열은 pgvector가 있는 서버에서만 만들며, 없거나 `TEI_URL`이 없으면 검색은 lexical만 쓴다. pg-boss 스키마는 배포 때 소유자 역할로 만들고 앱·worker 역할에는 DDL 권한을 주지 않는다. 자세한 동작과 미확정 항목(원본 보존 기간, 임베딩 서빙 비용, 거리 임계값)은 기능 명세 F-10과 6절에 있다.
 
-AI 도구는 읽기와 proposal 생성으로 제한하며 사용자의 RLS 컨텍스트에서 실행된다. 승인 반영은 승인자 권한으로 서버가 한 트랜잭션에서 수행한다. 변경은 승인 뒤 서버 API가 실행하고 감사 로그에 남긴다. GLM의 도구 호출 품질은 20~30개 골든 셋으로 초기 2주 안에 평가한다. LLM 어댑터는 모델 교체를 가능하게 유지한다.
+AI 도구는 읽기와 proposal 생성으로 제한하며 사용자의 RLS 컨텍스트에서 실행된다. 승인 반영은 승인자 권한으로 서버가 한 PostgreSQL 트랜잭션에서 수행한다. AI 위키 승인은 API가 Yjs 원본과 Markdown 파생본, 색인, revision, proposal 결정, 감사 로그를 함께 저장하고, 커밋 뒤 협업 서버는 열린 연결에 상태만 전파한다. 이 순서는 별도 협업 서버 DB 트랜잭션과 API 트랜잭션을 하나의 분산 트랜잭션처럼 취급하지 않게 한다. 변경은 승인 뒤 서버 API가 실행하고 감사 로그에 남긴다. GLM의 도구 호출 품질은 20~30개 골든 셋으로 초기 2주 안에 평가한다. LLM 어댑터는 모델 교체를 가능하게 유지한다.
 
 ### 레포지터리 구조
 
@@ -144,6 +144,6 @@ packages/
 | Redis | 협업 서버를 두 개 이상 운영하거나 동시 접속이 증가할 때 |
 | 검색 구성 | 골든 셋에서 한국어 검색 품질이 기준 미달일 때 |
 | LLM | 초기 2주 평가에서 GLM 도구 호출 품질이 기준 미달일 때 |
-| Client 인증 | 첫 포털 연동 또는 고객사 SSO 요구가 있을 때 |
+| Client 인증 | 고객사 SSO 요구가 생길 때 |
 | 전사 문서 space | 행사 외 문서 space 추가 직전 |
 | Tauri | 네이티브 알림 또는 파일 드롭 요구가 확인될 때. 위키 에디터가 OS 웹뷰(WebKit·WebView2)에서 정상 동작하는지 도입 전 검증 |

@@ -4,6 +4,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { connectTestAdmin, type TestAdmin } from '@miceplans/db/testing';
 import type { ChatMsg, LlmChunk, LlmClient } from '@miceplans/ai';
+import { markdownToYdoc, stateToYdoc, ydocToMarkdown, ydocToState } from '@miceplans/editor-schema';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import request from 'supertest';
@@ -62,6 +63,11 @@ const startFakeCollab = () =>
       let raw = '';
       req.on('data', (c) => (raw += c));
       req.on('end', () => {
+        if (/\/internal\/docs\/[^/]+\/sync/.test(req.url ?? '')) {
+          res.writeHead(collabStatus);
+          res.end('{}');
+          return;
+        }
         const docId = /\/internal\/docs\/([^/]+)\/replace/.exec(req.url ?? '')?.[1] ?? '';
         const payload = JSON.parse(raw || '{}') as { userId: string; markdown: string };
         collabCalls.push({ docId, userId: payload.userId, markdown: payload.markdown, secret: req.headers['x-internal-secret'] as string | undefined });
@@ -396,7 +402,7 @@ describe('AI 제안과 승인 (F-11: 승인 전에는 아무것도 바뀌지 않
   });
 });
 
-const markYdoc = (docId: string) => admin.query(`INSERT INTO wiki_ydoc (doc_id, event_id, state) VALUES ($1, $2, '\\x00')`, [docId, EVENT]);
+const markYdoc = (docId: string) => admin.query(`INSERT INTO wiki_ydoc (doc_id, event_id, state) VALUES ($1, $2, $3)`, [docId, EVENT, Buffer.from(ydocToState(markdownToYdoc('초기 Yjs 상태')))]);
 
 describe('문서 버전 (F-09: 명시적 생성·AI 승인·되돌리기에서만)', () => {
   it('PM만 버전을 만들고, 문서를 볼 수 있는 사람만 목록·상세를 본다', async () => {
@@ -454,7 +460,7 @@ describe('Yjs가 기준인 문서의 본문 변경은 협업 서버를 거친다
     }
     expect((await api().get(`/docs/${doc.id}`).set(as('pm'))).body.bodyMd).toBe('안전한 본문');
   });
-  it('AI 위키 수정 승인은 버전을 남기고 Yjs 트랜잭션으로 반영한다. 협업 서버가 실패하면 제안은 대기로 남는다', async () => {
+  it('AI 위키 수정 승인은 Yjs 원본·revision·결정을 한 DB 트랜잭션으로 반영하며, 커밋 뒤 동기화 실패는 결정을 되돌리지 않는다', async () => {
     const doc = await createDoc('pm', 'AI 협업 문서', '승인 전 본문', 'members');
     await markYdoc(doc.id);
     script = (m) => (lastIsUser(m)
@@ -466,18 +472,15 @@ describe('Yjs가 기준인 문서의 본문 변경은 협업 서버를 거친다
     collabStatus = 500;
     collabCalls.length = 0;
     try {
-      await api().post(`/ai/proposals/${proposal.id}/approve`).set(as('pm')).expect(503);
+      await api().post(`/ai/proposals/${proposal.id}/approve`).set(as('pm')).expect(201);
     } finally {
       collabStatus = 200;
     }
-    expect((await admin.query('SELECT status FROM ai_proposals WHERE id = $1', [proposal.id])).rows[0]).toEqual({ status: 'pending' });
-    expect((await admin.query('SELECT 1 FROM wiki_revisions WHERE doc_id = $1', [doc.id])).rowCount).toBe(0);
-    expect((await admin.query('SELECT 1 FROM audit_log WHERE detail->>\'proposalId\' = $1', [proposal.id])).rowCount).toBe(0);
-
-    collabCalls.length = 0;
-    await api().post(`/ai/proposals/${proposal.id}/approve`).set(as('pm')).expect(201);
-    expect(collabCalls).toEqual([{ docId: doc.id, userId: U.pm, markdown: '승인 후 본문', secret: 'fake-secret' }]);
+    expect(collabCalls).toEqual([]);
+    expect((await admin.query('SELECT status FROM ai_proposals WHERE id = $1', [proposal.id])).rows[0]).toEqual({ status: 'approved' });
     expect((await api().get(`/docs/${doc.id}`).set(as('pm'))).body.bodyMd).toBe('승인 후 본문');
+    const stored = await admin.query('SELECT state FROM wiki_ydoc WHERE doc_id = $1', [doc.id]);
+    expect(ydocToMarkdown(stateToYdoc(stored.rows[0]!.state as Uint8Array))).toContain('승인 후 본문');
     const revisions = (await api().get(`/docs/${doc.id}/revisions`).set(as('pm'))).body;
     expect(revisions).toHaveLength(1);
     expect(revisions[0]).toMatchObject({ reason: 'ai_proposal', version: doc.version });

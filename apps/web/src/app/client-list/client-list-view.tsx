@@ -11,17 +11,13 @@ type Client = {
   manager: string;
   phone: string;
   event: string;
+  /** 최근 행사의 ID. 있으면 행사 상세 페이지로 연결한다. */
+  eventId?: string;
   eventMeta: string;
   status: StatusKey;
 };
 
-const CLIENTS: Client[] = [
-  { id: 'c1', name: '메디코리아', manager: '김민석 차장', phone: '02-1234-5678', event: '제54회 KIMES 2025', eventMeta: '03.13 – 03.16 · 코엑스 Hall A·B', status: '진행중' },
-  { id: 'c2', name: '글로벌AI서밋 조직위', manager: '이준호 팀장', phone: '02-3456-7890', event: '글로벌 AI 서밋 2025', eventMeta: '05.21 – 05.23 · 코엑스 Hall C', status: '진행중' },
-  { id: 'c3', name: '삼성전자', manager: '박지연 과장', phone: '02-5678-1234', event: 'K-데모데이 2025', eventMeta: '06.05 · 역삼 사옥 1F', status: '진행중' },
-  { id: 'c4', name: '한국프랜차이즈협회', manager: '최은주 부장', phone: '02-7890-3456', event: '프랜차이즈 엑스포 2025', eventMeta: '04.02 – 04.04 · 킨텍스', status: '성공' },
-  { id: 'c5', name: '로진컴퍼니', manager: '서동현 대리', phone: '02-2468-1357', event: '브랜드 갤라 나이트', eventMeta: '11.28 · 포시즌스 서울', status: '진행중' },
-];
+const CLIENTS: Client[] = [];
 
 function reorder<T>(list: T[], from: number, to: number): T[] {
   if (from === to || from < 0 || to < 0) return list;
@@ -146,10 +142,21 @@ export function ClientListView() {
                   <span className="text-xs font-medium text-fg-secondary">{c.manager}</span>
                   <span className="text-2xs text-fg-tertiary">{c.phone}</span>
                 </div>
-                <div className="flex h-full w-[480px] shrink-0 flex-col items-start justify-center gap-[2px] whitespace-nowrap">
-                  <span className="text-sm font-medium text-fg">{c.event}</span>
-                  <span className="text-2xs text-fg-tertiary">{c.eventMeta}</span>
-                </div>
+                {c.eventId ? (
+                  <a
+                    href={`/events/${c.eventId}`}
+                    aria-label={`${c.event} 상세 보기`}
+                    className="flex h-full w-[480px] shrink-0 flex-col items-start justify-center gap-[2px] whitespace-nowrap no-underline outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand"
+                  >
+                    <span className="text-sm font-medium text-fg">{c.event}</span>
+                    <span className="text-2xs text-fg-tertiary">{c.eventMeta}</span>
+                  </a>
+                ) : (
+                  <div className="flex h-full w-[480px] shrink-0 flex-col items-start justify-center gap-[2px] whitespace-nowrap">
+                    <span className="text-sm font-medium text-fg">{c.event}</span>
+                    <span className="text-2xs text-fg-tertiary">{c.eventMeta}</span>
+                  </div>
+                )}
                 <div className="flex h-full w-[100px] shrink-0 items-center">
                   <div className="relative h-[24px] w-[96px] shrink-0">
                     <StatusPill status={c.status} />

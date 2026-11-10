@@ -20,13 +20,13 @@ export function FlowTopbar({
   showKbd?: boolean;
 }): ReactNode {
   return (
-    <div className="flex h-[56px] w-full shrink-0 items-center gap-[12px] border-b border-solid border-border bg-surface px-[16px]">
+    <div className="flex h-[56px] w-full shrink-0 items-center gap-[12px] border-b border-solid border-border bg-surface px-[16px] max-md:h-auto max-md:min-h-[56px] max-md:flex-wrap max-md:py-[10px]">
       {showToggle ? (
         <button type="button" aria-label="사이드바 토글" className="flex size-[28px] shrink-0 items-center justify-center rounded-sm">
           <img alt="" src={`${A}/toggle-icon.svg`} className="size-[16px]" />
         </button>
       ) : null}
-      <div className="flex h-full items-center gap-[6px]">
+      <div className="flex h-full min-w-0 items-center gap-[6px]">
         {leading}
         {title ? <p className="whitespace-nowrap text-base font-semibold text-fg">{title}</p> : null}
         {breadcrumb ? (
@@ -38,7 +38,7 @@ export function FlowTopbar({
         ) : null}
       </div>
       <div className="h-px min-w-px flex-1" />
-      <div className="flex h-[32px] w-[280px] shrink-0 items-center gap-[8px] rounded-sm bg-surface-chip px-[10px]">
+      <div className="flex h-[32px] w-[280px] shrink-0 items-center gap-[8px] rounded-sm bg-surface-chip px-[10px] max-md:order-3 max-md:w-full">
         <img alt="" src={`${A}/search-icon.svg`} className="size-[15px]" />
         <p className="whitespace-nowrap text-base text-fg-tertiary">검색</p>
         <div className="h-px min-w-px flex-1" />
@@ -50,9 +50,6 @@ export function FlowTopbar({
         <img alt="" src={`${A}/plus-icon.svg`} className="size-[14px]" />
         <span className="whitespace-nowrap text-base font-semibold text-fg-inverse">새 행사</span>
       </a>
-      <div className="flex size-[26px] shrink-0 items-center justify-center rounded-xl bg-brand-tint text-2xs font-semibold text-brand">
-        JY
-      </div>
     </div>
   );
 }

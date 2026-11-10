@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, type MouseEvent, type ReactNode } from 'react';
-import { SidePeekPanel, type AgendaItem } from './side-peek';
-import { MARCH_TODOS, type PersonalTodo } from './personal-todo';
+import { SidePeekPanel } from './side-peek';
+import { type PersonalTodo } from './personal-todo';
 import { Input } from './field';
 import { statusTones, type StatusToneKey } from './tokens';
 
@@ -90,7 +90,6 @@ export function Topbar(): ReactNode {
         <img alt="" src={`${A}/05c58.svg`} className="size-[14px]" />
         <span className="whitespace-nowrap">새 행사</span>
       </a>
-      <span className="flex size-[26px] shrink-0 items-center justify-center rounded-xl bg-brand-tint text-2xs font-semibold text-brand">JY</span>
     </div>
   );
 }
@@ -138,85 +137,37 @@ export function ViewTabs({ tabs, active, bordered = false, onChange, action }: {
 export type ChipKey = 'invite' | 'design' | 'brochure' | 'ai' | 'rehearsal' | 'kimes' | 'kimesHome' | 'designProduction' | 'videoProduction';
 
 export const CHIPS: Record<ChipKey, { label: string; bg: string; fg: string; dot: string; /** 밝은 배경 칩(어두운 빗금 적용) */ light?: boolean }> = {
-  invite: { label: '초청장 발송', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e', light: true },
-  design: { label: '디자인 승인', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e', light: true },
-  kimesHome: { label: 'KIMES 홈페이지', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e', light: true },
-  brochure: { label: '브로슈어 인쇄', bg: 'bg-warning-hold', fg: 'text-fg-inverse', dot: 'e2e7c' },
-  ai: { label: 'AI서밋 홈페이지', bg: 'bg-brand-pink-strong', fg: 'text-fg-inverse', dot: 'e2e7c' },
+  invite: { label: '일정', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e', light: true },
+  design: { label: '일정', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e', light: true },
+  kimesHome: { label: '일정', bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '9cd3e', light: true },
+  brochure: { label: '일정', bg: 'bg-warning-hold', fg: 'text-fg-inverse', dot: 'e2e7c' },
+  ai: { label: '일정', bg: 'bg-brand-pink-strong', fg: 'text-fg-inverse', dot: 'e2e7c' },
   rehearsal: { label: '리허설', bg: 'bg-error-brand', fg: 'text-fg-inverse', dot: 'e2e7c' },
-  kimes: { label: 'KIMES 당일 운영', bg: 'bg-error-brand', fg: 'text-fg-inverse', dot: 'e2e7c' },
-  designProduction: { label: '[KIMES 2025] 디자인 제작물', bg: 'bg-info', fg: 'text-fg-inverse', dot: 'e2e7c' },
-  videoProduction: { label: '[AI 서밋 2025] 영상 제작물', bg: 'bg-error-brand', fg: 'text-fg-inverse', dot: 'e2e7c' },
+  kimes: { label: '일정', bg: 'bg-error-brand', fg: 'text-fg-inverse', dot: 'e2e7c' },
+  designProduction: { label: '디자인 제작물', bg: 'bg-info', fg: 'text-fg-inverse', dot: 'e2e7c' },
+  videoProduction: { label: '영상 제작물', bg: 'bg-error-brand', fg: 'text-fg-inverse', dot: 'e2e7c' },
 };
 
 export type CalCell = { d?: number; today?: boolean; chips?: ChipKey[] };
 
-const c = (d: number, ...chips: ChipKey[]): CalCell => ({ d, chips });
-const BLANK: CalCell = {};
-
-/** 2025년 3월 */
-export const MARCH_2025: CalCell[][] = [
-  [BLANK, BLANK, BLANK, BLANK, BLANK, BLANK, c(1)],
-  [c(2), c(3, 'invite'), c(4), c(5, 'design'), { d: 6, today: true, chips: ['brochure'] }, c(7, 'brochure'), c(8, 'brochure')],
-  [c(9, 'brochure'), c(10, 'brochure', 'ai'), c(11, 'ai'), c(12, 'ai', 'rehearsal'), c(13, 'ai', 'kimes'), c(14, 'ai', 'kimes'), c(15, 'kimes')],
-  [c(16, 'kimes'), c(17), c(18), c(19), c(20), c(21), c(22)],
-  [c(23), c(24, 'kimesHome'), c(25, 'kimesHome'), c(26, 'kimesHome'), c(27), c(28), c(29)],
-  [c(30), c(31), BLANK, BLANK, BLANK, BLANK, BLANK],
-];
-
-/** 2025년 3월 날짜별 프로그램·태스크·서브태스크 (내 할 일은 MARCH_TODOS에서 파생) */
-const MARCH_AGENDA_BASE: Record<number, AgendaItem[]> = {
-  3: [
-    { kind: 'program', title: '초청장 발송', meta: 'KIMES' },
-    { kind: 'task', title: '초청장 수신처 리스트 정리', meta: '최' },
-  ],
-  5: [
-    { kind: 'task', title: 'KIMES 부스 3D 렌더링 수정', meta: '박' },
-    { kind: 'subtask', title: '조명 재질 수정', meta: '박', done: true },
-  ],
-  6: [
-    { kind: 'program', title: '브로슈어 인쇄', meta: 'KIMES' },
-    { kind: 'task', title: '브로슈어 인쇄 견적 3사 비교', meta: '한' },
-    { kind: 'subtask', title: '견적서 3부 수집', meta: '한', done: true },
-    { kind: 'subtask', title: '단가 비교표 작성', meta: '한' },
-  ],
-  10: [
-    { kind: 'program', title: 'AI서밋 홈페이지', meta: 'AI 서밋' },
-    { kind: 'task', title: 'AI서밋 발표 자료 템플릿', meta: '김' },
-  ],
-  12: [
-    { kind: 'program', title: '리허설', meta: 'KIMES' },
-    { kind: 'task', title: '리허설 장비 체크리스트 작성', meta: '최' },
-    { kind: 'subtask', title: '음향 장비 목록 확인' },
-  ],
-  13: [
-    { kind: 'program', title: 'KIMES 당일 운영', meta: 'KIMES' },
-    { kind: 'task', title: '스태프 배치도 초안', meta: '박' },
-  ],
-  24: [{ kind: 'program', title: 'KIMES 홈페이지', meta: 'KIMES' }],
-};
-
-/** 내 할 일을 범위의 각 날(바) 또는 마감일(동그라미)에 넣어 사이드 피크 agenda를 만든다 */
-function buildMarchAgenda(todos: PersonalTodo[]): Record<number, AgendaItem[]> {
-  const agenda: Record<number, AgendaItem[]> = {};
-  const push = (day: number, item: AgendaItem) => {
-    (agenda[day] ??= []).push(item);
-  };
-  for (const todo of todos) {
-    const item: AgendaItem = { kind: 'todo', title: todo.title, done: todo.done };
-    if (todo.start !== undefined && todo.end !== undefined) {
-      for (let d = todo.start; d <= todo.end; d++) push(d, item);
-    } else if (todo.due !== undefined) {
-      push(todo.due, item);
-    }
-  }
-  for (const [day, items] of Object.entries(MARCH_AGENDA_BASE)) {
-    for (const item of items) push(Number(day), item);
-  }
-  return agenda;
+/** 연·월의 달력 그리드를 만든다. 주는 일요일 시작이고 앞뒤 빈 칸은 빈 셀로 채운다. 오늘 날짜면 today를 표시한다. */
+export function buildMonthWeeks(year: number, month: number, today = new Date()): CalCell[][] {
+  const firstWeekday = new Date(year, month - 1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const isToday = (d: number) => year === today.getFullYear() && month === today.getMonth() + 1 && d === today.getDate();
+  const cells: CalCell[] = [
+    ...Array<CalCell>(firstWeekday).fill({}),
+    ...Array.from({ length: daysInMonth }, (_, i): CalCell => ({ d: i + 1, today: isToday(i + 1) })),
+  ];
+  while (cells.length % 7) cells.push({});
+  return Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
 }
 
-const MARCH_AGENDA = buildMarchAgenda(MARCH_TODOS);
+/** 이전/다음 달 커서를 구한다. */
+export function shiftMonth(cursor: { year: number; month: number }, delta: number): { year: number; month: number } {
+  const d = new Date(cursor.year, cursor.month - 1 + delta, 1);
+  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+}
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -351,8 +302,6 @@ function TodoDot({ seg, onClick }: { seg: TodoDotSeg; onClick: (e: MouseEvent<HT
 }
 
 export function MonthCalendar({
-  title,
-  weeks,
   headerAddon,
   gridGap = 24,
   thickRows = [3],
@@ -360,9 +309,8 @@ export function MonthCalendar({
   padX = 24,
   personal = false,
   todos = [],
+  initialMonth,
 }: {
-  title: string;
-  weeks: CalCell[][];
   /** 월 제목 옆에 표시할 보기 전환 등 보조 컨트롤 */
   headerAddon?: ReactNode;
   gridGap?: number;
@@ -375,18 +323,23 @@ export function MonthCalendar({
   personal?: boolean;
   /** 달력에 함께 표시할 내 할 일. 기간이 있으면 빗금 바, 마감일만 있으면 빗금 동그라미 항목으로 표시한다 */
   todos?: PersonalTodo[];
+  /** 처음에 표시할 월. 없으면 이번 달이다. 이전/다음 달 버튼으로 월을 옮긴다. */
+  initialMonth?: { year: number; month: number };
 }): ReactNode {
+  const [cursor, setCursor] = useState(() => initialMonth ?? (() => { const n = new Date(); return { year: n.getFullYear(), month: n.getMonth() + 1 }; })());
+  const weeks = buildMonthWeeks(cursor.year, cursor.month);
+  const title = `${cursor.year}년 ${cursor.month}월`;
   const last = weeks.length - 1;
   const [peek, setPeek] = useState<{ title: string; date: string; day: number } | null>(null);
   return (
     <div className="flex w-full flex-col items-center" style={{ gap: gridGap }}>
-      {peek ? <SidePeekPanel title={peek.title} date={peek.date} agenda={MARCH_AGENDA[peek.day] ?? []} onClose={() => setPeek(null)} /> : null}
+      {peek ? <SidePeekPanel title={peek.title} date={peek.date} agenda={[]} onClose={() => setPeek(null)} /> : null}
       <div className="flex shrink-0 items-center gap-[17.895px]">
-        <button type="button" aria-label="이전 달" className="size-[26.842px] rounded-sm hover:bg-surface-chip">
+        <button type="button" aria-label="이전 달" onClick={() => setCursor((c) => shiftMonth(c, -1))} className="size-[26.842px] rounded-sm hover:bg-surface-chip">
           <img alt="" src={`${A}/4f176.svg`} className="size-full" />
         </button>
         <p className="whitespace-nowrap text-3xl font-semibold text-fg">{title}</p>
-        <button type="button" aria-label="다음 달" className="size-[26.842px] rounded-sm hover:bg-surface-chip">
+        <button type="button" aria-label="다음 달" onClick={() => setCursor((c) => shiftMonth(c, 1))} className="size-[26.842px] rounded-sm hover:bg-surface-chip">
           <img alt="" src={`${A}/2e379.svg`} className="size-full" />
         </button>
         {headerAddon}

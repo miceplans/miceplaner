@@ -79,6 +79,102 @@
         ]
       }
     },
+    "/auth/client/login": {
+      "post": {
+        "operationId": "clientLogin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSessionDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "승인된 Client 포털 계정 로그인",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/client-applications": {
+      "post": {
+        "operationId": "createClientApplication",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateClientApplicationBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientApplicationDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Client 포털 계정 신청 (회사명·이름·이메일)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/client-applications/{id}/approve": {
+      "post": {
+        "operationId": "approveClientApplication",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientApplicationDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Client 계정 신청 승인 (Super Admin)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/auth/password": {
       "post": {
         "operationId": "authChangePassword",
@@ -183,6 +279,36 @@
           }
         },
         "summary": "행사 목록 (Staff도 전체 조회, 명세 2.2)",
+        "tags": [
+          "events"
+        ]
+      },
+      "post": {
+        "operationId": "eventsCreate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "행사 생성 (고객사·PM·AM·예산 지정, 감사 로그 대상)",
         "tags": [
           "events"
         ]
@@ -540,6 +666,626 @@
         "summary": "행사에서 Client 지정 해제 (감사 로그 대상)",
         "tags": [
           "events"
+        ]
+      }
+    },
+    "/events/{eventId}/docs": {
+      "post": {
+        "operationId": "knowledgeCreate",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDocBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "위키 문서 생성 (PM·AM, 본문 색인 포함)",
+        "tags": [
+          "wiki"
+        ]
+      },
+      "get": {
+        "operationId": "docsList",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventDocDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "행사 문서 목록 (열람 범위는 RLS가 필터링)",
+        "tags": [
+          "docs"
+        ]
+      }
+    },
+    "/docs/{docId}": {
+      "get": {
+        "operationId": "getDocPage",
+        "parameters": [
+          {
+            "name": "docId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "위키 문서 본문 (열람 범위는 RLS가 강제)",
+        "tags": [
+          "wiki"
+        ]
+      },
+      "delete": {
+        "operationId": "knowledgeRemove",
+        "parameters": [
+          {
+            "name": "docId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "위키 문서 삭제 (soft delete, PM·AM, 감사 로그)",
+        "tags": [
+          "wiki"
+        ]
+      }
+    },
+    "/docs/{docId}/body": {
+      "put": {
+        "operationId": "knowledgeSave",
+        "parameters": [
+          {
+            "name": "docId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDocBodyBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "위키 제목·본문 저장 (PM·AM, 마지막 저장 우선, 색인 갱신)",
+        "tags": [
+          "wiki"
+        ]
+      }
+    },
+    "/docs/{docId}/revisions": {
+      "post": {
+        "operationId": "knowledgeCreateRevision",
+        "parameters": [
+          {
+            "name": "docId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiRevisionDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "현재 내용을 버전으로 저장 (PM·AM)",
+        "tags": [
+          "wiki"
+        ]
+      },
+      "get": {
+        "operationId": "knowledgeListRevisions",
+        "parameters": [
+          {
+            "name": "docId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WikiRevisionDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "문서 버전 목록 (열람 범위는 RLS가 강제)",
+        "tags": [
+          "wiki"
+        ]
+      }
+    },
+    "/docs/{docId}/revisions/{revisionId}": {
+      "get": {
+        "operationId": "knowledgeGetRevision",
+        "parameters": [
+          {
+            "name": "docId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "revisionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiRevisionDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "문서 버전 상세 (본문 포함)",
+        "tags": [
+          "wiki"
+        ]
+      }
+    },
+    "/docs/{docId}/revisions/{revisionId}/restore": {
+      "post": {
+        "operationId": "knowledgeRestoreRevision",
+        "parameters": [
+          {
+            "name": "docId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "revisionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "버전으로 되돌리기 (PM·AM, 현재 내용을 먼저 버전으로 남기고 감사 로그)",
+        "tags": [
+          "wiki"
+        ]
+      }
+    },
+    "/search": {
+      "get": {
+        "operationId": "knowledgeSearch",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "eventId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "clientId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "since",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SearchHitDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "위키 검색 (권한 필터 후 FTS + pg_trgm 병합, 출처 포함)",
+        "tags": [
+          "wiki"
+        ]
+      }
+    },
+    "/events/{eventId}/files": {
+      "post": {
+        "operationId": "uploadEventFile",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "itemId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "파일 업로드 (PM·AM). 원본은 저장소에 두고 worker가 변환·색인한다",
+        "tags": [
+          "files"
+        ]
+      },
+      "get": {
+        "operationId": "listEventFiles",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FileDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/files/{id}": {
+      "get": {
+        "operationId": "filesGet",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "파일 상태 (pending·ready·failed와 실패 사유)",
+        "tags": [
+          "files"
+        ]
+      },
+      "patch": {
+        "operationId": "filesMove",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveFileBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "첨부 대상 항목 이동 (PM·AM). null이면 행사 루트 첨부로 옮긴다. 같은 행사의 항목이어야 한다",
+        "tags": [
+          "files"
+        ]
+      },
+      "delete": {
+        "operationId": "deleteFile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "파일 삭제 (soft delete, PM·AM, 변환 문서·색인 제거, 감사 로그)",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/files/{id}/download": {
+      "get": {
+        "operationId": "downloadFile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        },
+        "summary": "원본 다운로드 (API가 저장소에서 읽어 전달한다. 저장소 자격 증명·서명 URL을 브라우저에 주지 않는다)",
+        "tags": [
+          "files"
         ]
       }
     },
@@ -1228,81 +1974,6 @@
         ]
       }
     },
-    "/events/{eventId}/docs": {
-      "get": {
-        "operationId": "docsList",
-        "parameters": [
-          {
-            "name": "eventId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/EventDocDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "summary": "행사 문서 목록 (열람 범위는 RLS가 필터링)",
-        "tags": [
-          "docs"
-        ]
-      },
-      "post": {
-        "operationId": "knowledgeCreate",
-        "parameters": [
-          {
-            "name": "eventId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateDocBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DocPageDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "위키 문서 생성 (PM·AM, 본문 색인 포함)",
-        "tags": [
-          "wiki"
-        ]
-      }
-    },
     "/events/{eventId}/docs/{docId}/visibility": {
       "patch": {
         "operationId": "docsSetVisibility",
@@ -1351,551 +2022,6 @@
         "summary": "문서 열람 범위 변경 (PM·AM, version 검사, 감사 로그 대상)",
         "tags": [
           "docs"
-        ]
-      }
-    },
-    "/docs/{docId}": {
-      "get": {
-        "operationId": "getDocPage",
-        "parameters": [
-          {
-            "name": "docId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DocPageDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "위키 문서 본문 (열람 범위는 RLS가 강제)",
-        "tags": [
-          "wiki"
-        ]
-      },
-      "delete": {
-        "operationId": "knowledgeRemove",
-        "parameters": [
-          {
-            "name": "docId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "summary": "위키 문서 삭제 (soft delete, PM·AM, 감사 로그)",
-        "tags": [
-          "wiki"
-        ]
-      }
-    },
-    "/docs/{docId}/body": {
-      "put": {
-        "operationId": "knowledgeSave",
-        "parameters": [
-          {
-            "name": "docId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SaveDocBodyBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DocPageDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "위키 제목·본문 저장 (PM·AM, 마지막 저장 우선, 색인 갱신)",
-        "tags": [
-          "wiki"
-        ]
-      }
-    },
-    "/docs/{docId}/revisions": {
-      "post": {
-        "operationId": "knowledgeCreateRevision",
-        "parameters": [
-          {
-            "name": "docId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WikiRevisionDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "현재 내용을 버전으로 저장 (PM·AM)",
-        "tags": [
-          "wiki"
-        ]
-      },
-      "get": {
-        "operationId": "knowledgeListRevisions",
-        "parameters": [
-          {
-            "name": "docId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WikiRevisionDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "summary": "문서 버전 목록 (열람 범위는 RLS가 강제)",
-        "tags": [
-          "wiki"
-        ]
-      }
-    },
-    "/docs/{docId}/revisions/{revisionId}": {
-      "get": {
-        "operationId": "knowledgeGetRevision",
-        "parameters": [
-          {
-            "name": "docId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "revisionId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WikiRevisionDetailDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "문서 버전 상세 (본문 포함)",
-        "tags": [
-          "wiki"
-        ]
-      }
-    },
-    "/docs/{docId}/revisions/{revisionId}/restore": {
-      "post": {
-        "operationId": "knowledgeRestoreRevision",
-        "parameters": [
-          {
-            "name": "docId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "revisionId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DocPageDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "버전으로 되돌리기 (PM·AM, 현재 내용을 먼저 버전으로 남기고 감사 로그)",
-        "tags": [
-          "wiki"
-        ]
-      }
-    },
-    "/search": {
-      "get": {
-        "operationId": "knowledgeSearch",
-        "parameters": [
-          {
-            "name": "q",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 200
-            }
-          },
-          {
-            "name": "eventId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-            }
-          },
-          {
-            "name": "clientId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-            }
-          },
-          {
-            "name": "since",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
-            }
-          },
-          {
-            "name": "limit",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "default": 10,
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 30
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SearchHitDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "summary": "위키 검색 (권한 필터 후 FTS + pg_trgm 병합, 출처 포함)",
-        "tags": [
-          "wiki"
-        ]
-      }
-    },
-    "/events/{eventId}/files": {
-      "post": {
-        "operationId": "uploadEventFile",
-        "parameters": [
-          {
-            "name": "eventId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "format": "binary"
-                  },
-                  "itemId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "nullable": true
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FileDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "파일 업로드 (PM·AM). 원본은 저장소에 두고 worker가 변환·색인한다",
-        "tags": [
-          "files"
-        ]
-      },
-      "get": {
-        "operationId": "listEventFiles",
-        "parameters": [
-          {
-            "name": "eventId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "itemId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/FileDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "summary": "행사 파일 목록 (변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람). itemId로 특정 항목 첨부만 필터링",
-        "tags": [
-          "files"
-        ]
-      }
-    },
-    "/files/{id}": {
-      "get": {
-        "operationId": "filesGet",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FileDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "파일 상태 (pending·ready·failed와 실패 사유)",
-        "tags": [
-          "files"
-        ]
-      },
-      "patch": {
-        "operationId": "filesMove",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MoveFileBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FileDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "첨부 대상 항목 이동 (PM·AM). null이면 행사 루트 첨부로 옮긴다. 같은 행사의 항목이어야 한다",
-        "tags": [
-          "files"
-        ]
-      },
-      "delete": {
-        "operationId": "deleteFile",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "summary": "파일 삭제 (soft delete, PM·AM, 변환 문서·색인 제거, 감사 로그)",
-        "tags": [
-          "files"
-        ]
-      }
-    },
-    "/files/{id}/download": {
-      "get": {
-        "operationId": "downloadFile",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/octet-stream": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              }
-            }
-          }
-        },
-        "summary": "원본 다운로드 (API가 저장소에서 읽어 전달한다. 저장소 자격 증명·서명 URL을 브라우저에 주지 않는다)",
-        "tags": [
-          "files"
         ]
       }
     },
@@ -2085,6 +2211,192 @@
           "directory"
         ]
       }
+    },
+    "/import/excel": {
+      "post": {
+        "operationId": "importExcelUpload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Excel 업로드와 시트 목록 파싱 (낮은 권한 이상). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/import/{id}": {
+      "get": {
+        "operationId": "importGet",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "가져오기 작업 상태 (시트·컬럼·매핑·검증·실행 결과)",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/import/{id}/parse": {
+      "post": {
+        "operationId": "importParse",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParseImportBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "시트·헤더 선택 후 원본 그리드 파싱",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/import/{id}/preview": {
+      "post": {
+        "operationId": "importPreview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewImportBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "컬럼 매핑으로 전체 행 검증과 미리보기 생성",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/import/{id}/execute": {
+      "post": {
+        "operationId": "importExecute",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJobDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "검증 통과 행으로 행사·행사 위키 생성. 실패 행은 걸러내고 사유를 남기고, 원본은 즉시 파기한다",
+        "tags": [
+          "import"
+        ]
+      }
     }
   },
   "info": {
@@ -2156,6 +2468,90 @@
         "required": [
           "currentPassword",
           "newPassword"
+        ],
+        "additionalProperties": false
+      },
+      "CreateClientApplicationBody": {
+        "type": "object",
+        "properties": {
+          "companyName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "applicantName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "companyName",
+          "applicantName",
+          "email",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "ClientApplicationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "applicantName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "decidedAt": {
+            "nullable": true,
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "id",
+          "companyName",
+          "applicantName",
+          "email",
+          "status",
+          "createdAt",
+          "decidedAt"
         ],
         "additionalProperties": false
       },
@@ -2313,6 +2709,12 @@
             "nullable": true,
             "type": "string"
           },
+          "budget": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
           "version": {
             "type": "integer",
             "minimum": 0,
@@ -2340,9 +2742,95 @@
           "status",
           "priority",
           "color",
+          "budget",
           "version",
           "createdAt",
           "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "CreateEventBody": {
+        "type": "object",
+        "properties": {
+          "clientId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "pmId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "amId": {
+            "default": null,
+            "nullable": true,
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "budget": {
+            "default": null,
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "place": {
+            "default": "",
+            "type": "string",
+            "maxLength": 200
+          },
+          "status": {
+            "default": "진행중",
+            "type": "string",
+            "enum": [
+              "진행중",
+              "성공",
+              "확인중",
+              "만료",
+              "제출",
+              "보류중"
+            ]
+          },
+          "priority": {
+            "default": false,
+            "type": "boolean"
+          },
+          "color": {
+            "default": null,
+            "nullable": true,
+            "type": "string",
+            "maxLength": 32
+          }
+        },
+        "required": [
+          "clientId",
+          "pmId",
+          "amId",
+          "budget",
+          "name",
+          "startDate",
+          "endDate",
+          "place",
+          "status",
+          "priority",
+          "color"
         ],
         "additionalProperties": false
       },
@@ -2386,6 +2874,12 @@
             "nullable": true,
             "type": "string",
             "maxLength": 32
+          },
+          "budget": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
           }
         },
         "additionalProperties": false
@@ -2789,6 +3283,7 @@
             "maximum": 9007199254740991
           },
           "eventId": {
+            "nullable": true,
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -2805,7 +3300,8 @@
               "assigned",
               "schedule_changed",
               "due_soon",
-              "member_changed"
+              "member_changed",
+              "client_application"
             ]
           },
           "title": {
@@ -3603,6 +4099,365 @@
         },
         "required": [
           "ids"
+        ],
+        "additionalProperties": false
+      },
+      "ImportJobDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "uploaded",
+              "parsed",
+              "previewed",
+              "executing",
+              "done",
+              "failed"
+            ]
+          },
+          "sheets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "rowCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "name",
+                "rowCount"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "sheet": {
+            "nullable": true,
+            "type": "string"
+          },
+          "hasHeader": {
+            "nullable": true,
+            "type": "boolean"
+          },
+          "headerRow": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991
+          },
+          "columns": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "index",
+                "label"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "dataRowCount": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "mapping": {
+            "nullable": true,
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "name",
+                "startDate",
+                "endDate",
+                "client",
+                "pm",
+                "status",
+                "place"
+              ]
+            }
+          },
+          "validation": {
+            "nullable": true,
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "valid": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "invalid": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "row": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "type": "string"
+                    },
+                    "endDate": {
+                      "type": "string"
+                    },
+                    "client": {
+                      "type": "string"
+                    },
+                    "pm": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "place": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "row",
+                    "name",
+                    "startDate",
+                    "endDate",
+                    "client",
+                    "pm",
+                    "status",
+                    "place",
+                    "ok",
+                    "issues"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "total",
+              "valid",
+              "invalid",
+              "rows",
+              "truncated"
+            ],
+            "additionalProperties": false
+          },
+          "result": {
+            "nullable": true,
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "failed": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "row": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "row",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "row": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true,
+                      "maximum": 9007199254740991
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "row",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "failedTruncated": {
+                "type": "boolean"
+              },
+              "warningsTruncated": {
+                "type": "boolean"
+              },
+              "finishedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            },
+            "required": [
+              "created",
+              "failed",
+              "warnings",
+              "failedTruncated",
+              "warningsTruncated",
+              "finishedAt"
+            ],
+            "additionalProperties": false
+          },
+          "error": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "id",
+          "fileName",
+          "status",
+          "sheets",
+          "sheet",
+          "hasHeader",
+          "headerRow",
+          "columns",
+          "dataRowCount",
+          "mapping",
+          "validation",
+          "result",
+          "error",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "ParseImportBody": {
+        "type": "object",
+        "properties": {
+          "sheet": {
+            "type": "string",
+            "minLength": 1
+          },
+          "hasHeader": {
+            "default": true,
+            "type": "boolean"
+          },
+          "headerRow": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "sheet",
+          "hasHeader",
+          "headerRow"
+        ],
+        "additionalProperties": false
+      },
+      "PreviewImportBody": {
+        "type": "object",
+        "properties": {
+          "mapping": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "name",
+                "startDate",
+                "endDate",
+                "client",
+                "pm",
+                "status",
+                "place"
+              ]
+            }
+          },
+          "fixed": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": [
+              "name",
+              "startDate",
+              "endDate",
+              "client",
+              "pm",
+              "status",
+              "place"
+            ]
+          }
+        },
+        "required": [
+          "mapping"
         ],
         "additionalProperties": false
       }

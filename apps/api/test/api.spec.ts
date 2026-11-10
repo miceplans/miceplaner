@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { Controller, Get } from '@nestjs/common';
 import { SignJWT } from 'jose';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -7,6 +8,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module';
 import { HiworksService } from '../src/auth/hiworks';
+import { Public } from '../src/auth/public.decorator';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const U = { pm: id(11), member: id(12), staff: id(13), outsider: id(14), target: id(15), admin: id(16), client: id(17), client2: id(18) };
@@ -15,6 +17,7 @@ const OTHER_EVENT = id(102);
 const CO = id(201);
 const DOC_MEMBERS = id(301);
 const DOC_ALL = id(302);
+let approvedClientUserId = '';
 
 let app: INestApplication;
 let http: Parameters<typeof request>[0];
@@ -26,6 +29,15 @@ const sign = (sub: string, role = 'staff') => new SignJWT({ role }).setProtected
 
 const as = (user: keyof typeof U) => ({ Authorization: `Bearer ${tokens[user]}` });
 const api = () => request(http);
+
+@Public()
+@Controller('__test_boom')
+class BoomController {
+  @Get()
+  boom() {
+    throw new Error('테스트용 폭발');
+  }
+}
 
 beforeAll(async () => {
   admin = await connectTestAdmin(process.env.TEST_PG_ADMIN_URL!);
@@ -52,7 +64,7 @@ beforeAll(async () => {
     ['pm@x.test', { email: 'pm@x.test', name: 'PM' }],
     ['client@x.test', { email: 'client@x.test', name: 'Client' }],
   ]);
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule], controllers: [BoomController] })
     .overrideProvider(HiworksService)
     .useValue({ findMember: async (email: string) => hiworksMembers.get(email.toLowerCase()) })
     .compile();
@@ -93,6 +105,20 @@ describe('인증 (F-01)', () => {
   });
   it('Client 계정은 이메일 로그인·가입을 쓸 수 없다', async () => {
     await api().post('/auth/register').send({ email: 'client@x.test', password: 'client-long-pw' }).expect(403);
+  });
+  it('Client는 회사명으로 신청하고 Super Admin 승인 뒤에만 포털에 로그인한다', async () => {
+    const application = await api().post('/auth/client-applications').send({
+      companyName: '테스트사', applicantName: '홍길동', email: 'applicant@x.test', password: 'client-long-password',
+    }).expect(201);
+    expect(application.body).toMatchObject({ companyName: '테스트사', applicantName: '홍길동', status: 'pending' });
+    await api().post('/auth/client/login').send({ email: 'applicant@x.test', password: 'client-long-password' }).expect(401);
+    const notice = await api().get('/notifications?unread=true').set(as('admin')).expect(200);
+    expect(notice.body).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'client_application', title: expect.stringContaining('테스트사의 홍길동님이 신청하셨습니다.') })]));
+    await api().post(`/auth/client-applications/${application.body.id}/approve`).set(as('staff')).expect(403);
+    await api().post(`/auth/client-applications/${application.body.id}/approve`).set(as('admin')).expect(200);
+    const login = await api().post('/auth/client/login').send({ email: 'applicant@x.test', password: 'client-long-password' }).expect(200);
+    expect(login.body.user).toMatchObject({ name: '홍길동', role: 'client' });
+    approvedClientUserId = login.body.user.id;
   });
   it('비밀번호를 변경한다', async () => {
     const login = await api().post('/auth/login').send({ email: 'new@x.test', password: 'long-enough-pw' }).expect(200);
@@ -150,6 +176,14 @@ describe('행사 멤버 관리 (F-02, F-06)', () => {
     await api().delete(`/events/${EVENT}/members/${U.pm}`).set(as('pm')).expect(409);
     const log = await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'member.role.change'`);
     expect(log.rows[0].n).toBe(1);
+  });
+});
+
+describe('Client 지정 무결성 (F-07)', () => {
+  it('내부 직원은 Client로 지정할 수 없고, Client 역할 사용자만 지정한다', async () => {
+    await api().put(`/events/${EVENT}/clients/${U.staff}`).set(as('pm')).expect(400);
+    await api().put(`/events/${EVENT}/clients/${approvedClientUserId}`).set(as('pm')).expect(200);
+    expect((await api().get(`/events/${EVENT}/clients`).set(as('pm')).expect(200)).body).toContain(approvedClientUserId);
   });
 });
 
@@ -233,12 +267,13 @@ describe('Client 포털 (F-07)', () => {
     ]);
   });
   it('PM·AM은 Client를 지정·해제하고 포털에 반영된다', async () => {
+    const count = async () => (await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'event.client.change'`)).rows[0]!.n as number;
+    const before = await count();
     await api().put(`/events/${EVENT}/clients/${U.client2}`).set(as('pm')).expect(200);
     expect((await api().get('/portal/events').set(as('client2')).expect(200)).body).toHaveLength(1);
     await api().delete(`/events/${EVENT}/clients/${U.client2}`).set(as('pm')).expect(200);
     expect((await api().get('/portal/events').set(as('client2')).expect(200)).body).toHaveLength(0);
-    const log = await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'event.client.change'`);
-    expect(log.rows[0].n).toBe(2);
+    expect((await count()) - before).toBe(2); // 앞선 스펙의 지정 기록은 세지 않는다.
   });
 });
 
@@ -297,5 +332,18 @@ describe('행사 문서 열람 범위 (F-09)', () => {
     expect((await api().get(`/events/${EVENT}/docs`).set(as('staff')).expect(200)).body).toHaveLength(2);
     const log = await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'doc.visibility.change'`);
     expect(log.rows[0].n).toBe(1);
+  });
+});
+
+describe('서버 오류 응답', () => {
+  it('예상 못한 오류는 500에 오류 이름·메시지를 담아 낸다', async () => {
+    const res = await api().get('/__test_boom').expect(500);
+    expect(res.body.statusCode).toBe(500);
+    expect(res.body.message).toContain('[500]');
+    expect(res.body.message).toContain('Error: 테스트용 폭발');
+  });
+  it('HttpException 응답 형태는 그대로다', async () => {
+    const res = await api().get(`/events/${id(999)}`).set(as('pm')).expect(404);
+    expect(res.body).toEqual({ statusCode: 404, message: '[404] 행사을 찾을 수 없습니다.', error: 'Not Found' });
   });
 });

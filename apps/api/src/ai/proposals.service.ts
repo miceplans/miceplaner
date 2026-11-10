@@ -2,9 +2,10 @@ import { ConflictException, ForbiddenException, Inject, Injectable } from '@nest
 import { notificationPayload, proposalDto, taskDraftsPayload, wikiEditPayload, type ProposalDto } from '@miceplans/contracts';
 import { canDecideProposal, type ProposalStatus } from '@miceplans/domain';
 import {
-  createItem, createRevision, decideProposal, eventRole, getDocPage, getProposal, hasYdoc, insertApprovedNotification, listProposals, reindexDocPage, saveDocBody, withContext,
+  createItem, createRevision, decideProposal, eventRole, getDocPage, getProposal, getYdocState, hasYdoc, insertApprovedNotification, listProposals, reindexDocPage, saveCollabState, saveDocBody, withContext,
   type Pool, type PoolClient, type ProposalRow,
 } from '@miceplans/db';
+import { markdownToYdoc, replaceYdocWithMarkdown, stateToYdoc, ydocToState } from '@miceplans/editor-schema';
 import { AuthUser, requireInternal } from '../common/auth';
 import { assertFound, mapDbError, versionConflictError } from '../common/http';
 import { CollabClient } from '../knowledge/collab.client';
@@ -12,7 +13,7 @@ import { JobQueue } from '../knowledge/job-queue';
 import { REALTIME, type Realtime } from '../realtime/realtime.gateway';
 import { DB_POOL } from '../tokens';
 
-type Applied = { itemIds: string[]; notifiedUserId?: string; /** 트랜잭션 마지막에 협업 서버로 반영할 Yjs 본문 교체. */ afterDecision?: () => Promise<void> };
+type Applied = { itemIds: string[]; notifiedUserId?: string; /** 커밋 뒤에만 실행하는 부수 효과. */ afterCommit?: () => Promise<void> };
 
 /**
  * AI 제안의 목록과 승인·반려 (명세 F-11). AI는 제안만 저장하고, 변경은 승인한 PM·AM의 권한으로
@@ -44,11 +45,11 @@ export class ProposalsService {
       await this.requireDecider(db, proposal);
       const applied = await this.apply(db, user, proposal);
       const row = await decideProposal(db, user.userId, id, 'approved');
-      if (!row) throw new ConflictException('이미 결정된 제안이다');
-      // 외부(협업 서버) 반영은 마지막에 한다. 실패하면 결정까지 함께 되돌려 제안이 대기로 남는다.
-      await applied.afterDecision?.();
+      if (!row) throw new ConflictException('[409] 이미 결정된 제안입니다.');
       return { row, applied };
     });
+    // 협업 서버는 이미 커밋된 Yjs 원본을 연결 중인 편집자에게 전파할 뿐이다. DB 트랜잭션에 넣지 않는다.
+    await applied.afterCommit?.();
     for (const itemId of applied.itemIds) this.rt.itemChanged(row.eventId, itemId);
     if (applied.notifiedUserId) this.rt.notification(applied.notifiedUserId);
     return proposalDto.parse(row);
@@ -60,7 +61,7 @@ export class ProposalsService {
       const proposal = await this.loadPending(db, id);
       await this.requireDecider(db, proposal);
       const row = await decideProposal(db, user.userId, id, 'rejected');
-      if (!row) throw new ConflictException('이미 결정된 제안이다');
+      if (!row) throw new ConflictException('[409] 이미 결정된 제안입니다.');
       return row;
     });
     return proposalDto.parse(row);
@@ -68,12 +69,12 @@ export class ProposalsService {
 
   private async loadPending(db: PoolClient, id: string): Promise<ProposalRow> {
     const proposal = assertFound(await getProposal(db, id), '제안');
-    if (proposal.status !== 'pending') throw new ConflictException('이미 결정된 제안이다');
+    if (proposal.status !== 'pending') throw new ConflictException('[409] 이미 결정된 제안입니다.');
     return proposal;
   }
 
   private async requireDecider(db: PoolClient, proposal: ProposalRow) {
-    if (!canDecideProposal(await eventRole(db, proposal.eventId))) throw new ForbiddenException('제안 승인은 PM·AM만 할 수 있다');
+    if (!canDecideProposal(await eventRole(db, proposal.eventId))) throw new ForbiddenException('[403] 제안 승인은 PM·AM만 할 수 있습니다.');
   }
 
   private async apply(db: PoolClient, user: AuthUser, proposal: ProposalRow): Promise<Applied> {
@@ -99,13 +100,25 @@ export class ProposalsService {
         if (!doc || doc.version !== edit.baseVersion) throw versionConflictError(doc?.version ?? edit.baseVersion);
         await createRevision(db, user.userId, doc, 'ai_proposal');
         if (await hasYdoc(db, edit.docId)) {
-          // Yjs가 기준인 문서는 서버가 협업 참여자로서 Yjs 트랜잭션을 수행한다 (명세 F-11).
-          return { itemIds: [], afterDecision: () => this.collab.replaceBody(user.userId, edit.docId, edit.bodyMd) };
+          // Yjs 원본·Markdown 파생본·revision·proposal 결정은 한 PostgreSQL 트랜잭션으로 저장한다.
+          // 협업 서버 호출을 이 트랜잭션에 넣으면 별도 DB 커밋과 원자성을 만들 수 없다.
+          const state = await getYdocState(db, edit.docId);
+          const ydoc = state ? stateToYdoc(state) : markdownToYdoc(doc.bodyMd);
+          replaceYdocWithMarkdown(ydoc, edit.bodyMd, 'ai_proposal');
+          const changed = await saveCollabState(db, edit.docId, ydocToState(ydoc), edit.bodyMd, edit.baseVersion);
+          if (changed === null) throw versionConflictError((await getDocPage(db, edit.docId))?.version ?? edit.baseVersion);
+          return {
+            itemIds: [],
+            afterCommit: async () => {
+              await this.collab.syncCommittedBody(user.userId, edit.docId);
+              await this.queue.embedDoc({ docId: edit.docId, ctx: { workspaceId: user.workspaceId, userId: user.userId, role: user.role } });
+            },
+          };
         }
         const saved = await saveDocBody(db, edit.docId, { bodyMd: edit.bodyMd }, edit.baseVersion);
         if (!saved) throw versionConflictError((await getDocPage(db, edit.docId))?.version ?? edit.baseVersion);
         await reindexDocPage(db, saved);
-        return { itemIds: [], afterDecision: () => this.queue.embedDoc({ docId: edit.docId, ctx: { workspaceId: user.workspaceId, userId: user.userId, role: user.role } }) };
+        return { itemIds: [], afterCommit: () => this.queue.embedDoc({ docId: edit.docId, ctx: { workspaceId: user.workspaceId, userId: user.userId, role: user.role } }) };
       }
     }
   }

@@ -3,11 +3,11 @@
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { FlowTopbar, Input, PageFrame, Select, Textarea, toast } from '@miceplans/ui';
-import { LEAVE_EMPLOYEES, LEAVE_KINDS, LEAVE_TODAY, remainingOf, type LeaveKind } from '../data';
+import { LEAVE_ME, LEAVE_EMPLOYEES, LEAVE_KINDS, LEAVE_TODAY, remainingOf, type LeaveKind } from '../data';
 import { useWorkCheck } from '../use-work-check';
 
-/** 목업: 로그인 사용자는 대표(e1)로 가정한다. */
-const ME = LEAVE_EMPLOYEES[0]!;
+/** 로그인 사용자 연동 전까지는 빈 값(LEAVE_ME)으로 둔다. */
+const ME = LEAVE_EMPLOYEES[0] ?? LEAVE_ME;
 const COLLEAGUES = LEAVE_EMPLOYEES.filter((e) => e.id !== ME.id);
 
 const field = 'w-full';
@@ -53,13 +53,13 @@ export function LeaveRequestView() {
   const remaining = isComp ? compRemaining : remainingOf(ME) - submittedDays;
   const error =
     days <= 0
-      ? '사용 일수가 0일입니다. 날짜를 확인해 주세요.'
+      ? '[400] 사용 일수가 0일입니다. 날짜를 확인해 주세요.'
       : isComp && compEarned === 0
-        ? '주말 근무를 체크하면 대휴 1일이 발생합니다.'
+        ? '[400] 주말 근무를 체크하면 대휴 1일이 발생합니다.'
         : days > remaining
           ? isComp
-            ? '잔여 대휴를 초과했습니다.'
-            : '잔여 연차를 초과했습니다.'
+            ? '[400] 잔여 대휴를 초과했습니다.'
+            : '[400] 잔여 연차를 초과했습니다.'
           : null;
 
   const submit = (e: React.FormEvent) => {

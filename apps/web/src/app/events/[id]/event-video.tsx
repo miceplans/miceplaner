@@ -64,7 +64,7 @@ export function VideoSection({ eventId }: { eventId: string }) {
     const next = { led: !form.led.trim(), resolution: !form.resolution.trim(), videoType: !form.videoType };
     setErrors(next);
     if (next.led || next.resolution || next.videoType) {
-      toast.error('필수 항목을 모두 입력해 주세요.');
+      toast.error('[400] 필수 항목을 모두 입력해 주세요.');
       return;
     }
     setSaved({ led: form.led.trim(), resolution: form.resolution.trim(), videoType: form.videoType as VideoType });

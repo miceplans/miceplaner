@@ -30,14 +30,14 @@ function read(scope: string): Store {
     const raw = window.localStorage.getItem(keyOf(scope));
     if (raw) return JSON.parse(raw) as Store;
   } catch {
-    /* 목업: 저장값이 깨져 있으면 빈 상태로 돌아간다. */
+    /* 저장값이 깨져 있으면 빈 상태로 돌아간다. */
   }
   return EMPTY;
 }
 
 /**
  * 표별 사용자 정의 속성과 셀 값을 다루는 훅. scope는 행사·표 단위 식별자다.
- * 저장은 localStorage(목업)이며, 같은 scope를 쓰는 다른 표 인스턴스에도 바로 반영된다.
+ * 저장은 localStorage에 두며, 같은 scope를 쓰는 다른 표 인스턴스에도 바로 반영된다.
  * TODO: API와 RLS가 정해지면 서버 저장으로 바꾸고, 속성 변경은 권한·감사 로그 대상으로 다룬다.
  */
 export function useCustomProps(scope: string) {

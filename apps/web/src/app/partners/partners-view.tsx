@@ -28,6 +28,7 @@ export function PartnersView() {
   const [partners, setPartners] = useState<Partner[]>(PARTNERS);
   const [form, setForm] = useState<(Omit<Partner, 'id' | 'events'> & { id?: string }) | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [tagModal, setTagModal] = useState(false);
   const [editing, setEditing] = useState<string | null>(null); // 수정 중인 태그, '' 는 새 태그
   const [draft, setDraft] = useState('');
   const [filter, setFilter] = useState<Filter>('전체');
@@ -104,24 +105,6 @@ export function PartnersView() {
             {['전체', ...fields].map((f) => {
               const on = filter === f;
               const count = f === '전체' ? partners.length : partners.filter((p) => p.field === f).length;
-              if (editing === f) {
-                return (
-                  <Input
-                    key={f}
-                    autoFocus
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onBlur={commit}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') commit();
-                      if (e.key === 'Escape') setEditing(null);
-                    }}
-                    variant="chip"
-                    size="sm"
-                    className="w-[100px]"
-                  />
-                );
-              }
               return (
                 <button
                   key={f}
@@ -129,62 +112,22 @@ export function PartnersView() {
                   role="tab"
                   aria-selected={on}
                   onClick={() => setFilter(f)}
-                  onDoubleClick={() => {
-                    if (f === '전체') return;
-                    setDraft(f);
-                    setEditing(f);
-                  }}
-                  title={f === '전체' ? undefined : '더블클릭하여 이름 수정'}
-                  className={`group flex h-[30px] items-center gap-[6px] rounded-sm px-[11px] ${
+                  className={`flex h-[30px] items-center gap-[6px] rounded-sm px-[11px] ${
                     on ? 'bg-brand text-fg-inverse' : 'bg-surface-chip text-fg-secondary hover:text-fg'
                   }`}
                 >
                   <span className="whitespace-nowrap text-xs font-medium">{f}</span>
                   <span className={`whitespace-nowrap text-2xs ${on ? 'text-fg-inverse' : 'text-fg-tertiary'}`}>{count}</span>
-                  {f === '전체' ? null : (
-                    <span
-                      role="button"
-                      aria-label={`${f} 태그 삭제`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        remove(f);
-                      }}
-                      className="hidden text-2xs leading-none group-hover:inline"
-                    >
-                      ×
-                    </span>
-                  )}
                 </button>
               );
             })}
-            {editing === '' ? (
-              <Input
-                autoFocus
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onBlur={commit}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commit();
-                  if (e.key === 'Escape') setEditing(null);
-                }}
-                placeholder="새 태그"
-                variant="chip"
-                size="sm"
-                className="w-[100px]"
-              />
-            ) : (
-              <button
-                type="button"
-                aria-label="태그 추가"
-                onClick={() => {
-                  setDraft('');
-                  setEditing('');
-                }}
-                className="flex h-[30px] items-center rounded-sm bg-surface-chip px-[11px] text-xs text-fg-tertiary hover:text-fg"
-              >
-                +
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setTagModal(true)}
+              className="flex h-[30px] items-center rounded-sm bg-surface-chip px-[11px] text-xs text-fg-tertiary hover:text-fg"
+            >
+              태그 관리
+            </button>
           </div>
           <div className="h-px min-w-px flex-1" />
           <Select
@@ -322,6 +265,104 @@ export function PartnersView() {
           ) : null}
         </div>
       </div>
+      {tagModal ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => {
+            setEditing(null);
+            setTagModal(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-label="태그 관리"
+            onClick={(e) => e.stopPropagation()}
+            className="flex w-[360px] flex-col gap-[12px] rounded-lg bg-surface p-[20px]"
+          >
+            <div className="flex items-center">
+              <span className="flex-1 text-sm font-semibold text-fg">태그 관리</span>
+              <button
+                type="button"
+                aria-label="닫기"
+                onClick={() => {
+                  setEditing(null);
+                  setTagModal(false);
+                }}
+                className="text-xs text-fg-tertiary hover:text-fg"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex max-h-[320px] flex-col gap-[6px] overflow-y-auto">
+              {fields.map((f) => (
+                <div key={f} className="flex items-center gap-[8px]">
+                  {editing === f ? (
+                    <Input
+                      autoFocus
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onBlur={commit}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commit();
+                        if (e.key === 'Escape') setEditing(null);
+                      }}
+                      variant="chip"
+                      size="sm"
+                      className="min-w-0 flex-1"
+                    />
+                  ) : (
+                    <span className="min-w-0 flex-1 truncate text-xs text-fg">
+                      {f} <span className="text-2xs text-fg-tertiary">{partners.filter((p) => p.field === f).length}</span>
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setDraft(f);
+                      setEditing(f);
+                    }}
+                    className="text-2xs text-fg-tertiary hover:text-fg"
+                  >
+                    이름 수정
+                  </button>
+                  <button type="button" onClick={() => remove(f)} className="text-2xs text-fg-tertiary hover:text-fg">
+                    삭제
+                  </button>
+                </div>
+              ))}
+              {fields.length === 0 ? <span className="text-xs text-fg-tertiary">태그가 없습니다.</span> : null}
+            </div>
+            <div className="flex items-center gap-[8px]">
+              <Input
+                value={editing === '' ? draft : ''}
+                onFocus={() => {
+                  if (editing !== '') {
+                    setDraft('');
+                    setEditing('');
+                  }
+                }}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commit();
+                }}
+                placeholder="새 태그"
+                variant="chip"
+                size="sm"
+                className="min-w-0 flex-1"
+              />
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={commit}
+                className="h-[30px] rounded-sm bg-brand px-[12px] text-xs font-medium text-fg-inverse"
+              >
+                추가
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {form ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setForm(null)}>
           <form

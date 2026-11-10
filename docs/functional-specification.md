@@ -85,10 +85,9 @@ Event 아래에 Program, Task, Subtask가 한 계층으로 이어지며, 각 단
 
 - 내부 사용자는 인증되지 않은 상태에서 내부 기능에 접근할 수 없다.
 - 하이웍스 구성원에서 빠진 계정은 로그인할 수 없다(로그인마다 확인).
-- 개발용 목데이터: `SEED_DATABASE_URL=<소유자 역할> pnpm --filter @miceplans/api seed`가 하이웍스 구성원 전원을 사용자로 넣고(비밀번호 모두 `mice1170`) 고객사·행사·멤버·Program/Task·휴가 샘플을 채운다. 여러 번 실행해도 같다. 운영 DB에는 실행하지 않는다.
 - **알려진 위험(결정 2026-11-03):** 메일 소유를 확인하지 않는 자유 가입이라, 동료 이메일을 아는 구성원이 먼저 비밀번호를 정해 계정을 선점할 수 있다. 비밀번호 재설정·관리자 발급 흐름은 아직 없다. 필요해지면 관리자 임시 비밀번호 발급을 추가한다.
 - 권한이 회수되면 세션을 무효화하고 Socket.IO 방에서 제거하며, 열린 위키는 읽기 전용으로 전환하거나 연결을 종료한다.
-- Client 인증 방식은 초대 기반 Magic Link 또는 고객사 SSO 중 아직 확정되지 않았다. Magic Link를 선택하면 보안 스캐너의 선열람을 막는 확인 단계 또는 6자리 코드가 필요하다.
+- Client 포털은 기본 접두사 `client`를 써 `client.<주 도메인>` 서브도메인으로 제공한다 (`CLIENT_PORTAL_PREFIX=client`). 정적 웹 배포는 이 호스트의 `/`·`/apply` 요청을 각각 `/client/dashboard`·`/client/apply` 정적 경로로 연결하고, API의 `CLIENT_PORTAL_ORIGIN`에는 해당 HTTPS origin을 등록한다. 신청자는 회사명·이름·이메일·비밀번호를 제출하고, Super Admin이 내부 알림에서 승인한 뒤 Client 계정이 활성화된다. Client 로그인은 포털 전용 이메일·비밀번호 로그인으로 처리하며 하이웍스 검증을 적용하지 않는다. 신청 이메일은 대기·활성 계정과 중복될 수 없다.
 
 ### F-02 행사 관리
 
@@ -100,6 +99,7 @@ Event 아래에 Program, Task, Subtask가 한 계층으로 이어지며, 각 단
 - 행사 멤버와 PM·AM은 자신이 속한 행사의 기본 정보, Program·Task·Subtask, 일정을 변경할 수 있다.
 - PM·AM은 행사 멤버를 추가·삭제할 수 있고, 멤버 변경은 수정 권한과 실시간 연결 권한에 즉시 반영된다.
 - 행사 생성 권한은 1단계 CRUD 구현 전에 결정한다. Staff가 생성하면 자동으로 PM이 되는 방식과 Super Admin만 생성하는 방식이 후보이다.
+- 잠정 구현(2026-11-10): 내부 직원은 누구나 `/events/new` 화면(`POST /events`)에서 행사를 만든다. 고객사·PM은 필수, AM은 선택이며 모두 드롭다운으로 고르고 예산(원, 선택)을 함께 입력한다. 작성자는 먼저 PM으로 들어간 뒤 지정한 PM·AM으로 역할을 맞추고, 본인이 PM·AM으로 지정되지 않으면 멤버로 남는다. 생성은 감사 로그(`event.create`) 대상이다. 위 권한 결정이 나면 이 잠정 범위를 조정한다.
 
 ### F-03 Program·Task·Subtask 관리
 
@@ -148,7 +148,7 @@ Event 아래에 Program, Task, Subtask가 한 계층으로 이어지며, 각 단
 
 ### F-06 알림 관리
 
-내부 운영 알림을 생성·조회·변경하고, 행사와 Program·Task·Subtask의 실시간 변화를 사용자에게 전달한다. 알림 종류는 담당자 지정, 일정 변경, 마감 임박, 멤버 추가·삭제다.
+내부 운영 알림을 생성·조회·변경하고, 행사와 Program·Task·Subtask의 실시간 변화 및 Client 포털 가입 신청을 사용자에게 전달한다.
 
 | 알림 종류 | 발생 조건 | 수신 대상 |
 | --- | --- | --- |
@@ -156,12 +156,14 @@ Event 아래에 Program, Task, Subtask가 한 계층으로 이어지며, 각 단
 | 일정 변경 | Program·Task·Subtask의 일정이 바뀔 때 | 해당 항목의 담당자 |
 | 마감 임박 | 마감일이 가까워질 때 | 해당 항목의 담당자 |
 | 멤버 추가·삭제 | PM·AM이 행사 멤버를 추가하거나 삭제할 때 | 추가·삭제된 당사자 |
+| Client 가입 신청 | Client 포털에서 회사명·이름·이메일로 신청할 때 | 모든 Super Admin |
 
 수용 기준:
 
 - 알림 갱신은 권한 필터를 통과한 Socket.IO 이벤트로 전달한다.
 - Client는 내부 알림 채널에 연결하거나 알림을 조회할 수 없다.
 - AI가 만든 알림은 즉시 발송하지 않고 제안으로 저장한다.
+- Client 가입 신청 알림에는 회사명과 신청자 이름을 표시하고, Super Admin만 승인할 수 있다. 승인은 Client 사용자 생성과 감사 로그 기록을 하나의 트랜잭션으로 처리한다.
 - 마감 임박 알림의 발송 시점과 일정 변경 알림의 수신 범위는 미확정(6절)이다.
 
 ### F-07 Client 포털
@@ -179,17 +181,22 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 - Task, Subtask, 담당자, 내부 멤버 정보는 Client에게 노출하지 않는다.
 - 위키, 검색, 태스크, 첨부 메타데이터, 실시간 방, 협업 연결, AI 질의는 모두 거부된다.
 - 포털 앱은 포털용 계약과 공용 UI만 사용하며 내부 도메인·소켓 계약을 참조하지 않는다.
+- 행사에 Client를 지정할 때는 대상 `users.role`이 반드시 `client`여야 한다. 애플리케이션의 사전 검증과 `event_clients` DB 트리거를 모두 적용한다.
 
 ### F-08 Excel 일괄 가져오기
 
-과거 행사 데이터를 Excel에서 가져와 행사 위키를 생성한다. 이 기능은 초기 사용 가능한 데모를 만들기 위한 2단계 범위다.
+과거 행사 데이터를 Excel에서 가져와 행사와 행사 위키를 함께 생성한다. 이 기능은 초기 사용 가능한 데모를 만들기 위한 2단계 범위다.
 
 수용 기준:
 
-- 가져오기 과정은 파일 선택, 컬럼 매핑, 미리보기, 검증, 실행의 다섯 단계로 구성한다.
-- 파싱과 변환 작업은 비동기 작업으로 실행하며, 작업 입력에 워크스페이스와 실행 주체를 포함한다.
-- 실패한 행과 이유를 사용자가 확인할 수 있어야 한다.
-- 원본 파일과 변환 결과의 보존 정책은 구현 전에 확정한다.
+- 가져오기 과정은 파일 선택, 시트·헤더 선택, 컬럼 매핑, 미리보기·검증, 실행의 단계로 구성한다.
+- 작업 입력(워크스페이스·실행 주체)과 단계별 상태·결과는 `import_jobs` 표에 남기고 만든 사람만 볼 수 있다 (RLS).
+- 실행은 한 HTTP 요청 안에서 처리한다. 배포 환경(vercel)에 상주 worker가 없어 pg-boss 작업으로 두면 처리할 주체가 없기 때문이다. 파싱·변환을 worker로 옮기는 것은 worker 도입 뒤에 같은 계약으로 옮긴다.
+- 실패한 행은 걸러내고 나머지를 반영하며, 완료 화면에 행별 실패 사유와 경고를 보여 준다.
+- 업로드 원본은 실행(실패 포함) 완료 즉시 `import_jobs`에서 바이트와 파싱 그리드를 지운다 (원본 보관 정책: 처리 후 즉시 파기, 명세 6절 확정).
+- 매핑 규칙: 모든 시스템 속성 매핑은 선택이다. 다만 행사명·시작일·고객사 값이 없는 행은 미리보기에서 실패 사유로 표시되어 실행 시 건너뛴다. 종료일이 비거나 매핑되지 않으면 시작일과 같게 처리하고, 알 수 없는 상태는 `진행중`으로 처리해 경고로 남긴다. PM은 사용자 이름으로 찾아 `pm` 멤버로 추가한다. 고객사 이름이 없으면 새 고객사를 만든다. 매핑하지 않은 나머지 컬럼은 위키 본문에 함께 담긴다.
+- 엑셀에 없는 값(PM·고객사 등)은 매핑 화면에서 속성별로 직접 입력할 수 있다. 입력값은 모든 행에 같은 값으로 쓰이고, 컬럼을 매핑했다면 그 셀이 빈 행에만 대신 쓰인다 (`import_jobs.fixed_values`).
+- 가져온 행사의 생성 주체(`created_by`)는 실행 주체이고 첫 PM 멤버로 추가된다. 일반 행사 생성 API는 여전히 미노출이고 INSERT 정책은 가져오기 범위(`is_internal()` + `created_by = 실행 주체`)로만 열린다 (명세 6절 행사 생성 권한 확정 전).
 
 ### F-09 행사 위키와 협업 편집
 
@@ -263,8 +270,8 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 - AI 응답은 SSE로 스트리밍하고, 호출별 프롬프트, 도구 호출, 토큰, 지연을 기록한다.
 - 구현은 `POST /ai/chat`(SSE: `text`·`tool`·`sources`·`proposal`·`done`·`error` 이벤트), `GET /events/:eventId/ai/proposals`, `POST /ai/proposals/:id/approve|reject`다. 도구는 질문한 사용자의 RLS 컨텍스트에서 실행되어 권한 밖 문서가 모델에 전달되지 않는다. 모델이 쓰는 도구 계약은 `packages/contracts/src/agent-tools.ts`, 어댑터·에이전트 루프·평가는 `packages/ai`다.
 - AI 질의는 내부 직원 전체가 할 수 있고(Client 불가), 제안은 만든 사람과 PM·AM만 볼 수 있으며, 승인·반려는 PM·AM과 Super Admin만 한다. 결정된 제안은 다시 바꿀 수 없다.
-- 승인은 승인자의 권한으로 한 트랜잭션 안에서 반영한다. `task_drafts`는 Task·Subtask 생성(상위 항목 검증), `notification`은 알림 생성, `wiki_edit`은 본문 교체와 재색인이다. `wiki_edit`은 제안 당시 `baseVersion`과 다르면 409 `VERSION_CONFLICT`로 거부하고 제안은 대기로 남는다. Yjs 상태가 있는 문서는 협업 서버를 거쳐 Yjs 트랜잭션으로 반영하고, 승인 직전 내용을 `wiki_revisions`(reason `ai_proposal`)에 남긴다. 협업 서버 반영이 실패하면 결정까지 함께 되돌려 제안은 대기로 남는다.
-- 웹의 Agent 패널(`apps/web/src/app/ai-chat/ai-chat-panel.tsx`)은 `/ai/chat` SSE를 스트리밍해 답변·출처·제안 카드를 보여주고 승인·반려 버튼을 제공한다. 행사 상세(`/events/:id`)에서는 그 행사를 맥락으로 보낸다. 웹에는 아직 로그인 화면이 없어 세션 토큰은 `sessionStorage['miceplans.token']`에서 읽기만 하며(`apps/web/src/lib/api.ts`), REST 호출은 orval이 생성한 TanStack Query 훅(`apps/web/src/lib/api/generated`)을 쓰며 API 주소는 `NEXT_PUBLIC_API_URL`이다. 로그인 연동 단계에서 `getToken`만 바꾼다. 제안 표시 형식·재제안 흐름은 7절에서 미확정이라 요약·상태·승인/반려만 제공한다.
+- 승인은 승인자의 권한으로 한 PostgreSQL 트랜잭션 안에서 반영한다. `task_drafts`는 Task·Subtask 생성(상위 항목 검증), `notification`은 알림 생성, `wiki_edit`은 본문 교체와 재색인이다. `wiki_edit`은 제안 당시 `baseVersion`과 다르면 409 `VERSION_CONFLICT`로 거부하고 제안은 대기로 남는다. Yjs 상태가 있는 문서는 API가 에이전트 참여자로서 Yjs 트랜잭션을 수행해 Yjs 원본·Markdown 파생본·재색인·승인 직전 `wiki_revisions`(reason `ai_proposal`)·제안 결정·감사 로그를 함께 커밋한다. 커밋 뒤 협업 서버는 활성 연결에 저장된 Yjs 상태를 전파할 뿐이며, 전파 실패는 이미 커밋된 결정을 되돌리지 않고 재접속 때 DB 원본으로 회복한다.
+- 웹의 Agent 패널(`apps/web/src/app/ai-chat/ai-chat-panel.tsx`)은 `/ai/chat` SSE를 스트리밍해 답변·출처·제안 카드를 보여주고 승인·반려 버튼을 제공한다. 행사 상세(`/events/:id`)에서는 그 행사를 맥락으로 보낸다. 웹 로그인 화면(`/login`)은 이메일·비밀번호 로그인과 가입을 제공하며, 성공한 세션 토큰은 탭 종료 시 사라지는 `sessionStorage['miceplans.token']`에 저장한다(`apps/web/src/lib/api.ts`). REST 호출은 orval이 생성한 TanStack Query 훅(`apps/web/src/lib/api/generated`)을 쓰며 API 주소는 `NEXT_PUBLIC_API_URL`이다. 제안 표시 형식·재제안 흐름은 7절에서 미확정이라 요약·상태·승인/반려만 제공한다.
 - 사용자당 분당 질의 한도(`AI_REQUESTS_PER_MINUTE`, 기본 20)로 LLM 비용을 제한한다. 호출 기록은 `ai_calls`(본인과 Super Admin만 조회)에 남는다. LLM은 `LLM_BASE_URL`·`LLM_API_KEY`·`LLM_MODEL`을 서버 런타임에서만 읽고, 없으면 AI 질의는 503이다.
 - GLM은 OpenAI 호환 어댑터 뒤에서 사용한다. 대표 시나리오 20~30개로 첫 2주 안에 도구 호출 품질을 평가하고, 모델 또는 프롬프트 변경 때 같은 골든 셋을 다시 실행한다. 골든 셋은 `packages/ai/src/eval/cases.ts`(현재 22개)이고 `LLM_* pnpm --filter @miceplans/ai eval`로 실행한다. 합격선은 미확정(7절)이라 통과율만 보고한다. **실행 기록(2026-11-02, z.ai `/api/anthropic`, `glm-4.5-flash`): 20/22(91%).** 실패는 `tasks-progress`(query_tasks 미호출)와 `propose-notification`(propose_notification 미호출) 2건이다. 이 계정에서는 유료 모델(`glm-5.3-flash`, `glm-4.7`, `glm-4.5` 등)이 `1113`(잔액·패키지 없음)으로 거절되고 무료 `glm-4.5-flash`만 응답해, 사용자 결정(2026-11-02)에 따라 `glm-4.5-flash`를 평가 모델로 삼았다. 다른 모델로 바꾸면 같은 골든 셋을 다시 실행한다(`LLM_* pnpm --filter @miceplans/ai eval`). 합격선은 미확정(7절)이다. 엔드포인트가 `/anthropic`으로 끝나면 Anthropic Messages 어댑터, 아니면 OpenAI 호환 어댑터를 쓴다(`createLlmClient`).
 
@@ -328,11 +335,11 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 
 다음 항목은 제품 동작에 영향을 주므로 각 기능 구현 전에 별도 계약으로 확정한다.
 
-- 행사, Program, Task, Subtask, 알림의 필수 필드와 상태값. 현재 `packages/db/migrations/0002_core.sql`과 `packages/contracts`는 웹 목업에서 가져온 초안이다: 행사 상태 `진행중·성공·확인중·만료·제출·보류중`, 항목 상태 `할 일·진행 중·검토 대기·보류·취소·완료`, 제작 파트 `디자인·영상·3D`, 알림 종류 4종. 제작물·디자인 요청·표 속성·예산은 모델이 미확정이라 스키마에 없다.
+- 행사, Program, Task, Subtask, 알림의 필수 필드와 상태값. 현재 `packages/db/migrations/0002_core.sql`과 `packages/contracts`는 웹 목업에서 가져온 초안이다: 행사 상태 `진행중·성공·확인중·만료·제출·보류중`, 항목 상태 `할 일·진행 중·검토 대기·보류·취소·완료`, 제작 파트 `디자인·영상·3D`, 알림 종류 `assigned·schedule_changed·due_soon·member_changed·client_application`. 제작물·디자인 요청·표 속성은 모델이 미확정이라 스키마에 없다. 예산은 `events.budget`(원, null=미정)만 먼저 두었고 견적·마진은 미확정이다.
 - Program·Task·Subtask는 `event_items` 한 표에 `kind`와 `parent_id`로 저장하고 모든 행에 `event_id`를 유지한다. 삭제는 `soft_delete_event_item`·`soft_delete_event` 함수로 하며 하위 항목이 함께 삭제된다. 담당자는 행사 멤버만 지정할 수 있다.
 - Client 포털은 `portal_events()`·`portal_programs()`만 사용한다. 지정된 행사의 `client_visible` Program에서 이름과 일정만 돌려주고, 내부 표에는 Client 정책이 없다.
 - 클라이언트 행사 일정의 시간대, 취소 및 변경 표기
 - 휴지통 보관 기간과 영구 삭제 절차
-- Excel 템플릿, 매핑 규칙, 오류 처리, 원본 보관 정책
+- Excel 템플릿, 매핑 규칙, 오류 처리, 원본 보관 정책 → 2026-11-10 확정·구현 (F-08 수용 기준 참고). 매핑 대상은 `행사명·기간 시작·기간 끝·고객사·PM·상태·장소`이고, 원본은 실행 완료 즉시 파기, 실패 행은 걸러내고 사유를 표시한다.
 - AI 제안의 표시 형식, 승인·반려·재제안 흐름
 - 골든 셋의 성공 기준과 모델 교체 기준
