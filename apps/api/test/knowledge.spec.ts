@@ -259,6 +259,24 @@ describe('AI 질의 (F-11)', () => {
     expect(log!.tool_calls.map((t) => t.name)).toEqual(['search_wiki']);
     expect(log!.messages.map((x) => x.role)).toEqual(['system', 'user', 'assistant', 'tool', 'assistant']);
   });
+  it('모델에는 사람 이름과 예산을 보내지 않고, SSE에서만 이름을 복원한다', async () => {
+    await admin.query(`UPDATE users SET name = '김마스킹' WHERE id = $1`, [U.staff]);
+    await createDoc('pm', '마스킹 확인', '김마스킹 담당입니다.\n예산 12,000,000원\n행사일은 5월입니다.', 'all');
+    script = (m) => {
+      if (lastIsUser(m)) return [toolCall('search_wiki', { query: '마스킹 확인' })];
+      const alias = String(m.find((message) => message.role === 'user')?.content).match(/<PERSON_\d{3}>/)![0];
+      return [{ type: 'text', delta: `담당은 ${alias.slice(0, 5)}` }, { type: 'text', delta: `${alias.slice(5)}입니다.` }];
+    };
+    seen.length = 0;
+    const { events } = await chat('staff', question('김마스킹의 담당 업무를 알려줘'));
+    const modelInput = JSON.stringify(seen);
+    expect(modelInput).not.toContain('김마스킹');
+    expect(modelInput).not.toContain('12,000,000');
+    expect(events.filter((e) => e.type === 'text').map((e) => e.delta).join('')).toBe('담당은 김마스킹입니다.');
+    const [log] = (await admin.query(`SELECT messages FROM ai_calls WHERE user_id = $1 ORDER BY id DESC LIMIT 1`, [U.staff])).rows as { messages: unknown }[];
+    expect(JSON.stringify(log.messages)).not.toContain('김마스킹');
+    expect(JSON.stringify(log.messages)).not.toContain('12,000,000');
+  });
   it('도구는 질문자의 권한으로 실행된다: 스태프에게 매니저 전용 문서가 모델에 전달되지 않는다', async () => {
     await createDoc('pm', 'AI 비공개', 'AI권한테스트 매니저 전용 기밀', 'managers');
     await createDoc('pm', 'AI 공개', 'AI권한테스트 전체 공개 내용', 'all');
