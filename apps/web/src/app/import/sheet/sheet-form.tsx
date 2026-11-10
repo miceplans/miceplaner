@@ -51,12 +51,12 @@ export function SheetForm() {
   };
 
   return (
-    <div className="flex w-full flex-col items-start gap-[64px]">
-      <div className="flex h-[398px] w-full flex-col items-start gap-[20px] rounded-lg bg-surface p-[24px] shadow-card">
-        <div className="flex h-[68px] w-full shrink-0 items-center gap-[12px] rounded-md bg-surface-subtle p-[14px]">
+    <div className="flex w-full min-w-0 flex-col items-start gap-[64px] max-md:gap-[32px]">
+      <div className="flex min-h-[398px] w-full min-w-0 flex-col items-start gap-[20px] rounded-lg bg-surface p-[24px] shadow-card max-md:p-[16px]">
+        <div className="flex min-h-[68px] w-full min-w-0 items-center gap-[12px] rounded-md bg-surface-subtle p-[14px]">
           <img alt="" src={`${A}/excel.png`} className="h-[26.648px] w-[25.899px] shrink-0 object-cover" />
-          <div className="flex flex-col items-start gap-[2px] whitespace-nowrap">
-            <p className="m-0 text-md font-semibold text-fg">{data.fileName}</p>
+          <div className="flex min-w-0 flex-col items-start gap-[2px]">
+            <p className="m-0 max-w-full break-all text-md font-semibold text-fg">{data.fileName}</p>
             <p className="m-0 text-xs text-fg-secondary">시트 {data.sheets.length}개</p>
           </div>
         </div>
@@ -72,15 +72,15 @@ export function SheetForm() {
                   role="radio"
                   aria-checked={on}
                   onClick={() => setSheet(i)}
-                  className={`flex h-[52px] w-full items-center gap-[12px] rounded-md px-[14px] py-[8px] text-left ${on ? 'bg-brand-tint' : 'bg-surface-subtle'}`}
+                  className={`flex min-h-[52px] w-full items-center gap-[12px] rounded-md px-[14px] py-[8px] text-left ${on ? 'bg-brand-tint' : 'bg-surface-subtle'}`}
                 >
                   {on ? (
                     <img alt="" src={`${A}/radio.svg`} className="size-[18px] shrink-0" />
                   ) : (
                     <span className="size-[18px] shrink-0 rounded-md border border-solid border-border-placeholder bg-surface" />
                   )}
-                  <span className="flex flex-col items-start gap-px whitespace-nowrap">
-                    <span className="text-md font-medium text-fg">{s.name}</span>
+                  <span className="flex min-w-0 flex-col items-start gap-px">
+                    <span className="max-w-full break-all text-md font-medium text-fg">{s.name}</span>
                     <span className="text-xs text-fg-secondary">{s.rowCount}행</span>
                   </span>
                 </button>
@@ -88,12 +88,11 @@ export function SheetForm() {
             })}
           </div>
         </div>
-        <div className="flex w-full items-center gap-[12px] py-[4px]">
-          <div className="flex flex-col items-start gap-[2px] whitespace-nowrap">
+        <div className="flex w-full flex-wrap items-center gap-[12px] py-[4px]">
+          <div className="flex min-w-0 flex-1 flex-col items-start gap-[2px]">
             <p className="m-0 text-base font-semibold text-fg">헤더 행</p>
-            <p className="m-0 text-xs text-fg-secondary">열 이름이 담긴 행을 헤더로 사용합니다</p>
+            <p className="m-0 break-keep text-xs text-fg-secondary">열 이름이 담긴 행을 헤더로 사용합니다</p>
           </div>
-          <div className="h-px min-w-px flex-1" />
           <Toggle checked={useHeader} onChange={setUseHeader} ariaLabel="헤더 행 사용" />
           <Select
             aria-label="헤더 행"
