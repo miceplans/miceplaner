@@ -4,6 +4,7 @@
   "packageManager": "pnpm@12.3.4",
   "scripts": {
     "dev": "pnpm --parallel --filter @miceplans/web --filter @miceplans/api dev",
+    "desktop:installers": "bash scripts/desktop-installers.sh",
     "dev:api": "pnpm --filter @miceplans/api dev",
     "dev:desktop": "pnpm --filter @miceplans/desktop dev",
     "build": "pnpm --filter @miceplans/web build",
