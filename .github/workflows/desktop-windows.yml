@@ -50,7 +50,7 @@ jobs:
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
-          name: MICEPLANS-windows-${{ matrix.arch }}
+          name: MICEPLANNER-windows-${{ matrix.arch }}
           if-no-files-found: error
           path: |
             apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/msi/*.msi

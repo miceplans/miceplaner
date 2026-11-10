@@ -1,4 +1,4 @@
-# MICEPLANS API 이미지. 워크스페이스 패키지가 TS 소스를 직접 export하므로 빌드 없이 tsx로 실행한다.
+# MICEPLANNER API 이미지. 워크스페이스 패키지가 TS 소스를 직접 export하므로 빌드 없이 tsx로 실행한다.
 # 빌드: docker build -t miceplans-api .
 # 마이그레이션: docker build --target migrate -t miceplans-migrate .
 

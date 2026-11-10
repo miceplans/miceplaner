@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type DragEvent, type FormEvent } from 'react';
-import { Checkbox, Dialog, Input, Select, StatusPill, type StatusKey } from '@miceplans/ui';
+import { Checkbox, DatePicker, Dialog, Input, Select, StatusPill, type StatusKey } from '@miceplans/ui';
 import { EMPTY_ATTR, type EventAttrType, useEventAttrs } from './event-attrs';
 
 const A = '/assets/schedule';
@@ -126,8 +126,8 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
       {adding && (
         <form onSubmit={submit} className="mb-[12px] grid w-full grid-cols-4 gap-[10px] rounded-[8px] border border-solid border-border bg-surface-sunken p-[14px] max-md:grid-cols-2">
           <Input autoFocus required placeholder="행사명" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="col-span-2" />
-          <Input type="date" aria-label="시작일" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} />
-          <Input type="date" aria-label="종료일" value={form.end} min={form.start} onChange={(e) => setForm({ ...form, end: e.target.value })} />
+          <DatePicker aria-label="시작일" value={form.start} onChange={(v) => setForm({ ...form, start: v })} />
+          <DatePicker aria-label="종료일" value={form.end} min={form.start} onChange={(v) => setForm({ ...form, end: v })} />
           <Input placeholder="고객사" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
           <Input placeholder="PM" value={form.pm} onChange={(e) => setForm({ ...form, pm: e.target.value })} />
           <Input placeholder="AM" value={form.am} onChange={(e) => setForm({ ...form, am: e.target.value })} />
