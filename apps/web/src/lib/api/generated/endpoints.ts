@@ -35,6 +35,7 @@ import type {
   ClientApplicationDto,
   ClientDto,
   CreateClientApplicationBody,
+  CreateClientBody,
   CreateDocBody,
   CreateEventBody,
   CreateItemBody,
@@ -5639,6 +5640,92 @@ export function useDirectoryClients<TData = Awaited<ReturnType<typeof directoryC
 
 
 
+
+export const getDirectoryCreateClientUrl = () => {
+
+
+
+
+  return `/clients`
+}
+
+/**
+ * @summary 고객사 생성 (행사 생성 화면의 + 고객사 입력. 낮은 권한 이상, 명세 F-02)
+ */
+export const directoryCreateClient = async (createClientBody: CreateClientBody, options?: Parameters<typeof http>[1]): Promise<ClientDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ClientDto>(getDirectoryCreateClientUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createClientBody)
+  }
+);}
+
+
+
+
+
+export const getDirectoryCreateClientMutationKey = () => ['directoryCreateClient'] as const;
+
+export const getDirectoryCreateClientMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof directoryCreateClient>>, TError,DirectoryCreateClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof directoryCreateClient>>, TError,DirectoryCreateClientMutationVariables, TContext> => {
+
+const mutationKey = getDirectoryCreateClientMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof directoryCreateClient>>, DirectoryCreateClientMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  directoryCreateClient(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DirectoryCreateClientMutationResult = NonNullable<Awaited<ReturnType<typeof directoryCreateClient>>>
+    export type DirectoryCreateClientMutationBody = CreateClientBody
+    export type DirectoryCreateClientMutationError = unknown
+    export type DirectoryCreateClientMutationVariables = {data: CreateClientBody}
+
+    /** @summary 고객사 생성 (행사 생성 화면의 + 고객사 입력. 낮은 권한 이상, 명세 F-02) */
+export const useDirectoryCreateClient = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof directoryCreateClient>>, TError,DirectoryCreateClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof directoryCreateClient>>,
+        TError,
+        DirectoryCreateClientMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDirectoryCreateClientMutationOptions(options), queryClient);
+    }
 
 export const getImportExcelUploadUrl = () => {
 

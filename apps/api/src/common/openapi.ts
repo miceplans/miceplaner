@@ -2,7 +2,7 @@ import { applyDecorators } from '@nestjs/common';
 import { ApiCreatedResponse, ApiOkResponse, type SchemaObject } from '@nestjs/swagger';
 import { z, type ZodType } from 'zod';
 import {
-  addEventMemberBody, weekendWorkBody, markNotificationsReadBody, assignItemBody, authSessionDto, chatBody, changeEventMemberRoleBody, changePasswordBody, clientApplicationDto, clientDto, createClientApplicationBody, createDocBody, createEventBody, createItemBody, docPageDto,
+  addEventMemberBody, weekendWorkBody, markNotificationsReadBody, assignItemBody, authSessionDto, chatBody, changeEventMemberRoleBody, changePasswordBody, clientApplicationDto, clientDto, createClientApplicationBody, createClientBody, createDocBody, createEventBody, createItemBody, docPageDto,
   eventDocDto, eventDto, eventItemDto, eventMemberDto, leaveBalanceDto, leaveRecordDto, loginBody, moveFileBody, notificationDto,
   proposalDto, registerBody, requestLeaveBody, rescheduleItemBody, saveDocBodyBody, searchHitDto, setClientVisibleBody, setDocVisibilityBody, updateEventBody, updateItemBody,
   fileDto, userDto, weekendWorkDto, wikiRevisionDetailDto, wikiRevisionDto, importJobDto, parseImportBody, previewImportBody,
@@ -11,7 +11,7 @@ import { portalEventDto, portalProgramDto } from '@miceplans/contracts/portal';
 
 /** OpenAPI components에 올리는 계약 스키마. 웹 클라이언트(orval)의 타입 이름이 된다. */
 export const API_SCHEMAS: Record<string, ZodType> = {
-  LoginBody: loginBody, RegisterBody: registerBody, ChangePasswordBody: changePasswordBody, CreateClientApplicationBody: createClientApplicationBody, ClientApplicationDto: clientApplicationDto, AuthSessionDto: authSessionDto, UserDto: userDto, ClientDto: clientDto,
+  LoginBody: loginBody, RegisterBody: registerBody, ChangePasswordBody: changePasswordBody, CreateClientApplicationBody: createClientApplicationBody, ClientApplicationDto: clientApplicationDto, AuthSessionDto: authSessionDto, UserDto: userDto, ClientDto: clientDto, CreateClientBody: createClientBody,
   EventDto: eventDto, CreateEventBody: createEventBody, UpdateEventBody: updateEventBody, EventMemberDto: eventMemberDto, AddEventMemberBody: addEventMemberBody,
   ChangeEventMemberRoleBody: changeEventMemberRoleBody, EventItemDto: eventItemDto, CreateItemBody: createItemBody, UpdateItemBody: updateItemBody,
   AssignItemBody: assignItemBody, RescheduleItemBody: rescheduleItemBody, SetClientVisibleBody: setClientVisibleBody, NotificationDto: notificationDto,

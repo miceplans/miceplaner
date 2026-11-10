@@ -2210,6 +2210,36 @@
         "tags": [
           "directory"
         ]
+      },
+      "post": {
+        "operationId": "directoryCreateClient",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateClientBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "고객사 생성 (행사 생성 화면의 + 고객사 입력. 낮은 권한 이상, 명세 F-02)",
+        "tags": [
+          "directory"
+        ]
       }
     },
     "/import/excel": {
@@ -2658,6 +2688,20 @@
         },
         "required": [
           "id",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "CreateClientBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
           "name"
         ],
         "additionalProperties": false

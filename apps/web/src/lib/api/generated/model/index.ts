@@ -24,6 +24,7 @@ export * from './clientApplicationDto';
 export * from './clientApplicationDtoStatus';
 export * from './clientDto';
 export * from './createClientApplicationBody';
+export * from './createClientBody';
 export * from './createDocBody';
 export * from './createDocBodyVisibility';
 export * from './createEventBody';
