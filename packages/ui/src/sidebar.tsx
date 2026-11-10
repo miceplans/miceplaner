@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type DragEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type DragEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Dialog } from './dialog';
 
@@ -15,6 +15,12 @@ export type SidebarKey =
   | 'notifications';
 
 const A = '/assets/sidebar';
+
+/** 사이드바 하단에 표시할 로그인 사용자. 앱이 Provider로 주입하며, 없으면 프로필 영역을 숨긴다. */
+export type SidebarUser = { name: string; jobTitle?: string };
+const SidebarUserContext = createContext<SidebarUser | null>(null);
+export const SidebarUserProvider = SidebarUserContext.Provider;
+
 
 /** 이전 표시/숨김 설정의 localStorage 키. 새 설정으로 한 번만 마이그레이션한다. */
 const HIDDEN_NAV_KEY = 'miceplans.sidebar.hiddenNav';
@@ -157,6 +163,8 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
     }
   };
 
+  const user = useContext(SidebarUserContext);
+
   return (
     <aside className={`flex h-full w-[240px] shrink-0 flex-col overflow-hidden bg-surface-sidebar leading-[normal] max-md:h-auto max-md:w-full max-md:border-b max-md:border-border ${className}`} data-name="Sidebar">
       <div className="flex h-[52px] shrink-0 items-center pl-[12px] pr-[14px] max-md:hidden">
@@ -213,6 +221,14 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
         </div>
       </div>
       <div className="flex h-[52px] shrink-0 items-center gap-[10px] border-t border-solid border-border px-[14px] max-md:hidden">
+        {user ? (
+          <>
+            <span aria-hidden="true" className="flex size-[24px] shrink-0 items-center justify-center rounded-md bg-brand-tint text-2xs font-semibold text-brand">
+              {Array.from(user.name)[0] ?? ''}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-fg" title={user.jobTitle ? `${user.name} · ${user.jobTitle}` : user.name}>{user.name}</span>
+          </>
+        ) : null}
         <button
           type="button"
           aria-label="사이드탭 구성 수정"
