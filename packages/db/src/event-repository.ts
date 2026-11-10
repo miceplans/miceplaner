@@ -139,10 +139,10 @@ export async function findUserByEmail(client: PoolClient, email: string): Promis
 }
 
 /** 가입 시 만든다. 역할은 기본 staff다. */
-export async function insertUser(client: PoolClient, user: { id: string; name: string; email: string; passwordHash?: string }): Promise<UserRow> {
+export async function insertUser(client: PoolClient, user: { id: string; name: string; email: string; passwordHash?: string; role?: 'staff' | 'client' }): Promise<UserRow> {
   const { rows } = await client.query<UserRow>(
-    `INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4) RETURNING ${USER_COLUMNS}`,
-    [user.id, user.name, user.email, user.passwordHash ?? null],
+    `INSERT INTO users (id, name, email, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING ${USER_COLUMNS}`,
+    [user.id, user.name, user.email, user.passwordHash ?? null, user.role ?? 'staff'],
   );
   return rows[0]!;
 }

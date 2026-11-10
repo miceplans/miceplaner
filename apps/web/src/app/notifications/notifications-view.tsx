@@ -1,7 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DesktopNotificationToggle } from '../desktop-notification-toggle';
+import http from '../../lib/api/http';
+import { ApiError } from '../../lib/api';
+import type { NotificationDto } from '@miceplans/contracts';
+import { toast } from '@miceplans/ui';
 
 const A = '/assets/notifications';
 
@@ -33,9 +37,38 @@ type TabKey = (typeof TABS)[number]['key'];
 export function NotificationsView() {
   const [tab, setTab] = useState<TabKey>('all');
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const [apiItems, setApiItems] = useState<NotificationDto[]>([]);
+  const [approving, setApproving] = useState<string | null>(null);
+
+  useEffect(() => {
+    void http<NotificationDto[]>('/notifications?limit=50').then(setApiItems).catch(() => {
+      // API 미설정인 정적 목업은 빈 알림 상태를 유지한다.
+    });
+  }, []);
+
+  const applicationIdOf = (title: string) => title.match(/\[([0-9a-f-]{36})\]$/i)?.[1];
+  const approve = async (notification: NotificationDto) => {
+    const applicationId = applicationIdOf(notification.title);
+    if (!applicationId) return;
+    setApproving(notification.id.toString());
+    try {
+      await http(`/auth/client-applications/${applicationId}/approve`, { method: 'POST' });
+      setApiItems((items) => items.map((item) => item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item));
+      toast.info('Client 신청을 승인했습니다.');
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : '[500] 승인에 실패했습니다.');
+    } finally {
+      setApproving(null);
+    }
+  };
+
+  const apiGroups: Group[] = apiItems.length ? [{ label: '최근 알림', items: apiItems.map((item) => ({
+    id: item.id.toString(), title: item.title.replace(/\s*\[[0-9a-f-]{36}\]$/i, ''), time: item.kind === 'client_application' ? 'Client 가입 신청' : item.kind,
+    at: item.createdAt.replace(/\.\d{3}Z$/, '').replace('Z', ''), unread: !item.readAt, invite: item.kind === 'client_application' && !item.readAt,
+  })) }] : GROUPS;
 
   const visible = (i: Item) => (tab === 'unread' ? i.unread && !readIds.has(i.id) : tab === 'mention' ? i.mention : true);
-  const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter(visible) })).filter((g) => g.items.length > 0);
+  const groups = apiGroups.map((g) => ({ ...g, items: g.items.filter(visible) })).filter((g) => g.items.length > 0);
 
   return (
     <div className="flex min-h-[900px] w-full flex-col leading-[normal]">
@@ -70,7 +103,7 @@ export function NotificationsView() {
           <DesktopNotificationToggle />
           <button
             type="button"
-            onClick={() => setReadIds(new Set(GROUPS.flatMap((g) => g.items.map((i) => i.id))))}
+            onClick={() => setReadIds(new Set(apiGroups.flatMap((g) => g.items.map((i) => i.id))))}
             className="flex h-[30px] items-center gap-[6px] rounded-sm border border-solid border-border bg-surface px-[11px]"
           >
             <img alt="" src={`${A}/mark-icon.svg`} className="size-[13px]" />
@@ -107,8 +140,10 @@ export function NotificationsView() {
                       </div>
                       {it.invite ? (
                         <div className="flex items-center gap-[4px]">
-                          <button type="button" className="flex h-[26px] items-center justify-center rounded-sm border border-solid border-border bg-surface px-[10px] text-xs font-medium text-fg-secondary">거절</button>
-                          <button type="button" className="flex h-[26px] items-center justify-center rounded-sm bg-brand px-[10px] text-xs font-medium text-fg-inverse">수락</button>
+                          <button type="button" disabled={approving === it.id} onClick={() => {
+                            const notification = apiItems.find((item) => item.id.toString() === it.id);
+                            if (notification) void approve(notification);
+                          }} className="flex h-[26px] items-center justify-center rounded-sm bg-brand px-[10px] text-xs font-medium text-fg-inverse disabled:opacity-50">{approving === it.id ? '승인 중…' : '승인'}</button>
                         </div>
                       ) : null}
                       {unread ? <img alt="" src={`${A}/unread-dot.svg`} className="size-[7px] shrink-0" /> : null}

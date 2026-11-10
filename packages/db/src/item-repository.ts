@@ -108,7 +108,7 @@ async function notify(client: PoolClient, row: EventItemRow, kind: 'assigned' | 
   await client.query(`INSERT INTO notifications (recipient_id, event_id, item_id, kind, title) VALUES ($1, $2, $3, $4, $5)`, [row.assigneeId, row.eventId, row.id, kind, row.title]);
 }
 
-export type NotificationRow = { id: number; eventId: string; itemId: string | null; kind: string; title: string; createdAt: string; readAt: string | null };
+export type NotificationRow = { id: number; eventId: string | null; itemId: string | null; kind: string; title: string; createdAt: string; readAt: string | null };
 
 export async function listNotifications(client: PoolClient, opts: { limit?: number; unread?: boolean } = {}): Promise<NotificationRow[]> {
   const cond: string[] = [];

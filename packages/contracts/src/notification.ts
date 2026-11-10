@@ -6,7 +6,7 @@ export const notificationKind = z.enum(NOTIFICATION_KINDS);
 
 export const notificationDto = z.object({
   id: z.number().int().positive(),
-  eventId: uuid,
+  eventId: uuid.nullable(),
   itemId: uuid.nullable(),
   kind: notificationKind,
   title: z.string(),

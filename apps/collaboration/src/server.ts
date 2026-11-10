@@ -4,7 +4,7 @@ import { Server, type Extension } from '@hocuspocus/server';
 import * as Y from 'yjs';
 import { z } from 'zod';
 import { eventRole, getDocPage, getYdocState, saveCollabState, withContext, type Pool } from '@miceplans/db';
-import { canEditWiki } from '@miceplans/domain';
+import { canEditWiki, canViewDoc } from '@miceplans/domain';
 import { replaceYdocWithMarkdown, ydocToMarkdown, ydocToState } from '@miceplans/editor-schema';
 import { authenticate, resolveUser, type CollabUser } from './auth';
 import { config } from './config';
@@ -16,7 +16,11 @@ export type BodyChanged = (docId: string, user: CollabUser) => void | Promise<vo
 
 const uuid = z.uuid();
 const replaceBody = z.object({ userId: uuid, markdown: z.string().max(200_000) });
+const syncBody = z.object({ userId: uuid });
+const revalidateAccess = z.object({ eventId: uuid, userId: uuid });
 const REPLACE_PATH = /^\/internal\/docs\/([0-9a-f-]{36})\/replace$/i;
+const SYNC_PATH = /^\/internal\/docs\/([0-9a-f-]{36})\/sync$/i;
+const REVALIDATE_ACCESS_PATH = '/internal/access/revalidate';
 
 /** 문서의 Yjs 상태와 Markdown 파생본을 접속한 사용자의 권한으로 저장한다 (RLS: PM·AM만 쓸 수 있다). */
 async function persist(pool: Pool, user: CollabUser, docId: string, ydoc: Y.Doc, onBodyChanged?: BodyChanged): Promise<void> {
@@ -55,9 +59,12 @@ const secretMatches = (given: string | undefined): boolean => {
  * 위키 협업 서버 (명세 F-09, ADR). 연결마다 세션 토큰을 검증하고 사용자의 RLS 컨텍스트로 문서를 읽고 쓴다.
  * - Client와 문서를 볼 수 없는 사용자는 연결할 수 없다. PM·AM(과 Super Admin) 외에는 읽기 전용이다.
  * - Yjs 상태가 기준이며 저장할 때 Markdown 파생본과 검색 색인도 함께 갱신한다.
- * - `POST /internal/docs/:id/replace`: API가 AI 제안 승인·되돌리기를 Yjs 트랜잭션으로 반영할 때 쓴다(공유 비밀 필요).
+ * - `POST /internal/docs/:id/replace`: 일반 REST 변경·되돌리기를 Yjs 트랜잭션으로 반영할 때 쓴다(공유 비밀 필요).
+ * - `POST /internal/docs/:id/sync`: API가 원자적으로 커밋한 AI 승인 Yjs 상태를 활성 연결에 전파한다.
  */
 export function createCollabServer(pool: Pool, options: { port?: number; quiet?: boolean; onBodyChanged?: BodyChanged } = {}): Server<Context> {
+  // 활성 문서의 행사·열람 범위. RLS를 우회하지 않고 이미 인증 때 읽은 메타데이터만 보관한다.
+  const activeDocs = new Map<string, { eventId: string; visibility: 'all' | 'members' | 'managers' }>();
   const extension: Extension<Context> = {
     async onAuthenticate({ token, documentName, connectionConfig }) {
       const user = await authenticate(pool, token);
@@ -67,6 +74,9 @@ export function createCollabServer(pool: Pool, options: { port?: number; quiet?:
         return page ? eventRole(db, page.eventId) : undefined;
       }).catch(() => undefined);
       if (!role) throw new Error('forbidden');
+      const page = await withContext(pool, user, (db) => getDocPage(db, documentName)).catch(() => undefined);
+      if (!page) throw new Error('forbidden');
+      activeDocs.set(documentName, { eventId: page.eventId, visibility: page.visibility });
       connectionConfig.readOnly = !canEditWiki(role);
       return { user };
     },
@@ -86,10 +96,63 @@ export function createCollabServer(pool: Pool, options: { port?: number; quiet?:
       await persist(pool, user, documentName, document, options.onBodyChanged);
     },
 
+    async afterUnloadDocument({ documentName }) {
+      activeDocs.delete(documentName);
+    },
+
     async onRequest({ request, response, instance }) {
       const url = new URL(request.url ?? '/', 'http://collab');
       if (request.method === 'GET' && url.pathname === '/health') {
         send(response, 200, { ok: true });
+        throw null;
+      }
+      if (url.pathname === REVALIDATE_ACCESS_PATH) {
+        if (request.method !== 'POST' || !secretMatches(request.headers['x-internal-secret'] as string | undefined)) {
+          send(response, 403, { error: 'forbidden' });
+          throw null;
+        }
+        try {
+          const body = revalidateAccess.parse(await readJson(request));
+          const user = await resolveUser(pool, body.userId);
+          if (user) {
+            const role = await withContext(pool, user, (db) => eventRole(db, body.eventId));
+            for (const [docId, meta] of activeDocs) {
+              if (meta.eventId !== body.eventId) continue;
+              const document = instance.documents.get(docId);
+              if (!document) continue;
+              for (const connection of document.getConnections()) {
+                if (connection.context.user.userId === body.userId) {
+                  const reason = canViewDoc(meta.visibility, role) ? '권한이 변경되었습니다.' : '문서 접근 권한이 없습니다.';
+                  connection.close({ code: 4003, reason } as CloseEvent);
+                }
+              }
+            }
+          }
+          send(response, 204, null);
+        } catch (error) {
+          if (error instanceof z.ZodError || error instanceof SyntaxError) send(response, 400, { error: 'invalid request' });
+          else send(response, 500, { error: 'failed' });
+        }
+        throw null;
+      }
+      const sync = SYNC_PATH.exec(url.pathname);
+      if (sync) {
+        if (request.method !== 'POST' || !secretMatches(request.headers['x-internal-secret'] as string | undefined)) {
+          send(response, 403, { error: 'forbidden' });
+          throw null;
+        }
+        try {
+          const body = syncBody.parse(await readJson(request));
+          const user = await resolveUser(pool, body.userId);
+          const document = instance.documents.get(sync[1]!);
+          if (user && document) {
+            const state = await withContext(pool, user, (db) => getYdocState(db, sync[1]!));
+            if (state) Y.applyUpdate(document as Y.Doc, state, 'api_committed');
+          }
+          send(response, 204, null);
+        } catch (error) {
+          send(response, error instanceof z.ZodError || error instanceof SyntaxError ? 400 : 500, { error: 'failed' });
+        }
         throw null;
       }
       const match = REPLACE_PATH.exec(url.pathname);
