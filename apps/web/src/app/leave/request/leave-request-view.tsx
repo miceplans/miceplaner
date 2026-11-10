@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { FlowTopbar, Input, PageFrame, Select, Textarea, toast } from '@miceplans/ui';
+import { DatePicker, FlowTopbar, PageFrame, Select, Textarea, toast } from '@miceplans/ui';
 import { LEAVE_ME, LEAVE_EMPLOYEES, LEAVE_KINDS, LEAVE_TODAY, remainingOf, type LeaveKind } from '../data';
 import { useWorkCheck } from '../use-work-check';
 
@@ -117,11 +117,11 @@ export function LeaveRequestView() {
           <div className="flex flex-col gap-[8px]">
             <span className={label}>사용 기간</span>
             <div className="flex items-center gap-[8px]">
-              <Input size="lg" type="date" aria-label="시작일" required value={start} onChange={(e) => { setStart(e.target.value); if (e.target.value > end) setEnd(e.target.value); }} className={field} />
+              <DatePicker size="lg" aria-label="시작일" value={start} onChange={(v) => { setStart(v); if (v > end) setEnd(v); }} className={field} />
               {multiDay ? (
                 <>
                   <span className="text-fg-tertiary">~</span>
-                  <Input size="lg" type="date" aria-label="종료일" required value={end} min={start} onChange={(e) => setEnd(e.target.value)} className={field} />
+                  <DatePicker size="lg" aria-label="종료일" value={end} min={start} onChange={setEnd} className={field} />
                 </>
               ) : null}
             </div>

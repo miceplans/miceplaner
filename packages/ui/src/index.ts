@@ -17,3 +17,4 @@ export * from './dialog';
 export * from './tabs';
 export * from './field';
 export * from './toast';
+export * from './date-picker';

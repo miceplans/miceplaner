@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Input, Select, toast } from '@miceplans/ui';
+import { Button, DatePicker, Input, Select, toast } from '@miceplans/ui';
 import { useDirectoryClients, useDirectoryUsers, useEventsCreate } from '../../../lib/api/generated/endpoints';
 import { ApiError } from '../../../lib/api';
 
@@ -126,10 +126,10 @@ export function NewEventForm() {
           />
         </Field>
         <Field label="시작일" required>
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} invalid={tried && missing.startDate} className="w-full" />
+          <DatePicker value={startDate} onChange={setStartDate} invalid={tried && missing.startDate} className="w-full" />
         </Field>
         <Field label="종료일" required>
-          <Input type="date" value={endDate} min={startDate || undefined} onChange={(e) => setEndDate(e.target.value)} invalid={tried && (missing.endDate || dateError)} className="w-full" />
+          <DatePicker value={endDate} min={startDate || undefined} onChange={setEndDate} invalid={tried && (missing.endDate || dateError)} className="w-full" />
         </Field>
         <div className="col-span-2 max-md:col-span-1">
           <Field label="장소">
