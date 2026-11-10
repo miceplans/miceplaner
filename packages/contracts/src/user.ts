@@ -6,7 +6,16 @@ import { uuid } from './common';
 export const userRole = z.enum(['super_admin', 'staff', 'client']);
 export type UserRole = z.infer<typeof userRole>;
 
-export const userDto = z.object({ id: uuid, name: z.string(), email: z.string(), jobTitle: z.string(), role: z.enum(ROLES) });
+/** `team`·`subTeam`은 하이웍스 조직도에서 온 값이라 `GET /auth/me`와 세션에만 채운다. 하이웍스 조회에 실패하면 비어 있다. */
+export const userDto = z.object({
+  id: uuid,
+  name: z.string(),
+  email: z.string(),
+  jobTitle: z.string(),
+  role: z.enum(ROLES),
+  team: z.string().optional(),
+  subTeam: z.string().optional(),
+});
 export type UserDto = z.infer<typeof userDto>;
 
 export const clientDto = z.object({ id: uuid, name: z.string() });

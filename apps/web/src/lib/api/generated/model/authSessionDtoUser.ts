@@ -14,4 +14,6 @@ export type AuthSessionDtoUser = {
   email: string;
   jobTitle: string;
   role: AuthSessionDtoUserRole;
+  team?: string;
+  subTeam?: string;
 };

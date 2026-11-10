@@ -8,7 +8,12 @@ import type { Invitee, InviteRole } from './invite-dialog';
 import type { Team } from './event-products';
 import { PART_FILTERS, type PartFilter } from './event-parts';
 import { CURRENT_USER, getAssignableNames, isEventMember } from './event-members';
+import { getToken } from '../../../lib/api';
+import { useGetMe } from '../../../lib/api/generated/endpoints';
 import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event-filter';
+
+/** 하이웍스 소속 이름(`GET /auth/me`의 team). 영상팀·콘텐츠 제작팀도 이 팀의 소분류로 내려온다. */
+const DESIGN_TEAM = '디자인팀';
 
 // 탭별 큰 화면은 필요할 때 청크를 받아 첫 행사 상세 진입의 JS를 줄인다.
 const ScheduleList = dynamic(() => import('./event-schedule-list').then((module) => module.ScheduleList));
@@ -159,7 +164,8 @@ export function EventDetailView({ eventId }: { eventId: string }) {
   const event = EVENTS[eventId] ?? EMPTY_EVENT;
   const [isPublic, setIsPublic] = useState(true);
   const [client, setClient] = useState(event.client);
-  // TODO: 팀 구분 기준(역할·소속)이 확정되면 인증 정보에서 가져온다. 그전에는 ?team=design 으로 디자인팀 화면을 본다.
+  // 팀 구분: 하이웍스 소속이 디자인팀(영상팀·콘텐츠 제작팀 포함)이면 디자인팀 화면, 그 밖에는 일반(기획)팀 화면이다.
+  const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
   const [team, setTeam] = useState<Team>('planning');
   const [tab, setTab] = useState<TabName>(DEFAULT_TAB.planning);
   const tabs = TABS_BY_TEAM[team];
@@ -169,11 +175,12 @@ export function EventDetailView({ eventId }: { eventId: string }) {
   const [previewNoAccess, setPreviewNoAccess] = useState(false);
   const isMember = !previewNoAccess && isEventMember(event, eventId, CURRENT_USER.name);
   const visibleTabs = isMember ? tabs : tabs.filter((t) => !(MEMBER_TABS as readonly string[]).includes(t));
+  const myTeam = me.data?.team;
   useEffect(() => {
-    const next: Team = new URLSearchParams(window.location.search).get('team') === 'design' ? 'design' : 'planning';
+    const next: Team = myTeam === DESIGN_TEAM ? 'design' : 'planning';
     setTeam(next);
     setTab(DEFAULT_TAB[next]);
-  }, []);
+  }, [myTeam]);
   // 멤버 탭을 보고 있을 때 권한이 사라지면(미리보기 토글 등) 기본 탭으로 돌아간다.
   useEffect(() => {
     if (!isMember && tab === '인력') setTab(DEFAULT_TAB[team]);
