@@ -113,10 +113,12 @@ describe('Excel 일괄 가져오기', () => {
     await api().post('/import/excel').set(as('client')).attach('file', buf, { filename: 'events.xlsx' }).expect(403);
   });
 
-  it('행사명·시작일이 매핑에 없으면 400이다', async () => {
+  it('필수 항목을 매핑하지 않아도 미리보기를 만들고 행별 실패 사유를 남긴다', async () => {
     const uploaded = await api().post('/import/excel').set(as('importer')).attach('file', await sampleXlsx(), { filename: 'events.xlsx' }).expect(201);
     const jobId: string = uploaded.body.id;
     await api().post(`/import/${jobId}/parse`).set(as('importer')).send({ sheet: '행사', hasHeader: true, headerRow: 1 }).expect(201);
-    await api().post(`/import/${jobId}/preview`).set(as('importer')).send({ mapping: { 0: 'name' } }).expect(400);
+    const previewed = await api().post(`/import/${jobId}/preview`).set(as('importer')).send({ mapping: { 0: 'name' } }).expect(201);
+    expect(previewed.body.validation).toMatchObject({ total: 3, valid: 0, invalid: 3 });
+    expect(previewed.body.validation.rows[0].failures).toContain('시작일이 비어 있음');
   });
 });

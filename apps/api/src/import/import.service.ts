@@ -120,12 +120,9 @@ export class ImportService {
     return this.dto(row);
   }
 
-  /** 행사명·시작일은 필수 매핑이고 한 속성에 컬럼이 하나만 매핑돼야 한다. */
+  /** 매핑은 선택 사항이며 한 속성에 컬럼이 하나만 매핑돼야 한다. */
   private checkMapping(mapping: Record<string, ImportTargetField>): Record<string, ImportTargetField> {
     const entries = Object.entries(mapping);
-    if (!entries.some(([, f]) => f === 'name') || !entries.some(([, f]) => f === 'startDate')) {
-      throw new BadRequestException(`[400] ${IMPORT_FIELD_LABELS.name}과(와) ${IMPORT_FIELD_LABELS.startDate} 컬럼은 필수로 매핑해야 합니다.`);
-    }
     const seen = new Set<ImportTargetField>();
     for (const [, field] of entries) {
       if (seen.has(field)) throw new BadRequestException(`[400] ${IMPORT_FIELD_LABELS[field]}에 컬럼이 두 개 이상 매핑돼 있습니다.`);

@@ -29,10 +29,6 @@ export function MappingForm() {
   }, [columns.length]);
 
   const used = useMemo(() => new Set(Object.values(values).filter((v): v is ImportTargetField => v !== UNMAPPED)), [values]);
-  const missingRequired = useMemo(
-    () => TARGET_FIELDS.filter((field) => (field.value === 'name' || field.value === 'startDate') && !used.has(field.value)),
-    [used],
-  );
 
   if (!jobId || job.isError) {
     return (
@@ -55,10 +51,6 @@ export function MappingForm() {
   }
 
   const submit = async () => {
-    if (missingRequired.length > 0) {
-      toast.error(`필수 매핑을 선택해 주세요: ${missingRequired.map((field) => field.label).join(', ')}`);
-      return;
-    }
     const mapping = Object.fromEntries(Object.entries(values).filter(([, f]) => f !== UNMAPPED)) as Record<string, ImportTargetField>;
     try {
       await preview.mutateAsync({ id: jobId, data: { mapping } });
@@ -72,9 +64,6 @@ export function MappingForm() {
     <div className="flex w-full flex-col items-start gap-[32px]">
       <div className="flex w-full flex-col items-start gap-[32px] rounded-lg bg-surface p-[24px] shadow-card">
         <p className="m-0 text-lg font-semibold whitespace-nowrap text-fg">각 열이 어떤 행사 정보인지 알려 주세요</p>
-        <p className={`m-0 text-sm ${missingRequired.length > 0 ? 'text-error' : 'text-fg-secondary'}`}>
-          행사명과 기간 · 시작은 필수입니다.
-        </p>
         <div className="flex w-full flex-col items-start gap-[16px]">
           <div className="flex h-[24px] w-full items-start text-xs font-medium whitespace-nowrap text-fg-secondary">
             <div className="flex w-[330px] items-center py-[8px]">Excel 컬럼</div>
