@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, Select, toast } from '@miceplans/ui';
+import { Button, Input, Select, toast } from '@miceplans/ui';
 import type { ImportTargetField } from '@miceplans/contracts';
 import { useImportGet, useImportPreview } from '../../../lib/api/generated/endpoints';
 import { ApiError } from '../../../lib/api';
@@ -16,6 +16,7 @@ export function MappingForm() {
   const job = useImportGet(jobId, { query: { enabled: jobId !== '' } });
   const preview = useImportPreview();
   const [values, setValues] = useState<Record<string, ImportTargetField | ''>>({});
+  const [fixed, setFixed] = useState<Partial<Record<ImportTargetField, string>>>({});
 
   const columns = job.data?.columns ?? [];
 
@@ -53,7 +54,8 @@ export function MappingForm() {
   const submit = async () => {
     const mapping = Object.fromEntries(Object.entries(values).filter(([, f]) => f !== UNMAPPED)) as Record<string, ImportTargetField>;
     try {
-      await preview.mutateAsync({ id: jobId, data: { mapping } });
+      const fixedValues = Object.fromEntries(Object.entries(fixed).map(([k, v]) => [k, (v ?? '').trim()]).filter(([, v]) => v !== ''));
+      await preview.mutateAsync({ id: jobId, data: { mapping, fixed: fixedValues } });
       router.push(`/import/preview?job=${jobId}`);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : '[500] 검증에 실패했습니다.');
@@ -93,6 +95,24 @@ export function MappingForm() {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+      <div className="flex w-full flex-col items-start gap-[16px] rounded-lg bg-surface p-[24px] shadow-card">
+        <p className="m-0 text-lg font-semibold whitespace-nowrap text-fg">엑셀에 없는 값은 직접 입력해 주세요</p>
+        <p className="m-0 text-sm text-fg-secondary">입력한 값은 모든 행에 똑같이 들어갑니다. 위에서 컬럼을 매핑했다면 그 값이 비어 있는 행에만 대신 쓰입니다.</p>
+        <div className="flex w-full flex-col items-start gap-[12px]">
+          {TARGET_FIELDS.map((f) => (
+            <div key={f.value} className="flex w-full items-center">
+              <span className="w-[330px] text-base whitespace-nowrap text-fg">{f.label}</span>
+              <Input
+                aria-label={`${f.label} 직접 입력`}
+                value={fixed[f.value] ?? ''}
+                placeholder={f.value === 'startDate' || f.value === 'endDate' ? '예: 2025-03-06' : '비워 두면 사용하지 않음'}
+                onChange={(e) => setFixed((v) => ({ ...v, [f.value]: e.target.value }))}
+                className="w-[320px] shrink-0"
+              />
+            </div>
+          ))}
         </div>
       </div>
       <div className="flex h-[64px] w-full shrink-0 items-center justify-between py-[16px]">

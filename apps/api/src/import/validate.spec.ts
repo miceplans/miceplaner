@@ -13,6 +13,12 @@ describe('parseDateText', () => {
     // 엑셀 날짜 시리얼: 44927 = 2023-01-01, 45292 = 2024-01-01
     expect(parseDateText('44927')).toBe('2023-01-01');
     expect(parseDateText('45292')).toBe('2024-01-01');
+    expect(parseDateText('2025년 3월 6일')).toBe('2025-03-06');
+    expect(parseDateText('2025-03-06(목)')).toBe('2025-03-06');
+    expect(parseDateText('2025.03.06 09:00')).toBe('2025-03-06');
+    expect(parseDateText('2025-03-06T00:00:00.000Z')).toBe('2025-03-06');
+    expect(parseDateText('25.3.6')).toBe('2025-03-06');
+    expect(parseDateText('2025. 3. 6.')).toBe('2025-03-06');
   });
   it('빈 값과 날짜가 아닌 값은 null이다', () => {
     expect(parseDateText('')).toBeNull();
@@ -53,6 +59,18 @@ describe('normalizeImportRow', () => {
     const row = normalizeImportRow(['행사', '2025-03-06'], 2, mapping);
     expect(row.ok).toBe(true);
     expect(row.endDate).toBe('2025-03-06');
+  });
+});
+
+describe('고정값', () => {
+  it('매핑이 없거나 셀이 비면 직접 입력한 값을 쓴다', () => {
+    const mapping: Record<string, ImportTargetField> = { 0: 'name', 1: 'startDate', 2: 'client' };
+    const row = normalizeImportRow(['행사', '2025-03-06', ''], 2, mapping, { client: '고객사', pm: '홍길동' });
+    expect(row).toMatchObject({ ok: true, client: '고객사', pm: '홍길동' });
+  });
+  it('시트 값이 있으면 고정값보다 우선한다', () => {
+    const mapping: Record<string, ImportTargetField> = { 0: 'name', 1: 'startDate', 2: 'client' };
+    expect(normalizeImportRow(['행사', '2025-03-06', '시트고객'], 2, mapping, { client: '고정' }).client).toBe('시트고객');
   });
 });
 

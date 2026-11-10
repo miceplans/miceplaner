@@ -103,5 +103,7 @@ export type ParseImportBody = z.infer<typeof parseImportBody>;
 /** 컬럼 매핑으로 전체 행을 검증하고 미리보기를 만든다. */
 export const previewImportBody = z.object({
   mapping: z.record(z.string(), importTargetField),
+  /** 엑셀에 없는 값(PM 등)을 모든 행에 같은 값으로 쓴다. 매핑한 컬럼이 비어 있는 행에도 대신 쓴다. */
+  fixed: z.record(importTargetField, z.string().trim().max(200)).optional(),
 });
 export type PreviewImportBody = z.infer<typeof previewImportBody>;

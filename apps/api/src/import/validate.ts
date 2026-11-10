@@ -33,19 +33,33 @@ function excelSerialToDate(serial: number): string | null {
 
 /**
  * 셀 문자열을 YYYY-MM-DD로 바꾼다. 허용 형태: YYYY-MM-DD·YYYY.MM.DD·YYYY/MM/DD(월일 한 자리 포함),
- * YYYYMMDD, 엑셀 날짜 시리얼. 실제 날짜가 아니면 null이다.
+ * YYYYMMDD, YY.MM.DD, `2025년 3월 6일`, 끝에 붙은 요일·시간(`2025-03-06(목)`, `2025-03-06 09:00`, ISO 시각),
+ * 엑셀 날짜 시리얼. 실제 날짜가 아니면 null이다.
  */
 export function parseDateText(raw: string): string | null {
-  const s = raw.trim();
+  let s = raw.trim();
   if (!s) return null;
-  const m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
-  if (m) return validDate(Number(m[1]), Number(m[2]), Number(m[3]));
+  // 요일 `(목)`·`[목]`·`목요일`, 시간 `09:00`·`T09:00:00Z`를 떼고 날짜만 본다.
+  s = s
+    .replace(/[([](?:월|화|수|목|금|토|일)[)\]]/g, '')
+    .replace(/(?:월|화|수|목|금|토|일)요일/g, '')
+    .replace(/[T\s]+\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?\s*(?:Z|[+-]\d{2}:?\d{2})?\s*(?:AM|PM|오전|오후)?$/i, '')
+    .trim();
+  const ko = s.match(/^(\d{2,4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일?$/);
+  if (ko) return validDate(fullYear(ko[1]!), Number(ko[2]), Number(ko[3]));
+  const m = s.match(/^(\d{2,4})\s*[-/.]\s*(\d{1,2})\s*[-/.]\s*(\d{1,2})\.?$/);
+  if (m) return validDate(fullYear(m[1]!), Number(m[2]), Number(m[3]));
   if (/^\d{8}$/.test(s)) return validDate(Number(s.slice(0, 4)), Number(s.slice(4, 6)), Number(s.slice(6, 8)));
   if (/^\d{5}(\.\d+)?$/.test(s)) {
     const serial = Number(s);
     if (serial >= 20_000 && serial <= 80_000) return excelSerialToDate(serial);
   }
   return null;
+}
+
+/** 두 자리 연도는 2000년대로 본다. 세 자리는 날짜로 보지 않는다. */
+function fullYear(y: string): number {
+  return y.length === 2 ? 2000 + Number(y) : y.length === 4 ? Number(y) : Number.NaN;
 }
 
 export type MappedRow = {
@@ -75,10 +89,14 @@ const columnOf = (mapping: Record<string, ImportTargetField>, field: ImportTarge
  * 그리드 한 행을 매핑에 따라 행사 속성으로 바꾸고 필수 값과 형식을 검증한다.
  * 실패 사유는 사용자에게 그대로 보이므로 짧게 적는다.
  */
-export function normalizeImportRow(values: string[], rowNumber: number, mapping: Record<string, ImportTargetField>): MappedRow {
+export type FixedValues = Partial<Record<ImportTargetField, string>>;
+
+export function normalizeImportRow(values: string[], rowNumber: number, mapping: Record<string, ImportTargetField>, fixed: FixedValues = {}): MappedRow {
+  // 매핑한 컬럼 값이 있으면 그 값을, 비었거나 매핑이 없으면 직접 입력한 고정값을 쓴다.
   const cell = (field: ImportTargetField): string => {
     const i = columnOf(mapping, field);
-    return i === undefined ? '' : (values[i] ?? '').trim();
+    const fromSheet = i === undefined ? '' : (values[i] ?? '').trim();
+    return fromSheet || (fixed[field] ?? '').trim();
   };
   const failures: string[] = [];
   const warnings: string[] = [];
@@ -91,7 +109,7 @@ export function normalizeImportRow(values: string[], rowNumber: number, mapping:
   if (!start) failures.push(startRaw ? `시작일 '${startRaw}'을(를) 인식할 수 없음` : '시작일이 비어 있음');
 
   const endIndex = columnOf(mapping, 'endDate');
-  const endRaw = endIndex === undefined ? '' : cell('endDate');
+  const endRaw = cell('endDate');
   const end = endRaw ? parseDateText(endRaw) : start;
   if (endIndex !== undefined && !endRaw) warnings.push('종료일이 비어 있어 시작일과 같게 처리');
   if (endRaw && !end) failures.push(`종료일 '${endRaw}'을(를) 인식할 수 없음`);
@@ -133,8 +151,9 @@ export function validateImportRows(
   rows: string[][],
   rowNumbers: number[],
   mapping: Record<string, ImportTargetField>,
+  fixed: FixedValues = {},
 ): { total: number; valid: number; invalid: number; rows: (MappedRow & { issues: string[] })[]; truncated: boolean } {
-  const mapped = rows.map((values, i) => normalizeImportRow(values, rowNumbers[i] ?? i + 1, mapping));
+  const mapped = rows.map((values, i) => normalizeImportRow(values, rowNumbers[i] ?? i + 1, mapping, fixed));
   const preview = mapped.map((r) => ({ ...r, issues: [...r.failures, ...r.warnings] }));
   return {
     total: preview.length,

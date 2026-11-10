@@ -39,17 +39,21 @@ async function loadWorkbook(bytes: Buffer, name: string): Promise<Workbook> {
 }
 
 /** 셀 값을 표시·저장용 문자열로 바꾼다. 날짜는 exceljs가 UTC 기준 Date를 주므로 ISO 날짜 부분만 쓴다. */
-function cellText(value: unknown): string {
+export function cellText(value: unknown): string {
   if (value == null) return '';
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? '' : value.toISOString().slice(0, 10);
+  if (typeof value === 'number') return Number.isFinite(value) ? String(Number(value.toPrecision(15))) : '';
+  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
   if (typeof value === 'object') {
-    const o = value as { text?: unknown; result?: unknown; richText?: { text: string }[] };
-    if (typeof o.text === 'string') return o.text.trim();
+    // 수식(result), 하이퍼링크(text가 문자열 또는 리치텍스트), 리치텍스트, 오류값({ error })을 차례로 푼다.
+    const o = value as { text?: unknown; result?: unknown; richText?: { text: string }[]; error?: unknown };
+    if (o.error != null) return '';
     if (o.result != null) return cellText(o.result);
     if (Array.isArray(o.richText)) return o.richText.map((t) => t.text).join('').trim();
+    if (o.text != null) return cellText(o.text);
     return '';
   }
-  return String(value).trim();
+  return String(value).replace(/\u00a0/g, ' ').trim();
 }
 
 /** 모든 빈 행을 빼고 스프레드시트의 실제 행 번호와 함께 돌려준다. */

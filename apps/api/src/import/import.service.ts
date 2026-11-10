@@ -13,7 +13,7 @@ import { assertFound, mapDbError } from '../common/http';
 import { DB_POOL } from '../tokens';
 import { cleanFileName, type Upload } from '../knowledge/files.service';
 import { listWorkbookSheets, parseSheetGrid } from './excel';
-import { buildWikiBody, IMPORT_FIELD_LABELS, ISSUE_LIST_LIMIT, normalizeImportRow, validateImportRows } from './validate';
+import { buildWikiBody, IMPORT_FIELD_LABELS, ISSUE_LIST_LIMIT, normalizeImportRow, validateImportRows, type FixedValues } from './validate';
 
 /** 사용자에게 보이는 실패 사유는 짧게 자른다. */
 const reason = (error: unknown) => (error instanceof Error ? error.message : String(error)).slice(0, 300);
@@ -111,10 +111,11 @@ export class ImportService {
         throw new ConflictException('[409] 시트를 먼저 선택해 주세요.');
       }
       const mapping = this.checkMapping(body.mapping);
+      const fixed = Object.fromEntries(Object.entries(body.fixed ?? {}).filter(([, v]) => v !== '')) as FixedValues;
       const stored = assertFound(await getImportJobFile(db, id), '가져오기 원본');
       if (!stored.rows) throw new ConflictException('[409] 파싱된 시트 데이터가 없습니다. 시트를 다시 선택해 주세요.');
-      const validation = validateImportRows(job.columns ?? [], stored.rows, stored.rowNumbers ?? stored.rows.map((_, i) => i + 1), mapping);
-      await markImportJobPreviewed(db, id, mapping, validation);
+      const validation = validateImportRows(job.columns ?? [], stored.rows, stored.rowNumbers ?? stored.rows.map((_, i) => i + 1), mapping, fixed);
+      await markImportJobPreviewed(db, id, mapping, fixed, validation);
       return assertFound(await getImportJob(db, id), '가져오기 작업');
     });
     return this.dto(row);
@@ -153,7 +154,7 @@ export class ImportService {
     const stored = assertFound(await getImportJobFile(db, id), '가져오기 원본');
     if (!stored.rows) throw new ConflictException('[409] 파싱된 시트 데이터가 없습니다. 시트를 다시 선택해 주세요.');
     const rowNumbers = stored.rowNumbers ?? stored.rows.map((_, i) => i + 1);
-    const result = await this.createEvents(db, user, id, job, stored.rows, rowNumbers, mapping);
+    const result = await this.createEvents(db, user, id, job, stored.rows, rowNumbers, mapping, job.fixed ?? {});
     await markImportJobDone(db, id, result);
     return assertFound(await getImportJob(db, id), '가져오기 작업');
   }
@@ -167,6 +168,7 @@ export class ImportService {
     grid: string[][],
     rowNumbers: number[],
     mapping: Record<string, ImportTargetField>,
+    fixed: FixedValues,
   ): Promise<ImportResult> {
     const columns = job.columns ?? [];
     // 고객사·사용자 이름 매칭용 목록. 이름 앞뒤 공백을 무시하고, 영문 대소문자도 구분하지 않는다.
@@ -185,7 +187,7 @@ export class ImportService {
     for (let i = 0; i < grid.length; i++) {
       const values = grid[i]!;
       const rowNo = rowNumbers[i] ?? i + 1;
-      const mapped = normalizeImportRow(values, rowNo, mapping);
+      const mapped = normalizeImportRow(values, rowNo, mapping, fixed);
       if (!mapped.ok) {
         for (const message of mapped.failures) pushIssue(failed, failedTruncated, { row: rowNo, message });
         continue;

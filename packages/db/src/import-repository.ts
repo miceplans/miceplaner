@@ -34,6 +34,8 @@ export type ImportJobRow = {
   columns: ImportColumn[] | null;
   dataRowCount: number | null;
   mapping: Record<string, ImportTargetField> | null;
+  /** 엑셀 컬럼 대신 모든 행에 쓰는 고정값. */
+  fixed: Partial<Record<ImportTargetField, string>> | null;
   validation: ImportValidation | null;
   result: ImportResult | null;
   error: string | null;
@@ -41,7 +43,7 @@ export type ImportJobRow = {
 };
 
 const COLS = `id, file_name AS "fileName", status, sheets, sheet, has_header AS "hasHeader", header_row AS "headerRow",
-  columns, data_row_count AS "dataRowCount", mapping, validation, result, error, ${isoTs('created_at', 'createdAt')}`;
+  columns, data_row_count AS "dataRowCount", mapping, fixed_values AS fixed, validation, result, error, ${isoTs('created_at', 'createdAt')}`;
 
 const toRow = (r: Record<string, unknown>): ImportJobRow => r as unknown as ImportJobRow;
 
@@ -84,11 +86,11 @@ export async function markImportJobParsed(
   );
 }
 
-/** 매핑과 전체 행 검증 결과를 저장한다. */
-export async function markImportJobPreviewed(client: PoolClient, id: string, mapping: Record<string, ImportTargetField>, validation: ImportValidation): Promise<void> {
+/** 매핑·고정값과 전체 행 검증 결과를 저장한다. */
+export async function markImportJobPreviewed(client: PoolClient, id: string, mapping: Record<string, ImportTargetField>, fixed: Partial<Record<ImportTargetField, string>>, validation: ImportValidation): Promise<void> {
   await client.query(
-    `UPDATE import_jobs SET status = 'previewed', mapping = $2::jsonb, validation = $3::jsonb, updated_at = now() WHERE id = $1`,
-    [id, JSON.stringify(mapping), JSON.stringify(validation)],
+    `UPDATE import_jobs SET status = 'previewed', mapping = $2::jsonb, fixed_values = $3::jsonb, validation = $4::jsonb, updated_at = now() WHERE id = $1`,
+    [id, JSON.stringify(mapping), JSON.stringify(fixed), JSON.stringify(validation)],
   );
 }
 

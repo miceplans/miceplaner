@@ -4128,6 +4128,25 @@
                 "place"
               ]
             }
+          },
+          "fixed": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "name",
+                "startDate",
+                "endDate",
+                "client",
+                "pm",
+                "status",
+                "place"
+              ]
+            },
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 200
+            }
           }
         },
         "required": [

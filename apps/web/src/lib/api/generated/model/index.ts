@@ -76,6 +76,7 @@ export * from './parseImportBody';
 export * from './portalEventDto';
 export * from './portalProgramDto';
 export * from './previewImportBody';
+export * from './previewImportBodyFixed';
 export * from './previewImportBodyMapping';
 export * from './proposalDto';
 export * from './proposalDtoKind';
