@@ -83,11 +83,11 @@ export function NotificationsView() {
                   role="tab"
                   aria-selected={on}
                   onClick={() => setTab(t.key)}
-                  className={`flex h-full items-center gap-[7px] px-[12px] ${on ? 'border-b-2 border-solid border-ai' : ''}`}
+                  className={`flex h-full items-center gap-[7px] px-[12px] ${on ? 'border-b-2 border-solid border-brand' : ''}`}
                 >
                   <img alt="" src={`${A}/${t.icon}.svg`} className="size-[15px]" />
-                  <span className={`whitespace-nowrap text-base ${on ? 'font-medium text-ai' : 'text-fg-secondary'}`}>{t.label}</span>
-                  <span className={`whitespace-nowrap text-xs ${on ? 'text-ai' : 'text-fg-tertiary'}`}>{t.count}</span>
+                  <span className={`whitespace-nowrap text-base ${on ? 'font-medium text-brand' : 'text-fg-secondary'}`}>{t.label}</span>
+                  <span className={`whitespace-nowrap text-xs ${on ? 'text-brand' : 'text-fg-tertiary'}`}>{t.count}</span>
                 </button>
               );
             })}
@@ -112,7 +112,7 @@ export function NotificationsView() {
               <div className="flex w-full items-center gap-[8px]">
                 <span className="whitespace-nowrap text-base font-semibold text-fg">{g.label}</span>
                 {g.chip ? (
-                  <span className="flex h-[18px] items-center justify-center whitespace-nowrap rounded-md bg-ai-tint px-[7px] text-2xs font-medium text-ai">{g.chip}</span>
+                  <span className="flex h-[18px] items-center justify-center whitespace-nowrap rounded-md bg-brand-tint px-[7px] text-2xs font-medium text-brand">{g.chip}</span>
                 ) : null}
               </div>
               <div className="flex w-full flex-col items-start rounded-lg border border-solid border-border-soft bg-surface">

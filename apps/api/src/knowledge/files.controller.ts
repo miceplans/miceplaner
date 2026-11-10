@@ -4,7 +4,7 @@ import { ApiBody, ApiConsumes, ApiCreatedResponse, ApiOkResponse, ApiOperation, 
 import { listFilesQuery, MAX_FILE_BYTES, moveFileBody, uploadFileFields, type ListFilesQuery, type MoveFileBody, type UploadFileFields } from '@miceplans/contracts';
 import { Auth, type AuthUser } from '../common/auth';
 import { Returns } from '../common/openapi';
-import { ZodBody, ZodQuery } from '../common/zod';
+import { ZodBody, ZodMultipartFields, ZodQuery } from '../common/zod';
 import { FilesService, type Upload } from './files.service';
 
 /** express Response 중 쓰는 부분만. */
@@ -26,7 +26,7 @@ export class FilesController {
     @Auth() user: AuthUser,
     @Param('eventId', ParseUUIDPipe) eventId: string,
     @UploadedFile() file: Upload | undefined,
-    @ZodBody(uploadFileFields, { document: false }) fields: UploadFileFields,
+    @ZodMultipartFields(uploadFileFields) fields: UploadFileFields,
   ) {
     return this.files.upload(user, eventId, file, fields.itemId ?? null);
   }
