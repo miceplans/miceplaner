@@ -3,9 +3,9 @@ import {
   PROPOSAL_PAYLOADS, proposalDto, type AgentToolName, type ChatBody, type ChatEvent, type SearchHitDto,
 } from '@miceplans/contracts';
 import { PARENT_KIND, canQueryAi } from '@miceplans/domain';
-import { runAgent, systemPrompt, ToolError, type ChatMsg, type LlmClient, type ToolHandlers } from '@miceplans/ai';
+import { PersonNameMasker, runAgent, systemPrompt, ToolError, type ChatMsg, type LlmClient, type ToolHandlers } from '@miceplans/ai';
 import {
-  getDocPage, getEvent, getItem, insertProposal, listEvents, listItems, logAiCall, withContext, type Pool, type PoolClient,
+  getDocPage, getEvent, getItem, insertProposal, listEvents, listItems, listUsers, logAiCall, withContext, type Pool, type PoolClient,
 } from '@miceplans/db';
 import { AuthUser } from '../common/auth';
 import { config } from '../config';
@@ -54,11 +54,14 @@ export class AiService {
   async chat(user: AuthUser, body: ChatBody, llm: LlmClient, send: (e: ChatEvent) => void, signal?: AbortSignal): Promise<void> {
     const started = Date.now();
     const sources = new Map<string, Pick<SearchHitDto, 'docId' | 'title' | 'heading' | 'snippet'>>();
+    const people = await this.run(user, (db) => listUsers(db));
+    const masker = new PersonNameMasker([...people.map((person) => person.name), user.name]);
+    const restore = masker.createStreamRestorer();
     const messages: ChatMsg[] = [
       { role: 'system', content: systemPrompt({ today: new Date().toISOString().slice(0, 10), eventId: body.eventId }) },
-      ...body.messages,
+      ...body.messages.map((message) => ({ ...message, content: masker.redactText(message.content) })),
     ];
-    const handlers = this.handlers(user, sources, send);
+    const handlers = this.handlers(user, sources, send, masker);
     let result: Awaited<ReturnType<typeof runAgent>> | undefined;
     let failure: string | null = null;
     try {
@@ -67,9 +70,14 @@ export class AiService {
         messages,
         handlers,
         signal,
-        onText: (delta) => send({ type: 'text', delta }),
+        onText: (delta) => {
+          const restored = restore.push(delta);
+          if (restored) send({ type: 'text', delta: restored });
+        },
         onTool: (t) => send({ type: 'tool', name: t.name, ok: t.ok }),
       });
+      const tail = restore.flush();
+      if (tail) send({ type: 'text', delta: tail });
       if (sources.size) send({ type: 'sources', sources: [...sources.values()] });
       send({ type: 'done' });
     } catch (error) {
@@ -98,9 +106,14 @@ export class AiService {
     return withContext(this.pool, user, fn);
   }
 
-  private handlers(user: AuthUser, sources: Map<string, Pick<SearchHitDto, 'docId' | 'title' | 'heading' | 'snippet'>>, send: (e: ChatEvent) => void): ToolHandlers {
+  private handlers(user: AuthUser, sources: Map<string, Pick<SearchHitDto, 'docId' | 'title' | 'heading' | 'snippet'>>, send: (e: ChatEvent) => void, masker: PersonNameMasker): ToolHandlers {
     const propose = async <K extends keyof typeof PROPOSAL_PAYLOADS>(kind: K, eventId: string, summary: string, payload: unknown) => {
-      const row = await this.run(user, (db) => insertProposal(db, user.userId, { eventId, kind, summary, payload: PROPOSAL_PAYLOADS[kind].parse(payload) }));
+      const row = await this.run(user, (db) => insertProposal(db, user.userId, {
+        eventId,
+        kind,
+        summary: masker.restoreText(summary),
+        payload: PROPOSAL_PAYLOADS[kind].parse(masker.restore(payload)),
+      }));
       send({ type: 'proposal', proposal: proposalDto.parse(row) });
       return { proposalId: row.id, status: 'pending' as const, note: PROPOSAL_NOTE };
     };
@@ -148,6 +161,9 @@ export class AiService {
         return propose('wiki_edit', doc.eventId, summary, payload);
       },
     };
-    return tools as ToolHandlers;
+    return Object.fromEntries(Object.entries(tools).map(([name, handler]) => [
+      name,
+      async (input: never) => masker.redact(await (handler as (value: never) => Promise<unknown>)(input)),
+    ])) as ToolHandlers;
   }
 }
