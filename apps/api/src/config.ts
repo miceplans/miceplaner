@@ -1,3 +1,8 @@
+/** GLM Coding Plan의 Anthropic 호환 주소. `/anthropic`으로 끝나면 Anthropic Messages 방식으로 호출한다. */
+const DEFAULT_LLM_BASE_URL = 'https://api.z.ai/api/anthropic';
+/** 모델 평가(골든 셋) 결과에 따라 바꾼다. 평가 중에는 LLM_MODEL로 덮어쓴다. */
+const DEFAULT_LLM_MODEL = 'glm-4.5-flash';
+
 /** 실행 환경 설정. process.env를 읽는 시점에 값을 해석해 테스트에서 globalSetup 이후 모듈을 만들 수 있게 한다. */
 export const config = {
   get port(): number {
@@ -49,10 +54,14 @@ export const config = {
     const { COLLAB_INTERNAL_URL: url, COLLAB_INTERNAL_SECRET: secret } = process.env;
     return url && secret ? { url: url.replace(/\/$/, ''), secret } : null;
   },
-  /** OpenAI 호환 LLM 엔드포인트(GLM 등). 셋 중 하나라도 없으면 AI 질의는 503이다. 키는 서버 런타임에만 둔다. */
+  /**
+   * LLM 엔드포인트(GLM Coding Plan). 주소·모델은 비밀이 아니라 코드 기본값을 두고, 모델 평가 중에는 LLM_MODEL로만 바꾼다.
+   * 키(LLM_API_KEY)만 서버 런타임 환경 변수로 받으며 없으면 AI 질의는 503이다.
+   */
   get llm(): { baseUrl: string; apiKey: string; model: string } | null {
-    const { LLM_BASE_URL: baseUrl, LLM_API_KEY: apiKey, LLM_MODEL: model } = process.env;
-    return baseUrl && apiKey && model ? { baseUrl, apiKey, model } : null;
+    const { LLM_BASE_URL, LLM_API_KEY: apiKey, LLM_MODEL } = process.env;
+    if (!apiKey) return null;
+    return { baseUrl: LLM_BASE_URL || DEFAULT_LLM_BASE_URL, apiKey, model: LLM_MODEL || DEFAULT_LLM_MODEL };
   },
   /** 사용자당 분당 AI 질의 한도. LLM 비용을 제한한다. */
   get aiRequestsPerMinute(): number {
