@@ -6,8 +6,8 @@ import { EMPTY_ATTR, type EventAttrType, useEventAttrs } from './event-attrs';
 
 const A = '/assets/schedule';
 
-// 목업 기준일('오늘'): 2026-10-22. D-day 계산에 사용하는 고정 상수다.
-const MOCK_TODAY = new Date(2026, 9, 22);
+// 오늘 기준 D-day 계산에 사용한다.
+const TODAY = new Date(new Date().setHours(0, 0, 0, 0));
 
 export type EventRow = { id: string; name: string; dot: string; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; status: StatusKey; place: string; budget?: string };
 
@@ -52,7 +52,7 @@ function dDayBadge(startDate: string): { label: string; className: string } | nu
   if (!startDate) return null;
   const [y, m, d] = startDate.split('-').map(Number);
   if (!y || !m || !d) return null;
-  const diff = Math.round((new Date(y, m - 1, d).getTime() - MOCK_TODAY.getTime()) / 86400000);
+  const diff = Math.round((new Date(y, m - 1, d).getTime() - TODAY.getTime()) / 86400000);
   if (diff < 0) return { label: '종료', className: 'bg-surface-chip text-fg-secondary' };
   if (diff === 0) return { label: 'D-Day', className: 'bg-brand text-fg-inverse' };
   return { label: `D-${diff}`, className: 'bg-brand-tint text-brand' };

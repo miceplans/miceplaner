@@ -8,7 +8,6 @@ const A = '/assets/notifications';
 type Item = { id: string; title: string; time: string; at: string; unread?: boolean; mention?: boolean; invite?: boolean };
 type Group = { label: string; chip?: string; items: Item[] };
 
-// 목업 기준일('오늘'): 2026-10-22. 아래 at(절대 시각) 값의 기준이다.
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 /** '2026-10-21T18:20' → '2026.10.21 (수) 18:20' — 요일을 포함한 상세 날짜 */
@@ -21,37 +20,12 @@ function formatDetail(at: string): string {
   return `${y}.${pad(m)}.${pad(d)} (${weekday}) ${pad(hh)}:${pad(mm)}`;
 }
 
-const GROUPS: Group[] = [
-  {
-    label: '오늘',
-    chip: '새 알림 3',
-    items: [
-      { id: 'a1', title: '[KIMES 2026] 김한나님이 댓글에서 나를 언급했어요', time: '10분 전', at: '2026-10-22T09:52', unread: true, mention: true },
-      { id: 'a2', title: '[AI서밋 2026] 폼 API 연동 마감이 03.12 → 03.10으로 앞당겨졌어요', time: '1시간 전', at: '2026-10-22T08:45', unread: true },
-      { id: 'a3', title: '[KIMES 2026] 브로슈어 인쇄 견적 3사 비교” 마감까지 2일 남았어요', time: '2시간 전', at: '2026-10-22T07:30', unread: true },
-    ],
-  },
-  {
-    label: '어제',
-    items: [
-      { id: 'b1', title: '[파트너스 데이] 이준호님이 “파트너스 데이”에 스태프로 초대했어요', time: '어제 오후 6:20', at: '2026-10-21T18:20', invite: true },
-      { id: 'b2', title: '[KIMES 2026] AI가 이번 주 일정을 요약했어요', time: '어제 오후 3:05', at: '2026-10-21T15:05' },
-    ],
-  },
-  {
-    label: '이번 주',
-    items: [
-      { id: 'c1', title: '[KIMES 2026] 김한나님이 댓글에서 나를 언급했어요', time: '10분 전', at: '2026-10-22T09:40', mention: true },
-      { id: 'c2', title: '[AI서밋 2026] 폼 API 연동 마감이 03.12 → 03.10으로 앞당겨졌어요', time: '1시간 전', at: '2026-10-22T08:15' },
-      { id: 'c3', title: '[KIMES 2026] 브로슈어 인쇄 견적 3사 비교” 마감까지 2일 남았어요', time: '2시간 전', at: '2026-10-22T07:10' },
-    ],
-  },
-];
+const GROUPS: Group[] = [];
 
 const TABS = [
-  { key: 'all', label: '전체', icon: 'tab-icon', count: 12 },
-  { key: 'unread', label: '안읽음', icon: 'tab-icon1', count: 3 },
-  { key: 'mention', label: '언급', icon: 'tab-icon2', count: 2 },
+  { key: 'all', label: '전체', icon: 'tab-icon', count: 0 },
+  { key: 'unread', label: '안읽음', icon: 'tab-icon1', count: 0 },
+  { key: 'mention', label: '언급', icon: 'tab-icon2', count: 0 },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -83,11 +57,11 @@ export function NotificationsView() {
                   role="tab"
                   aria-selected={on}
                   onClick={() => setTab(t.key)}
-                  className={`flex h-full items-center gap-[7px] px-[12px] ${on ? 'border-b-2 border-solid border-ai' : ''}`}
+                  className={`flex h-full items-center gap-[7px] px-[12px] ${on ? 'border-b-2 border-solid border-brand' : ''}`}
                 >
                   <img alt="" src={`${A}/${t.icon}.svg`} className="size-[15px]" />
-                  <span className={`whitespace-nowrap text-base ${on ? 'font-medium text-ai' : 'text-fg-secondary'}`}>{t.label}</span>
-                  <span className={`whitespace-nowrap text-xs ${on ? 'text-ai' : 'text-fg-tertiary'}`}>{t.count}</span>
+                  <span className={`whitespace-nowrap text-base ${on ? 'font-medium text-brand' : 'text-fg-secondary'}`}>{t.label}</span>
+                  <span className={`whitespace-nowrap text-xs ${on ? 'text-brand' : 'text-fg-tertiary'}`}>{t.count}</span>
                 </button>
               );
             })}
@@ -112,7 +86,7 @@ export function NotificationsView() {
               <div className="flex w-full items-center gap-[8px]">
                 <span className="whitespace-nowrap text-base font-semibold text-fg">{g.label}</span>
                 {g.chip ? (
-                  <span className="flex h-[18px] items-center justify-center whitespace-nowrap rounded-md bg-ai-tint px-[7px] text-2xs font-medium text-ai">{g.chip}</span>
+                  <span className="flex h-[18px] items-center justify-center whitespace-nowrap rounded-md bg-brand-tint px-[7px] text-2xs font-medium text-brand">{g.chip}</span>
                 ) : null}
               </div>
               <div className="flex w-full flex-col items-start rounded-lg border border-solid border-border-soft bg-surface">

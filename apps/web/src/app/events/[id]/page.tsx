@@ -1,7 +1,8 @@
 import { AppShell } from '@miceplans/ui/sidebar';
 import { EventDetailView } from './event-detail-view';
 
-const EVENT_IDS = ['e1', 'e2', 'e3', 'e4', 'e5'];
+// output: export는 동적 경로에 최소 1개 값이 필요하다. 실제 행사 ID는 서버 UUID라 프리렌더 불가능하다.
+const EVENT_IDS = ['_'];
 
 export const dynamicParams = false;
 

@@ -23,6 +23,12 @@ export interface EventDto {
   /** @nullable */
   color: string | null;
   /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     * @nullable
+     */
+  budget: number | null;
+  /**
      * @maximum 9007199254740991
      * @exclusiveMinimum 0
      */

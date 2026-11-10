@@ -3,11 +3,11 @@
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { FlowTopbar, Input, PageFrame, Select, Textarea, toast } from '@miceplans/ui';
-import { LEAVE_EMPLOYEES, LEAVE_KINDS, LEAVE_TODAY, remainingOf, type LeaveKind } from '../data';
+import { LEAVE_ME, LEAVE_EMPLOYEES, LEAVE_KINDS, LEAVE_TODAY, remainingOf, type LeaveKind } from '../data';
 import { useWorkCheck } from '../use-work-check';
 
-/** 목업: 로그인 사용자는 대표(e1)로 가정한다. */
-const ME = LEAVE_EMPLOYEES[0]!;
+/** 로그인 사용자 연동 전까지는 빈 값(LEAVE_ME)으로 둔다. */
+const ME = LEAVE_EMPLOYEES[0] ?? LEAVE_ME;
 const COLLEAGUES = LEAVE_EMPLOYEES.filter((e) => e.id !== ME.id);
 
 const field = 'w-full';

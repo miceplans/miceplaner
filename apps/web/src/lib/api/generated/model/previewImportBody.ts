@@ -10,6 +10,5 @@ import type { PreviewImportBodyMapping } from './previewImportBodyMapping';
 
 export interface PreviewImportBody {
   mapping: PreviewImportBodyMapping;
-  /** 엑셀에 없는 값(PM 등)을 모든 행에 같은 값으로 쓴다. 매핑한 컬럼이 비어 있는 행에도 대신 쓴다. */
   fixed?: PreviewImportBodyFixed;
 }

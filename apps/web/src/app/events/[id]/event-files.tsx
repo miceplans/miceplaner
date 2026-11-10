@@ -27,7 +27,7 @@ const size = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024)
 
 /**
  * 행사 자료 파일(명세 F-10). 올린 파일은 서버가 Markdown으로 변환해 위키 검색과 AI 출처에 포함한다.
- * 세션 토큰이 없거나 행사 ID가 서버의 것이 아니면(목업 데이터) 표시하지 않는다.
+ * 세션 토큰이 없거나 행사 ID가 서버에 없으면 표시하지 않는다.
  */
 export function EventFiles({ eventId, canManage }: { eventId: string; canManage: boolean }) {
   const [busy, setBusy] = useState(false);

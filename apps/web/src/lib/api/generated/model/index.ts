@@ -23,6 +23,8 @@ export * from './chatBodyMessagesItemRole';
 export * from './clientDto';
 export * from './createDocBody';
 export * from './createDocBodyVisibility';
+export * from './createEventBody';
+export * from './createEventBodyStatus';
 export * from './createItemBody';
 export * from './createItemBodyKind';
 export * from './createItemBodyPart';

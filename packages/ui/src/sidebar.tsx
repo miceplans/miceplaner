@@ -32,23 +32,19 @@ const NAV: { key: SidebarKey; label: string; icon: string; size: number; href: s
   { key: 'leave', label: '연차', icon: 'leave', size: 16, href: '/leave' },
   { key: 'clients', label: '고객사', icon: 'clients', size: 17, href: '/client-list' },
   { key: 'partners', label: '협력사', icon: 'partners', size: 17, href: '/partners' },
-  { key: 'notifications', label: '알림', icon: 'notifications', size: 16, href: '/notifications', badge: 3 },
+  { key: 'notifications', label: '알림', icon: 'notifications', size: 16, href: '/notifications' },
 ];
 
-// 목업 기준일('오늘'): 2026-10-22. 시작일이 확정된 행사만 D-day를 표시한다.
-const MOCK_TODAY = new Date(2026, 9, 22);
+// 오늘 기준 D-day 계산에 사용한다.
+const TODAY = new Date(new Date().setHours(0, 0, 0, 0));
 
 function dDayOf(start: Date): string {
-  const diff = Math.round((start.getTime() - MOCK_TODAY.getTime()) / 86400000);
+  const diff = Math.round((start.getTime() - TODAY.getTime()) / 86400000);
   if (diff === 0) return 'D-Day';
   return diff > 0 ? `D-${diff}` : '종료';
 }
 
-const RECENT: { name: string; dot: string; start?: Date }[] = [
-  { name: 'BIPC', dot: 'dot-pink', start: new Date(2026, 10, 5) },
-  { name: '창업 AI 경진대회', dot: 'dot-red', start: new Date(2026, 9, 20) },
-  { name: '청령문화의날', dot: 'dot-red', start: new Date(2026, 9, 20) },
-] as const;
+const RECENT: { name: string; dot: string; start?: Date }[] = [];
 
 function isSidebarKey(value: unknown): value is SidebarKey {
   return typeof value === 'string' && NAV.some((n) => n.key === value);
@@ -217,9 +213,6 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
         </div>
       </div>
       <div className="flex h-[52px] shrink-0 items-center gap-[10px] border-t border-solid border-border px-[14px] max-md:hidden">
-        <span className="flex size-[24px] items-center justify-center rounded-md bg-brand-tint text-2xs font-semibold text-brand">지영</span>
-        <span className="whitespace-nowrap text-sm font-semibold text-fg">황지영</span>
-        <span className="flex-1" />
         <button
           type="button"
           aria-label="사이드탭 구성 수정"
