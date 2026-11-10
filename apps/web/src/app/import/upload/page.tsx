@@ -1,4 +1,4 @@
-import { Button, FlowTopbar, ImportStepper, PageFrame } from '@miceplans/ui';
+import { FlowTopbar, ImportStepper, PageFrame } from '@miceplans/ui';
 import { AppShell } from '@miceplans/ui/sidebar';
 import { Dropzone } from './dropzone';
 
@@ -15,13 +15,6 @@ export default function ImportUploadPage() {
             <div className="flex w-full flex-col items-start rounded-lg bg-surface p-[24px] shadow-card">
               <Dropzone />
             </div>
-          </div>
-          <div className="flex w-full items-center gap-[8px]">
-            <Button variant="secondary" href="/">취소</Button>
-            <div className="h-px min-w-px flex-1" />
-            <Button variant="primary" href="/import/sheet">
-              다음
-            </Button>
           </div>
         </div>
       </PageFrame>

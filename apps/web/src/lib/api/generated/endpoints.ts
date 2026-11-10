@@ -43,6 +43,8 @@ import type {
   EventMemberDto,
   EventsListParams,
   FileDto,
+  ImportExcelUploadBody,
+  ImportJobDto,
   KnowledgeSearchParams,
   LeaveBalanceDto,
   LeaveBalancesParams,
@@ -55,8 +57,10 @@ import type {
   NotificationDto,
   NotificationsListParams,
   NotificationsMarkRead200,
+  ParseImportBody,
   PortalEventDto,
   PortalProgramDto,
+  PreviewImportBody,
   ProposalDto,
   RegisterBody,
   RequestLeaveBody,
@@ -5296,3 +5300,432 @@ export function useDirectoryClients<TData = Awaited<ReturnType<typeof directoryC
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
+export const getImportExcelUploadUrl = () => {
+
+
+
+
+  return `/import/excel`
+}
+
+/**
+ * @summary Excel 업로드와 시트 목록 파싱 (낮은 권한 이상). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다
+ */
+export const importExcelUpload = async (importExcelUploadBody: ImportExcelUploadBody, options?: Parameters<typeof http>[1]): Promise<ImportJobDto> => {
+    const formData = new FormData();
+if(importExcelUploadBody.file !== undefined) {
+ formData.append(`file`, importExcelUploadBody.file);
+ }
+
+  return http<ImportJobDto>(getImportExcelUploadUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getImportExcelUploadMutationKey = () => ['importExcelUpload'] as const;
+
+export const getImportExcelUploadMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importExcelUpload>>, TError,ImportExcelUploadMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof importExcelUpload>>, TError,ImportExcelUploadMutationVariables, TContext> => {
+
+const mutationKey = getImportExcelUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importExcelUpload>>, ImportExcelUploadMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  importExcelUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportExcelUploadMutationResult = NonNullable<Awaited<ReturnType<typeof importExcelUpload>>>
+    export type ImportExcelUploadMutationBody = ImportExcelUploadBody
+    export type ImportExcelUploadMutationError = unknown
+    export type ImportExcelUploadMutationVariables = {data: ImportExcelUploadBody}
+
+    /** @summary Excel 업로드와 시트 목록 파싱 (낮은 권한 이상). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다 */
+export const useImportExcelUpload = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importExcelUpload>>, TError,ImportExcelUploadMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importExcelUpload>>,
+        TError,
+        ImportExcelUploadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportExcelUploadMutationOptions(options), queryClient);
+    }
+
+export const getImportGetUrl = (id: string,) => {
+
+
+
+
+  return `/import/${id}`
+}
+
+/**
+ * @summary 가져오기 작업 상태 (시트·컬럼·매핑·검증·실행 결과)
+ */
+export const importGet = async (id: string, options?: Parameters<typeof http>[1]): Promise<ImportJobDto> => {
+
+  return http<ImportJobDto>(getImportGetUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getImportGetQueryKey = (id: string,) => {
+    return [
+    `/import/${id}`
+    ] as const;
+    }
+
+
+export const getImportGetQueryOptions = <TData = Awaited<ReturnType<typeof importGet>>, TError = unknown>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof importGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getImportGetQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof importGet>>> = ({ signal }) => importGet(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof importGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ImportGetQueryResult = NonNullable<Awaited<ReturnType<typeof importGet>>>
+export type ImportGetQueryError = unknown
+
+
+/** @summary 가져오기 작업 상태 (시트·컬럼·매핑·검증·실행 결과) */
+export function useImportGet<TData = Awaited<ReturnType<typeof importGet>>, TError = unknown>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof importGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importGet>>,
+          TError,
+          Awaited<ReturnType<typeof importGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 가져오기 작업 상태 (시트·컬럼·매핑·검증·실행 결과) */
+export function useImportGet<TData = Awaited<ReturnType<typeof importGet>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof importGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importGet>>,
+          TError,
+          Awaited<ReturnType<typeof importGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 가져오기 작업 상태 (시트·컬럼·매핑·검증·실행 결과) */
+export function useImportGet<TData = Awaited<ReturnType<typeof importGet>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof importGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 가져오기 작업 상태 (시트·컬럼·매핑·검증·실행 결과) */
+export function useImportGet<TData = Awaited<ReturnType<typeof importGet>>, TError = unknown>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof importGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getImportGetQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportParseUrl = (id: string,) => {
+
+
+
+
+  return `/import/${id}/parse`
+}
+
+/**
+ * @summary 시트·헤더 선택 후 원본 그리드 파싱
+ */
+export const importParse = async (id: string,
+    parseImportBody: ParseImportBody, options?: Parameters<typeof http>[1]): Promise<ImportJobDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ImportJobDto>(getImportParseUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(parseImportBody)
+  }
+);}
+
+
+
+
+
+export const getImportParseMutationKey = () => ['importParse'] as const;
+
+export const getImportParseMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importParse>>, TError,ImportParseMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof importParse>>, TError,ImportParseMutationVariables, TContext> => {
+
+const mutationKey = getImportParseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importParse>>, ImportParseMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  importParse(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportParseMutationResult = NonNullable<Awaited<ReturnType<typeof importParse>>>
+    export type ImportParseMutationBody = ParseImportBody
+    export type ImportParseMutationError = unknown
+    export type ImportParseMutationVariables = {id: string;data: ParseImportBody}
+
+    /** @summary 시트·헤더 선택 후 원본 그리드 파싱 */
+export const useImportParse = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importParse>>, TError,ImportParseMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importParse>>,
+        TError,
+        ImportParseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportParseMutationOptions(options), queryClient);
+    }
+
+export const getImportPreviewUrl = (id: string,) => {
+
+
+
+
+  return `/import/${id}/preview`
+}
+
+/**
+ * @summary 컬럼 매핑으로 전체 행 검증과 미리보기 생성
+ */
+export const importPreview = async (id: string,
+    previewImportBody: PreviewImportBody, options?: Parameters<typeof http>[1]): Promise<ImportJobDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ImportJobDto>(getImportPreviewUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(previewImportBody)
+  }
+);}
+
+
+
+
+
+export const getImportPreviewMutationKey = () => ['importPreview'] as const;
+
+export const getImportPreviewMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importPreview>>, TError,ImportPreviewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof importPreview>>, TError,ImportPreviewMutationVariables, TContext> => {
+
+const mutationKey = getImportPreviewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importPreview>>, ImportPreviewMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  importPreview(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportPreviewMutationResult = NonNullable<Awaited<ReturnType<typeof importPreview>>>
+    export type ImportPreviewMutationBody = PreviewImportBody
+    export type ImportPreviewMutationError = unknown
+    export type ImportPreviewMutationVariables = {id: string;data: PreviewImportBody}
+
+    /** @summary 컬럼 매핑으로 전체 행 검증과 미리보기 생성 */
+export const useImportPreview = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importPreview>>, TError,ImportPreviewMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importPreview>>,
+        TError,
+        ImportPreviewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportPreviewMutationOptions(options), queryClient);
+    }
+
+export const getImportExecuteUrl = (id: string,) => {
+
+
+
+
+  return `/import/${id}/execute`
+}
+
+/**
+ * @summary 검증 통과 행으로 행사·행사 위키 생성. 실패 행은 걸러내고 사유를 남기고, 원본은 즉시 파기한다
+ */
+export const importExecute = async (id: string, options?: Parameters<typeof http>[1]): Promise<ImportJobDto> => {
+
+  return http<ImportJobDto>(getImportExecuteUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getImportExecuteMutationKey = () => ['importExecute'] as const;
+
+export const getImportExecuteMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importExecute>>, TError,ImportExecuteMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof importExecute>>, TError,ImportExecuteMutationVariables, TContext> => {
+
+const mutationKey = getImportExecuteMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importExecute>>, ImportExecuteMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  importExecute(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportExecuteMutationResult = NonNullable<Awaited<ReturnType<typeof importExecute>>>
+
+    export type ImportExecuteMutationError = unknown
+    export type ImportExecuteMutationVariables = {id: string}
+
+    /** @summary 검증 통과 행으로 행사·행사 위키 생성. 실패 행은 걸러내고 사유를 남기고, 원본은 즉시 파기한다 */
+export const useImportExecute = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importExecute>>, TError,ImportExecuteMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importExecute>>,
+        TError,
+        ImportExecuteMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportExecuteMutationOptions(options), queryClient);
+    }

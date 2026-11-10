@@ -1,57 +1,125 @@
 'use client';
 
-import { useState } from 'react';
-import { Select } from '@miceplans/ui';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Button, Input, Select, toast } from '@miceplans/ui';
+import type { ImportTargetField } from '@miceplans/contracts';
+import { useImportGet, useImportPreview } from '../../../lib/api/generated/endpoints';
+import { ApiError } from '../../../lib/api';
+import { guessMapping, TARGET_FIELDS } from '../fields';
 
-const A = '/assets/import';
-
-const PROPERTIES = ['행사명', '기간 · 시작', '기간 · 끝', '고객사', 'PM', '상태', '장소'];
-const ROWS: { badge?: string; label: string; value: string }[] = [
-  { label: '행사명', value: '행사명' },
-  { label: '시작일', value: '기간 · 시작' },
-  { badge: 'C', label: '종료일', value: '기간 · 끝' },
-  { badge: 'D', label: '고객사', value: '고객사' },
-  { badge: 'E', label: '담당자', value: 'PM' },
-  { badge: 'F', label: '상태', value: '상태' },
-  { badge: 'G', label: '장소', value: '장소' },
-];
+const UNMAPPED = '';
 
 export function MappingForm() {
-  const [values, setValues] = useState(ROWS.map((r) => r.value));
+  const router = useRouter();
+  const jobId = useSearchParams().get('job') ?? '';
+  const job = useImportGet(jobId, { query: { enabled: jobId !== '' } });
+  const preview = useImportPreview();
+  const [values, setValues] = useState<Record<string, ImportTargetField | ''>>({});
+  const [fixed, setFixed] = useState<Partial<Record<ImportTargetField, string>>>({});
+
+  const columns = job.data?.columns ?? [];
+
+  // 컬럼을 불러오면 헤더 라벨로 매핑을 짐작해 둔다. 사용자가 고쳐서 저장한다.
+  useEffect(() => {
+    if (columns.length > 0 && Object.keys(values).length === 0) {
+      const guessed = guessMapping(columns);
+      setValues(Object.fromEntries(columns.map((c) => [String(c.index), guessed[String(c.index)] ?? UNMAPPED])));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columns.length]);
+
+  const used = useMemo(() => new Set(Object.values(values).filter((v): v is ImportTargetField => v !== UNMAPPED)), [values]);
+
+  if (!jobId || job.isError) {
+    return (
+      <div className="flex w-full flex-col items-start gap-[16px] rounded-lg bg-surface p-[24px] shadow-card">
+        <p className="m-0 text-base text-fg">{!jobId ? '먼저 파일을 업로드해 주세요.' : '가져오기 작업을 찾을 수 없습니다.'}</p>
+        <Button variant="secondary" href="/import/upload">파일 업로드로 돌아가기</Button>
+      </div>
+    );
+  }
+  if (job.isPending || !job.data) {
+    return <div className="flex h-[300px] w-full items-center justify-center rounded-lg bg-surface text-base text-fg-secondary shadow-card">불러오는 중…</div>;
+  }
+  if (job.data.status === 'uploaded' || columns.length === 0) {
+    return (
+      <div className="flex w-full flex-col items-start gap-[16px] rounded-lg bg-surface p-[24px] shadow-card">
+        <p className="m-0 text-base text-fg">시트를 먼저 선택해 주세요.</p>
+        <Button variant="secondary" href={`/import/sheet?job=${jobId}`}>시트 선택으로 돌아가기</Button>
+      </div>
+    );
+  }
+
+  const submit = async () => {
+    const mapping = Object.fromEntries(Object.entries(values).filter(([, f]) => f !== UNMAPPED)) as Record<string, ImportTargetField>;
+    try {
+      const fixedValues = Object.fromEntries(Object.entries(fixed).map(([k, v]) => [k, (v ?? '').trim()]).filter(([, v]) => v !== ''));
+      await preview.mutateAsync({ id: jobId, data: { mapping, fixed: fixedValues } });
+      router.push(`/import/preview?job=${jobId}`);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : '[500] 검증에 실패했습니다.');
+    }
+  };
+
   return (
-    <div className="flex w-[760px] shrink-0 flex-col items-start gap-[32px] rounded-lg bg-surface p-[24px] shadow-card">
-      <p className="m-0 text-lg font-semibold whitespace-nowrap text-fg">2026 청렴 문화의 날</p>
-      <div className="flex w-full flex-col items-start gap-[16px]">
-        <div className="flex h-[24px] w-full items-start text-xs font-medium whitespace-nowrap text-fg-secondary">
-          <div className="flex w-[330px] items-center py-[8px]">Excel 컬럼</div>
-          <div className="flex min-w-px flex-1 items-center py-[8px]">시스템 속성</div>
-        </div>
-        <div className="flex w-full flex-col items-center gap-[24px]">
-          <div className="flex w-full flex-col items-start gap-[12px]">
-            {ROWS.map((r, i) => (
-              <div key={r.label} className="flex w-full items-center">
-                <div className="flex w-[330px] items-center gap-[10px] self-stretch">
-                  {r.badge ? (
-                    <span className="flex size-[22px] items-center justify-center rounded-xs bg-surface-chip text-2xs font-medium text-fg-secondary">{r.badge}</span>
-                  ) : null}
-                  <span className="text-base whitespace-nowrap text-fg">{r.label}</span>
-                </div>
-                <Select
-                  aria-label={`${r.label} 매핑`}
-                  value={values[i]}
-                  onChange={(e) => setValues((v) => v.map((x, j) => (j === i ? e.target.value : x)))}
-                  options={PROPERTIES.map((p) => ({ value: p, label: p }))}
-                  className="w-[320px] shrink-0"
-                />
-              </div>
-            ))}
+    <div className="flex w-full flex-col items-start gap-[32px]">
+      <div className="flex w-full flex-col items-start gap-[32px] rounded-lg bg-surface p-[24px] shadow-card">
+        <p className="m-0 text-lg font-semibold whitespace-nowrap text-fg">각 열이 어떤 행사 정보인지 알려 주세요</p>
+        <div className="flex w-full flex-col items-start gap-[16px]">
+          <div className="flex h-[24px] w-full items-start text-xs font-medium whitespace-nowrap text-fg-secondary">
+            <div className="flex w-[330px] items-center py-[8px]">Excel 컬럼</div>
+            <div className="flex min-w-px flex-1 items-center py-[8px]">시스템 속성</div>
           </div>
-          <button type="button" className="flex h-[32px] shrink-0 items-center gap-[8px] rounded-sm bg-brand px-[10px] text-base font-medium text-fg-inverse">
-            <img alt="" src={`${A}/plus-white.svg`} className="size-[13px]" />
-            <span className="whitespace-nowrap">새 속성 만들기</span>
-            <span className="h-px w-[6px]" />
-          </button>
+          <div className="flex w-full flex-col items-center gap-[24px]">
+            <div className="flex w-full flex-col items-start gap-[12px]">
+              {columns.map((c) => (
+                <div key={c.index} className="flex w-full items-center">
+                  <div className="flex w-[330px] items-center gap-[10px] self-stretch">
+                    <span className="flex size-[22px] items-center justify-center rounded-xs bg-surface-chip text-2xs font-medium text-fg-secondary">
+                      {String.fromCharCode(65 + (c.index % 26))}
+                    </span>
+                    <span className="text-base whitespace-nowrap text-fg">{c.label}</span>
+                  </div>
+                  <Select
+                    aria-label={`${c.label} 매핑`}
+                    value={values[String(c.index)] ?? UNMAPPED}
+                    onChange={(e) => setValues((v) => ({ ...v, [String(c.index)]: e.target.value as ImportTargetField | '' }))}
+                    options={[
+                      { value: UNMAPPED, label: '매핑 안 함 (위키 본문에 함께 저장)' },
+                      ...TARGET_FIELDS.filter((f) => !used.has(f.value) || values[String(c.index)] === f.value).map((f) => ({ value: f.value, label: f.label })),
+                    ]}
+                    className="w-[320px] shrink-0"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
+      </div>
+      <div className="flex w-full flex-col items-start gap-[16px] rounded-lg bg-surface p-[24px] shadow-card">
+        <p className="m-0 text-lg font-semibold whitespace-nowrap text-fg">엑셀에 없는 값은 직접 입력해 주세요</p>
+        <p className="m-0 text-sm text-fg-secondary">입력한 값은 모든 행에 똑같이 들어갑니다. 위에서 컬럼을 매핑했다면 그 값이 비어 있는 행에만 대신 쓰입니다.</p>
+        <div className="flex w-full flex-col items-start gap-[12px]">
+          {TARGET_FIELDS.map((f) => (
+            <div key={f.value} className="flex w-full items-center">
+              <span className="w-[330px] text-base whitespace-nowrap text-fg">{f.label}</span>
+              <Input
+                aria-label={`${f.label} 직접 입력`}
+                value={fixed[f.value] ?? ''}
+                placeholder={f.value === 'startDate' || f.value === 'endDate' ? '예: 2025-03-06' : '비워 두면 사용하지 않음'}
+                onChange={(e) => setFixed((v) => ({ ...v, [f.value]: e.target.value }))}
+                className="w-[320px] shrink-0"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex h-[64px] w-full shrink-0 items-center justify-between py-[16px]">
+        <Button variant="secondary" href={`/import/sheet?job=${jobId}`}>이전</Button>
+        <Button variant="primary" disabled={preview.isPending} onClick={() => void submit()}>
+          {preview.isPending ? '검증 중…' : '다음'}
+        </Button>
       </div>
     </div>
   );
