@@ -24,8 +24,8 @@ export async function http<T>(url: string, init: RequestInit = {}): Promise<T> {
       window.location.replace('/login');
     }
     const detail = (await res.json().catch(() => null)) as { message?: unknown } | null;
-    // 로그인·가입은 서버가 준 사유(비밀번호 오류 등)를 그대로 보여 준다.
-    const message = !authed && typeof detail?.message === 'string' ? detail.message : (STATUS_MESSAGE[res.status] ?? `[${res.status}] 요청에 실패했습니다.`);
+    // 서버가 준 에러 문구를 그대로 보여 주고, 없으면 상태코드만 붙인 메시지를 쓴다.
+    const message = typeof detail?.message === 'string' && detail.message ? detail.message : `[${res.status}] 요청에 실패했습니다.`;
     throw new ApiError(res.status, message);
   }
   if (res.status === 204 || res.headers.get('content-length') === '0') return undefined as T;

@@ -38,7 +38,10 @@ async function request(path: string, init: RequestInit): Promise<Response> {
     clearToken();
     window.location.replace('/login');
   }
-  if (!res.ok) throw new ApiError(res.status, STATUS_MESSAGE[res.status] ?? `[${res.status}] 요청에 실패했습니다.`);
+  if (!res.ok) {
+    const detail = (await res.json().catch(() => null)) as { message?: unknown } | null;
+    throw new ApiError(res.status, typeof detail?.message === 'string' && detail.message ? detail.message : `[${res.status}] 요청에 실패했습니다.`);
+  }
   return res;
 }
 
