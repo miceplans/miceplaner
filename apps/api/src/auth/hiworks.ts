@@ -30,7 +30,9 @@ export class HiworksService {
     let body: unknown;
     try {
       const res = await fetch(`${config.hiworksApiUrl}/hrm/v2/organizations`, {
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        // 하이웍스 조직도 API는 GET에도 이 정확한 media type을 요구한다.
+        // 헤더를 생략하거나 charset 없이 보내면 202와 "content-type 오류입니다."를 돌려준다.
+        headers: { 'Content-Type': 'application/json;charset=UTF-8', Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(10_000),
       });
       body = await res.json();
