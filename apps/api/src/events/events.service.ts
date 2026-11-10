@@ -1,7 +1,7 @@
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { eventDto, eventMemberDto, type CreateEventBody, type ListEventsQuery, type UpdateEventBody } from '@miceplans/contracts';
 import {
-  addEventCreatorAsPm, addEventMember, auditEventCreate, changeEventMemberRole, insertEvent, eventRole, getEvent, listEventClients, listEventMembers, listEvents,
+  addEventCreatorAsPm, addEventMember, auditEventCreate, changeEventMemberRole, insertEvent, eventRole, getEvent, getUserById, listEventClients, listEventMembers, listEvents,
   removeEventMember, setEventClient, softDeleteEvent, updateEvent, withContext,
 } from '@miceplans/db';
 import { canDeleteEvent, canEditEventItems, canManageMembers } from '@miceplans/domain';
@@ -50,13 +50,15 @@ export class EventsService {
   async create(user: AuthUser, body: CreateEventBody) {
     requireInternal(user);
     const id = await this.run(user, async (db) => {
+      for (const [label, userId] of [['PM', body.pmId], ['AM', body.amId]] as const) {
+        if (userId && !(await getUserById(db, userId))) throw new BadRequestException(`[400] ${label}로 지정한 직원을 찾을 수 없습니다.`);
+      }
       const eventId = await insertEvent(db, { ...body, createdBy: user.userId });
       await addEventCreatorAsPm(db, eventId, user.userId);
-      if (body.pmId !== user.userId) {
-        await addEventMember(db, user.userId, eventId, body.pmId, 'pm');
-        await changeEventMemberRole(db, user.userId, eventId, user.userId, body.amId === user.userId ? 'am' : 'member');
-      }
+      // 작성자가 PM인 동안(멤버 관리 권한이 있을 때) 멤버를 모두 넣고, 마지막에 작성자 역할을 낮춘다.
+      if (body.pmId !== user.userId) await addEventMember(db, user.userId, eventId, body.pmId, 'pm');
       if (body.amId && body.amId !== user.userId) await addEventMember(db, user.userId, eventId, body.amId, 'am');
+      if (body.pmId !== user.userId) await changeEventMemberRole(db, user.userId, eventId, user.userId, body.amId === user.userId ? 'am' : 'member');
       await auditEventCreate(db, eventId, user.userId, { pmId: body.pmId, amId: body.amId });
       return eventId;
     });
