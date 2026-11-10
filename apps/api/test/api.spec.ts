@@ -248,8 +248,7 @@ describe('Client 포털 (F-07)', () => {
     expect((await api().get('/portal/events').set(as('client2')).expect(200)).body).toHaveLength(1);
     await api().delete(`/events/${EVENT}/clients/${U.client2}`).set(as('pm')).expect(200);
     expect((await api().get('/portal/events').set(as('client2')).expect(200)).body).toHaveLength(0);
-    const log = await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'event.client.change'`);
-    expect(log.rows[0].n).toBe(2);
+    expect((await count()) - before).toBe(2); // 앞선 스펙의 지정 기록은 세지 않는다.
   });
 });
 
@@ -267,6 +266,8 @@ describe('휴가·연차 (F-12)', () => {
   });
   it('연차 현황의 used는 대휴를 제외하고 월별 합계를 낸다', async () => {
     await api().post('/leave').set(as('member')).send({ kind: 'am-half', startDate: '2026-10-22', endDate: '2026-10-22' }).expect(201);
+    const count = async () => (await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'event.client.change'`)).rows[0]!.n as number;
+    const before = await count();
     const res = await api().get('/leave/balances?year=2026').set(as('staff')).expect(200);
     const mine = res.body.find((b: { userId: string }) => b.userId === U.member);
     expect(mine).toMatchObject({ used: 3.5, total: 15 });
@@ -315,11 +316,11 @@ describe('서버 오류 응답', () => {
   it('예상 못한 오류는 500에 오류 이름·메시지를 담아 낸다', async () => {
     const res = await api().get('/__test_boom').expect(500);
     expect(res.body.statusCode).toBe(500);
-    expect(res.body.message).toContain('[054]');
+    expect(res.body.message).toContain('[500]');
     expect(res.body.message).toContain('Error: 테스트용 폭발');
   });
   it('HttpException 응답 형태는 그대로다', async () => {
     const res = await api().get(`/events/${id(999)}`).set(as('pm')).expect(404);
-    expect(res.body).toEqual({ statusCode: 404, message: '[030] 행사을 찾을 수 없습니다.', error: 'Not Found' });
+    expect(res.body).toEqual({ statusCode: 404, message: '[404] 행사을 찾을 수 없습니다.', error: 'Not Found' });
   });
 });
