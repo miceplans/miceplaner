@@ -121,11 +121,11 @@ export async function markImportJobFailed(client: PoolClient, id: string, error:
 /** 가져오기로 만드는 행사다. events_insert 정책이 is_internal과 created_by를 검사한다. */
 export async function insertEvent(
   client: PoolClient,
-  event: { clientId: string; name: string; startDate: string; endDate: string; place: string; status: EventStatus; createdBy: string },
+  event: { clientId: string; name: string; startDate: string; endDate: string; place: string; status: EventStatus; createdBy: string; budget?: number | null },
 ): Promise<string> {
   const { rows } = await client.query<{ id: string }>(
-    `INSERT INTO events (client_id, name, start_date, end_date, place, status, created_by) VALUES ($1, $2, $3::date, $4::date, $5, $6, $7) RETURNING id`,
-    [event.clientId, event.name, event.startDate, event.endDate, event.place, event.status, event.createdBy],
+    `INSERT INTO events (client_id, name, start_date, end_date, place, status, created_by, budget) VALUES ($1, $2, $3::date, $4::date, $5, $6, $7, $8) RETURNING id`,
+    [event.clientId, event.name, event.startDate, event.endDate, event.place, event.status, event.createdBy, event.budget ?? null],
   );
   return rows[0]!.id;
 }
@@ -150,4 +150,9 @@ export async function insertClient(client: PoolClient, name: string): Promise<st
 /** 가져온 행사 하나의 처리 이력이다. 행사 단위로 남겨 나중에 추적할 수 있게 한다. */
 export async function auditEventImport(client: PoolClient, eventId: string, actorId: string, detail: { sourceRow: number; jobId: string }): Promise<void> {
   await client.query(`INSERT INTO audit_log (event_id, actor_id, action, detail) VALUES ($1, $2, 'event.import', $3::jsonb)`, [eventId, actorId, JSON.stringify(detail)]);
+}
+
+/** 행사 생성 화면에서 만든 행사의 감사 로그. */
+export async function auditEventCreate(client: PoolClient, eventId: string, actorId: string, detail: { pmId: string; amId: string | null }): Promise<void> {
+  await client.query(`INSERT INTO audit_log (event_id, actor_id, action, detail) VALUES ($1, $2, 'event.create', $3::jsonb)`, [eventId, actorId, JSON.stringify(detail)]);
 }

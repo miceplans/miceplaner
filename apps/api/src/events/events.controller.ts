@@ -1,8 +1,8 @@
 import { Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
-  addEventMemberBody, changeEventMemberRoleBody, listEventsQuery, updateEventBody,
-  type AddEventMemberBody, type ListEventsQuery, type UpdateEventBody,
+  addEventMemberBody, changeEventMemberRoleBody, createEventBody, listEventsQuery, updateEventBody,
+  type AddEventMemberBody, type CreateEventBody, type ListEventsQuery, type UpdateEventBody,
 } from '@miceplans/contracts';
 import { Auth, type AuthUser } from '../common/auth';
 import { Returns } from '../common/openapi';
@@ -19,6 +19,13 @@ export class EventsController {
   @Returns('EventDto', { array: true })
   list(@Auth() user: AuthUser, @ZodQuery(listEventsQuery) query: ListEventsQuery) {
     return this.events.list(user, query);
+  }
+
+  @Post()
+  @ApiOperation({ summary: '행사 생성 (고객사·PM·AM·예산 지정, 감사 로그 대상)' })
+  @Returns('EventDto', { created: true })
+  create(@Auth() user: AuthUser, @ZodBody(createEventBody) body: CreateEventBody) {
+    return this.events.create(user, body);
   }
 
   @Get(':id')

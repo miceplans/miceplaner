@@ -2,8 +2,8 @@
 
 import { avatarPalette } from '@miceplans/ui';
 
-// TODO: 인증·인사 연동 전까지 고정하는 목업 현재 사용자. e1·e3의 PM으로 명단에 자연스럽게 들어간다.
-export const CURRENT_USER = { name: '박서연', role: 'PM' } as const;
+// TODO: 인증·인사 연동 전까지 빈 값으로 둔다. 연동되면 인증 정보에서 현재 사용자를 채운다.
+export const CURRENT_USER = { name: '', role: 'PM' } as const;
 
 export type MemberInfo = {
   name: string;
@@ -15,18 +15,8 @@ export type MemberInfo = {
 
 type EventLeads = { pm: string; am: string; design: string };
 
-// TODO: 멤버 API 연동 전 목업 지원 인력(스태프) 명단. invite-dialog의 INVITEES와 같은 사람풀이다.
-const STAFF_BY_EVENT: Record<string, MemberInfo[]> = {
-  e1: [
-    { name: '서준', role: '스태프', phone: '010-2345-6789', email: 'seojun@miceplans.kr', note: '등록 데스크' },
-    { name: '민기', role: '스태프', phone: '010-8765-4321', email: 'mingi@miceplans.kr', note: '안내 피켓' },
-    { name: '태리', role: '스태프', phone: '010-5678-1234', email: 'taeri@miceplans.kr', note: '의전 지원' },
-  ],
-  e3: [
-    { name: '아린', role: '스태프', phone: '010-1111-2222', email: 'arin@miceplans.kr', note: '등록 데스크' },
-    { name: '다은', role: '스태프', phone: '010-3333-4444', email: 'daeun@miceplans.kr', note: '세션 타이머' },
-  ],
-};
+// TODO: 멤버 API 연동 전 지원 인력(스태프) 명단은 비어 있다. invite-dialog의 INVITEES와 같은 사람풀이다.
+const STAFF_BY_EVENT: Record<string, MemberInfo[]> = {};
 
 export function getEventStaff(eventId: string): MemberInfo[] {
   return STAFF_BY_EVENT[eventId] ?? [];
@@ -64,7 +54,7 @@ function MemberRow({ member, index }: { member: MemberInfo; index: number }) {
           {me && <span className="rounded-sm bg-brand-tint px-[5px] py-px text-2xs font-semibold text-brand">나</span>}
         </span>
         <span className="truncate text-sm text-fg-secondary">
-          {member.phone} · {member.email}
+          {[member.phone, member.email].filter(Boolean).join(' · ')}
         </span>
       </div>
       <span className="shrink-0 rounded-md bg-surface-chip px-[7px] py-[3px] text-2xs font-semibold text-fg-secondary">{member.role}</span>
@@ -99,9 +89,9 @@ function MemberGroup({ title, members, fallback }: { title: string; members: Mem
 /** 행사 인력: 담당 인력(PM·AM·디자인)과 지원 인력(스태프) 명단을 한 탭에 보여준다. */
 export function EventMembers({ event, eventId }: { event: EventLeads; eventId: string }) {
   const leads: MemberInfo[] = [
-    { name: event.pm, role: 'PM', phone: '010-4821-3390', email: 'pm@miceplans.kr', note: '행사 총괄' },
-    { name: event.am, role: 'AM', phone: '010-9931-2745', email: 'am@miceplans.kr', note: '현장 운영' },
-    { name: event.design, role: '디자인', phone: '010-5517-8023', email: 'design@miceplans.kr', note: '제작 총괄' },
+    { name: event.pm, role: 'PM', phone: '', email: '' },
+    { name: event.am, role: 'AM', phone: '', email: '' },
+    { name: event.design, role: '디자인', phone: '', email: '' },
   ];
   const staff = getEventStaff(eventId);
   return (

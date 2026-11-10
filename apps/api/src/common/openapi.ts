@@ -2,7 +2,7 @@ import { applyDecorators } from '@nestjs/common';
 import { ApiCreatedResponse, ApiOkResponse, type SchemaObject } from '@nestjs/swagger';
 import { z, type ZodType } from 'zod';
 import {
-  addEventMemberBody, weekendWorkBody, markNotificationsReadBody, assignItemBody, authSessionDto, chatBody, changeEventMemberRoleBody, changePasswordBody, clientDto, createDocBody, createItemBody, docPageDto,
+  addEventMemberBody, weekendWorkBody, markNotificationsReadBody, assignItemBody, authSessionDto, chatBody, changeEventMemberRoleBody, changePasswordBody, clientDto, createDocBody, createEventBody, createItemBody, docPageDto,
   eventDocDto, eventDto, eventItemDto, eventMemberDto, leaveBalanceDto, leaveRecordDto, loginBody, moveFileBody, notificationDto,
   proposalDto, registerBody, requestLeaveBody, rescheduleItemBody, saveDocBodyBody, searchHitDto, setClientVisibleBody, setDocVisibilityBody, updateEventBody, updateItemBody,
   fileDto, userDto, weekendWorkDto, wikiRevisionDetailDto, wikiRevisionDto, importJobDto, parseImportBody, previewImportBody,
@@ -12,7 +12,7 @@ import { portalEventDto, portalProgramDto } from '@miceplans/contracts/portal';
 /** OpenAPI components에 올리는 계약 스키마. 웹 클라이언트(orval)의 타입 이름이 된다. */
 export const API_SCHEMAS: Record<string, ZodType> = {
   LoginBody: loginBody, RegisterBody: registerBody, ChangePasswordBody: changePasswordBody, AuthSessionDto: authSessionDto, UserDto: userDto, ClientDto: clientDto,
-  EventDto: eventDto, UpdateEventBody: updateEventBody, EventMemberDto: eventMemberDto, AddEventMemberBody: addEventMemberBody,
+  EventDto: eventDto, CreateEventBody: createEventBody, UpdateEventBody: updateEventBody, EventMemberDto: eventMemberDto, AddEventMemberBody: addEventMemberBody,
   ChangeEventMemberRoleBody: changeEventMemberRoleBody, EventItemDto: eventItemDto, CreateItemBody: createItemBody, UpdateItemBody: updateItemBody,
   AssignItemBody: assignItemBody, RescheduleItemBody: rescheduleItemBody, SetClientVisibleBody: setClientVisibleBody, NotificationDto: notificationDto,
   PortalEventDto: portalEventDto, PortalProgramDto: portalProgramDto, LeaveRecordDto: leaveRecordDto, LeaveBalanceDto: leaveBalanceDto,

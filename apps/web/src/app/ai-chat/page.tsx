@@ -5,15 +5,7 @@ const A = '/assets/ai-chat';
 
 type Status = '진행중' | '성공' | '확인중' | '만료' | '제출';
 
-const ROWS: { name: string; period: string; client: string; pm: string; am: string; status: Status; place: string }[] = [
-  { name: '제54회 KIMES 2025', period: '03.13 – 03.16', client: '메디코리아', pm: '박서연', am: '최민준', status: '진행중', place: '코엑스 Hall A·B' },
-  { name: '글로벌 AI 서밋 2025', period: '04.02 – 04.03', client: '테크노웨이', pm: '김도현', am: '한지우', status: '성공', place: '인터컨티넌탉 파르나스' },
-  { name: '삼성 파트너스 데이', period: '04.18', client: '삼성전자', pm: '박서연', am: '이준호', status: '진행중', place: '코엑스 오디토리움' },
-  { name: '제12회 프랜차이즈 엑스포', period: '05.08 – 05.10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', status: '제출', place: '일산 킨텍스 Hall 1' },
-  { name: '현대자동차 신차 발표회', period: '05.22', client: '현대자동차', pm: '김도현', am: '한지우', status: '확인중', place: '잠실 롯데월드타워' },
-  { name: '서울 ESG 포럼 2025', period: '06.05 – 06.06', client: '그린퓨처', pm: '정유나', am: '이준호', status: '만료', place: '포시즌스 호텔 서울' },
-  { name: '로진컴퍼니 킥오프 미팅', period: '07.11 – 07.12', client: '로진컴퍼니', pm: '박서연', am: '최민준', status: '성공', place: '제주 신화월드' },
-];
+const ROWS: { name: string; period: string; client: string; pm: string; am: string; status: Status; place: string }[] = [];
 
 const COLS: { label: string; icon?: string; w: string }[] = [
   { label: '행사명', w: 'w-[330px]' },

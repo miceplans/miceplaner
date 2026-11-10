@@ -14,6 +14,7 @@ export const eventDto = z.object({
   status: eventStatus,
   priority: z.boolean(),
   color: z.string().nullable(),
+  budget: z.number().int().nonnegative().nullable(),
   version: z.number().int().positive(),
   createdAt: isoDateTime,
   updatedAt: isoDateTime,
@@ -22,10 +23,16 @@ export type EventDto = z.infer<typeof eventDto>;
 
 const dateRange = (v: { startDate?: string; endDate?: string }) => !v.startDate || !v.endDate || v.endDate >= v.startDate;
 
-/** 행사 생성 권한은 미확정(명세 6절)이라 API 노출 여부는 결정 후 정한다. */
+/** 예산(원). 비우면 미정이다. */
+const budget = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+
+/** 내부 직원이 행사 생성 화면에서 만든다. 생성 권한 확정(명세 6절) 전까지 가져오기와 같은 범위(내부 직원)로 연다. */
 export const createEventBody = z
   .object({
     clientId: uuid,
+    pmId: uuid,
+    amId: uuid.nullable().default(null),
+    budget: budget.nullable().default(null),
     name: z.string().trim().min(1).max(200),
     startDate: isoDate,
     endDate: isoDate,
@@ -34,7 +41,8 @@ export const createEventBody = z
     priority: z.boolean().default(false),
     color: z.string().max(32).nullable().default(null),
   })
-  .refine(dateRange, { message: '종료일은 시작일 이후여야 한다', path: ['endDate'] });
+  .refine(dateRange, { message: '종료일은 시작일 이후여야 한다', path: ['endDate'] })
+  .refine((v) => v.amId === null || v.amId !== v.pmId, { message: 'PM과 AM은 다른 사람이어야 한다', path: ['amId'] });
 export type CreateEventBody = z.infer<typeof createEventBody>;
 
 /** 일반 필드는 마지막 저장 우선이라 version을 받지 않는다. */
@@ -47,6 +55,7 @@ export const updateEventBody = z
     status: eventStatus,
     priority: z.boolean(),
     color: z.string().max(32).nullable(),
+    budget: budget.nullable(),
   })
   .partial()
   .refine(dateRange, { message: '종료일은 시작일 이후여야 한다', path: ['endDate'] });

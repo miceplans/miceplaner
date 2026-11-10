@@ -4,11 +4,11 @@ import { isRole, type EventStatus, type Role } from '@miceplans/domain';
 
 export type EventRow = {
   id: string; clientId: string; name: string; startDate: string; endDate: string; place: string; status: EventStatus;
-  priority: boolean; color: string | null; version: number; createdBy: string | null; createdAt: string; updatedAt: string;
+  priority: boolean; color: string | null; budget: number | null; version: number; createdBy: string | null; createdAt: string; updatedAt: string;
 };
 
 const COLUMNS = `id, client_id AS "clientId", name, to_char(start_date, 'YYYY-MM-DD') AS "startDate", to_char(end_date, 'YYYY-MM-DD') AS "endDate",
-  place, status, priority, color, version, created_by AS "createdBy", ${isoTs('created_at', 'createdAt')}, ${isoTs('updated_at', 'updatedAt')}`;
+  place, status, priority, color, budget::float8 AS budget, version, created_by AS "createdBy", ${isoTs('created_at', 'createdAt')}, ${isoTs('updated_at', 'updatedAt')}`;
 
 /** 조회 필터는 날짜·고객사·상태다. 권한 밖 행사는 RLS가 걸러낸다. */
 export async function listEvents(client: PoolClient, filter: { year?: number; clientId?: string; status?: string }): Promise<EventRow[]> {
@@ -29,7 +29,7 @@ export async function getEvent(client: PoolClient, id: string): Promise<EventRow
   return rows[0];
 }
 
-export type EventPatch = { name?: string; startDate?: string; endDate?: string; place?: string; status?: EventStatus; priority?: boolean; color?: string | null };
+export type EventPatch = { name?: string; startDate?: string; endDate?: string; place?: string; status?: EventStatus; priority?: boolean; color?: string | null; budget?: number | null };
 
 /** 일반 필드는 마지막 저장 우선이라 version을 받지 않는다. 권한이 없거나 대상이 없으면 undefined다 (RLS). */
 export async function updateEvent(client: PoolClient, id: string, patch: EventPatch): Promise<EventRow | undefined> {
@@ -43,6 +43,7 @@ export async function updateEvent(client: PoolClient, id: string, patch: EventPa
   if (patch.status !== undefined) put('status', patch.status);
   if (patch.priority !== undefined) put('priority', patch.priority);
   if (patch.color !== undefined) put('color', patch.color);
+  if (patch.budget !== undefined) put('budget', patch.budget);
   vals.push(id);
   const { rows } = await client.query<EventRow>(`UPDATE events SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING ${COLUMNS}`, vals);
   return rows[0];

@@ -9,7 +9,7 @@ export default function ClientEventsPage() {
         <div className="flex w-full shrink-0 flex-col items-start py-[48px]">
           <div className="flex w-full flex-col items-start gap-[8px] whitespace-nowrap px-[4px] pb-[20px] leading-[normal]">
             <h1 className="text-2xl font-bold text-fg">행사 일정</h1>
-            <p className="text-md text-fg-secondary">메디코리아에 공유된 행사만 표시됩니다</p>
+            <p className="text-md text-fg-secondary">공유된 행사만 표시됩니다</p>
           </div>
           <ul className="flex h-[300px] w-full flex-col items-start rounded-xl border border-solid border-border bg-surface py-[6px]">
             {EVENTS.map((e) => (

@@ -1,7 +1,7 @@
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { eventDto, eventMemberDto, type ListEventsQuery, type UpdateEventBody } from '@miceplans/contracts';
+import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { eventDto, eventMemberDto, type CreateEventBody, type ListEventsQuery, type UpdateEventBody } from '@miceplans/contracts';
 import {
-  addEventMember, changeEventMemberRole, eventRole, getEvent, listEventClients, listEventMembers, listEvents,
+  addEventCreatorAsPm, addEventMember, auditEventCreate, changeEventMemberRole, insertEvent, eventRole, getEvent, getUserById, listEventClients, listEventMembers, listEvents,
   removeEventMember, setEventClient, softDeleteEvent, updateEvent, withContext,
 } from '@miceplans/db';
 import { canDeleteEvent, canEditEventItems, canManageMembers } from '@miceplans/domain';
@@ -41,6 +41,30 @@ export class EventsService {
     requireInternal(user);
     const row = await this.run(user, (db) => getEvent(db, id));
     return eventDto.parse(assertFound(row, '행사'));
+  }
+
+  /**
+   * 행사 생성. 만든 사람이 첫 멤버(PM)로 들어가야 이후 멤버를 넣을 수 있어 먼저 PM으로 넣고,
+   * 선택한 PM·AM에게 역할을 맞춘다. 만든 사람이 PM·AM으로 지정되지 않았으면 멤버로 남는다.
+   */
+  async create(user: AuthUser, body: CreateEventBody) {
+    requireInternal(user);
+    const id = await this.run(user, async (db) => {
+      for (const [label, userId] of [['PM', body.pmId], ['AM', body.amId]] as const) {
+        if (userId && !(await getUserById(db, userId))) throw new BadRequestException(`[400] ${label}로 지정한 직원을 찾을 수 없습니다.`);
+      }
+      const eventId = await insertEvent(db, { ...body, createdBy: user.userId });
+      await addEventCreatorAsPm(db, eventId, user.userId);
+      // 작성자가 PM인 동안(멤버 관리 권한이 있을 때) 멤버를 모두 넣고, 마지막에 작성자 역할을 낮춘다.
+      if (body.pmId !== user.userId) await addEventMember(db, user.userId, eventId, body.pmId, 'pm');
+      if (body.amId && body.amId !== user.userId) await addEventMember(db, user.userId, eventId, body.amId, 'am');
+      if (body.pmId !== user.userId) await changeEventMemberRole(db, user.userId, eventId, user.userId, body.amId === user.userId ? 'am' : 'member');
+      await auditEventCreate(db, eventId, user.userId, { pmId: body.pmId, amId: body.amId });
+      return eventId;
+    });
+    for (const target of [body.pmId, body.amId]) if (target && target !== user.userId) this.rt.notification(target);
+    this.rt.eventChanged(id);
+    return eventDto.parse(await this.run(user, async (db) => assertFound(await getEvent(db, id), '행사')));
   }
 
   /** 일반 필드는 마지막 저장 우선 (명세 3.2). 행사 멤버만 수정한다 (명세 2.2). */
