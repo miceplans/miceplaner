@@ -177,3 +177,9 @@ export async function listClients(client: PoolClient): Promise<ClientRow[]> {
   const { rows } = await client.query<ClientRow>(`SELECT id, name FROM clients ORDER BY name`);
   return rows;
 }
+
+/** 가져오기와 같은 clients_insert 정책(is_internal)으로 새 고객사를 만든다. */
+export async function createClient(client: PoolClient, name: string): Promise<ClientRow> {
+  const { rows } = await client.query<ClientRow>(`INSERT INTO clients (name) VALUES ($1) RETURNING id, name`, [name]);
+  return rows[0];
+}
