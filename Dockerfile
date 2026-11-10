@@ -83,6 +83,7 @@ COPY packages/knowledge/src packages/knowledge/src
 COPY packages/knowledge/tsconfig.json packages/knowledge/
 COPY packages/queue/src packages/queue/src
 COPY packages/queue/tsconfig.json packages/queue/
+COPY apps/collaboration/package.json apps/collaboration/
 COPY apps/collaboration/src apps/collaboration/src
 COPY apps/collaboration/tsconfig.json apps/collaboration/
 USER node
