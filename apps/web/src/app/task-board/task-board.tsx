@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, ConfirmDialog, Dialog, FlowTopbar, Input, PageFrame, Select, ViewTabs, type ViewTab } from '@miceplans/ui';
+import { Button, ConfirmDialog, Dialog, DatePicker, FlowTopbar, Input, PageFrame, Select, ViewTabs, type ViewTab } from '@miceplans/ui';
 
 const A = '/assets/task-board';
 
@@ -451,7 +451,7 @@ function TaskDialog({
           <label className={`${label} flex-1`}>
             마감일
             <div className="relative">
-              <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="w-full" />
+              <DatePicker value={due} onChange={setDue} className="w-full" />
               {due ? (
                 <button
                   type="button"
