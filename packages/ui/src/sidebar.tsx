@@ -165,7 +165,7 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
           <img alt="" src={`${A}/group5.svg`} className="block h-[26.758px] w-[21px]" />
         </div>
       </div>
-      <nav className="flex flex-col gap-[2px] px-[10px] max-md:h-[52px] max-md:flex-row max-md:items-center max-md:gap-0 max-md:overflow-x-auto max-md:px-[8px]">
+      <nav className="flex min-h-0 shrink-0 flex-col gap-[2px] overflow-y-auto px-[10px] max-md:h-[52px] max-md:flex-row max-md:items-center max-md:gap-0 max-md:overflow-x-auto max-md:px-[8px]">
         {visibleNav.map((n) => (
           <a
             key={n.key}
@@ -200,7 +200,7 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
         </button>
       </div>
       <div className="min-h-[5px] flex-1 max-md:hidden" />
-      <div className="flex shrink-0 flex-col gap-[4px] px-[10px] max-md:hidden">
+      <div className="flex min-h-0 shrink flex-col gap-[4px] overflow-y-auto px-[10px] max-md:hidden">
         <p className="text-base font-bold text-fg-secondary">최근</p>
         <div className="flex flex-col">
           {RECENT.map((r) => (
@@ -302,7 +302,7 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
 export function AppShell({ active, children }: { active: SidebarKey; children: ReactNode }): ReactNode {
   return (
     <div className="flex min-h-screen w-full bg-surface max-md:flex-col">
-      <div className="sticky top-0 h-screen min-h-[900px] shrink-0 self-start max-md:static max-md:h-auto max-md:min-h-0">
+      <div className="sticky top-0 h-screen shrink-0 self-start max-md:static max-md:h-auto max-md:min-h-0">
         <Sidebar active={active} />
       </div>
       <main className="min-w-0 flex-1">{children}</main>
