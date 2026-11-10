@@ -2618,6 +2618,12 @@
                   "staff",
                   "client"
                 ]
+              },
+              "team": {
+                "type": "string"
+              },
+              "subTeam": {
+                "type": "string"
               }
             },
             "required": [
@@ -2663,6 +2669,12 @@
               "staff",
               "client"
             ]
+          },
+          "team": {
+            "type": "string"
+          },
+          "subTeam": {
+            "type": "string"
           }
         },
         "required": [

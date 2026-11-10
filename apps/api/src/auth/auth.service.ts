@@ -123,11 +123,17 @@ export class AuthService {
   async me(userId: string) {
     const user = await withContext(this.pool, this.ctx(userId), (db) => getUserById(db, userId));
     if (!user) throw new UnauthorizedException('[401] 사용자를 찾을 수 없습니다.');
-    return userDto.parse(user);
+    return userDto.parse({ ...user, ...(await this.teamOf(user.email)) });
+  }
+
+  /** 하이웍스 소속. 조회에 실패해도 프로필은 돌려주고, 팀만 비운다(화면은 일반팀 기준). */
+  private async teamOf(email: string) {
+    const member = await this.hiworks.findMember(email).catch(() => undefined);
+    return { team: member?.team, subTeam: member?.subTeam };
   }
 
   private async session(user: UserRow) {
     const accessToken = await signSession({ id: user.id, role: user.role });
-    return authSessionDto.parse({ accessToken, user: userDto.parse(user) });
+    return authSessionDto.parse({ accessToken, user: userDto.parse({ ...user, ...(await this.teamOf(user.email)) }) });
   }
 }

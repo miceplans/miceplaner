@@ -1,10 +1,21 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { config } from '../config';
 
-export type HiworksMember = { name: string; email: string };
+export type HiworksMember = { name: string; email: string; team?: string; subTeam?: string };
 
 type OrgEntry = { name?: unknown; email?: unknown; mail_id?: unknown };
-type OrgNode = { entries?: OrgEntry[]; nodes?: OrgNode[] };
+type OrgNode = { name?: unknown; entries?: OrgEntry[]; nodes?: OrgNode[] };
+
+/** 최상위(조직 이름이 없는 루트)와 아래 세 팀을 뺀 모든 조직은 디자인팀의 소분류로 본다. */
+const OWN_TEAMS = new Set(['기획팀', '행정팀', '개발팀']);
+const DESIGN_TEAM = '디자인팀';
+
+/** 조직도 노드 이름으로 팀·소분류를 정한다. 루트 직속 구성원은 팀이 없다. */
+export function classifyTeam(nodeName: string | undefined): { team?: string; subTeam?: string } {
+  if (!nodeName) return {};
+  if (OWN_TEAMS.has(nodeName)) return { team: nodeName };
+  return nodeName === DESIGN_TEAM ? { team: DESIGN_TEAM } : { team: DESIGN_TEAM, subTeam: nodeName };
+}
 
 const TTL_MS = 5 * 60_000;
 
@@ -37,17 +48,18 @@ export class HiworksService {
       throw new ServiceUnavailableException('[502] 하이웍스 구성원 확인에 실패했습니다. 잠시 뒤 다시 시도해 주세요.');
     }
     const members = new Map<string, HiworksMember>();
-    const visit = (node: OrgNode) => {
+    const visit = (node: OrgNode, nodeName?: string) => {
+      const team = classifyTeam(nodeName);
       for (const e of node.entries ?? []) {
         // 조직도의 email은 대부분 비어 있어, 메일 아이디(mail_id)에 회사 메일 도메인을 붙여 쓴다.
         const domain = config.hiworksMailDomain;
         const address = typeof e.email === 'string' && e.email ? e.email : typeof e.mail_id === 'string' && e.mail_id && domain ? `${e.mail_id}@${domain}` : '';
         if (address) {
           const email = address.toLowerCase();
-          members.set(email, { email, name: typeof e.name === 'string' && e.name ? e.name : email });
+          members.set(email, { email, name: typeof e.name === 'string' && e.name ? e.name : email, ...team });
         }
       }
-      for (const child of node.nodes ?? []) visit(child);
+      for (const child of node.nodes ?? []) visit(child, typeof child.name === 'string' ? child.name : undefined);
     };
     visit(body as OrgNode);
     this.cache = { at: Date.now(), members };
