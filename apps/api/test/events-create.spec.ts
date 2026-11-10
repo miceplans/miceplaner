@@ -42,7 +42,18 @@ beforeAll(async () => {
   http = app.getHttpServer();
 }, 120_000);
 
-afterAll(async () => { await app.close(); await admin.end(); });
+afterAll(async () => {
+  // 다른 스펙이 같은 DB에서 행사 개수를 세므로 만든 행사를 지운다.
+  // 트리거(최소 PM 유지)를 건너뛰어 한 번에 지운다. U.creator는 위에서 고정한 테스트 상수다.
+  const mine = `(SELECT id FROM events WHERE created_by = '${U.creator}')`;
+  await admin.query(`BEGIN; SET LOCAL session_replication_role = replica;
+    DELETE FROM notifications WHERE event_id IN ${mine};
+    DELETE FROM audit_log WHERE event_id IN ${mine};
+    DELETE FROM event_members WHERE event_id IN ${mine};
+    DELETE FROM events WHERE created_by = '${U.creator}'; COMMIT;`);
+  await app.close();
+  await admin.end();
+});
 
 describe('행사 생성', () => {
   const base = { name: '신규 행사', clientId: CO, startDate: '2026-03-01', endDate: '2026-03-03', place: '코엑스' };
