@@ -55,7 +55,7 @@ export function LoginView() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          {mode === 'register' ? <span className="text-xs font-normal text-fg-tertiary">10자 이상</span> : null}
+          {mode === 'register' ? <span className="text-xs font-normal text-fg-tertiary">8자 이상</span> : null}
         </label>
 
         <Button type="submit" disabled={busy} className="h-[40px] w-full">

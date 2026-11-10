@@ -18,11 +18,6 @@ export class HiworksService {
     return (await this.members()).get(email.toLowerCase());
   }
 
-  /** 목데이터 시드처럼 구성원 전체가 필요할 때 쓴다. */
-  async listMembers(): Promise<HiworksMember[]> {
-    return [...(await this.members()).values()];
-  }
-
   private async members(): Promise<Map<string, HiworksMember>> {
     if (this.cache && Date.now() - this.cache.at < TTL_MS) return this.cache.members;
     const token = config.hiworksOfficeToken;

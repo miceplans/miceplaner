@@ -29,25 +29,7 @@ type RequestRow = {
   status: RequestStatus;
 };
 
-const row = (id: string, status: RequestStatus, vendor = '스피드', part: ProductPart = '디자인', due = '03.10'): RequestRow => ({
-  id,
-  name: '명찰',
-  part,
-  due,
-  size: '400×300',
-  qty: '3개',
-  material: '거칠거칠',
-  vendor,
-  contact: '055-0203-0211',
-  note: '',
-  negotiating: false,
-  status,
-});
-
-const INITIAL_ROWS: Record<Team, RequestRow[]> = {
-  planning: [row('r1', 'reject', '스피드', '디자인', '03.05'), row('r2', 'reject', '스피드', '영상', '03.15'), row('r3', 'draft', '', '디자인', '03.20')],
-  design: [row('r1', 'pending', '스피드', '디자인', '03.05'), row('r2', 'reject', '모듈랩', '3D', '03.08'), row('r3', 'success', '스피드', '디자인', '03.02')],
-};
+const INITIAL_ROWS: Record<Team, RequestRow[]> = { planning: [], design: [] };
 
 const HEAD = 'bg-surface-cell';
 const LINE = 'border-border-strong';
@@ -77,13 +59,7 @@ type ProgressRow = {
   note: string;
 };
 
-const PROGRESS_ROWS: ProgressRow[] = [
-  { id: 'p1', name: '메인 포스터', part: '디자인', due: '03.04', doneAt: '03.02', size: 'A1', qty: '10장', status: '성공', owner: '이하은', material: '아트지 150g', vendor: '정운기획', contact: '010-3864-1036', note: '' },
-  { id: 'p2', name: '명찰', part: '디자인', due: '03.06', doneAt: null, size: '400×300', qty: '3개', status: '진행중', owner: '김민수', material: '거칠거칠', vendor: '스피드', contact: '055-0203-0211', note: '' },
-  { id: 'p3', name: 'X-배너', part: '디자인', due: '03.10', doneAt: null, size: '600×1800', qty: '4개', status: '보류중', owner: '이하은', material: 'PVC, PET', vendor: '스피드', contact: '051-747-7277', note: '현장 실측 필요' },
-  { id: 'p4', name: '오프닝 영상', part: '영상', due: '03.12', doneAt: null, size: '30초', qty: '1편', status: '진행중', owner: '오세민', material: '-', vendor: '스튜디오M', contact: '010-5555-0111', note: '' },
-  { id: 'p5', name: '부스 구조', part: '3D', due: '03.08', doneAt: '03.07', size: '3×3m', qty: '1개', status: '제출', owner: '윤서준', material: '목재', vendor: '모듈랩', contact: '010-2222-0333', note: '안전 검토 중' },
-];
+const PROGRESS_ROWS: ProgressRow[] = [];
 
 type ProgressSort = '완료일순' | '마감일순' | '상태순';
 
@@ -304,7 +280,11 @@ export function DesignRequestTable({ team, part = '전체', eventName = '행사'
   const remove = (id: string) => setRows((list) => list.filter((r) => r.id !== id));
   const duplicate = (r: RequestRow) =>
     setRows((list) => [...list, { ...r, id: `n${Date.now()}`, status: 'draft' }]);
-  const add = () => setRows((list) => [...list, { ...row(`n${Date.now()}`, 'draft', ''), name: '', size: '', qty: '', material: '', contact: '' }]);
+  const add = () =>
+    setRows((list) => [
+      ...list,
+      { id: `n${Date.now()}`, name: '', part: '디자인', due: '', size: '', qty: '', material: '', vendor: '', contact: '', note: '', negotiating: false, status: 'draft' },
+    ]);
 
   const canDownload = !planning || part === '디자인';
 

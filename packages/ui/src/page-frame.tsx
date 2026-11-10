@@ -50,9 +50,6 @@ export function FlowTopbar({
         <img alt="" src={`${A}/plus-icon.svg`} className="size-[14px]" />
         <span className="whitespace-nowrap text-base font-semibold text-fg-inverse">새 행사</span>
       </a>
-      <div className="flex size-[26px] shrink-0 items-center justify-center rounded-xl bg-brand-tint text-2xs font-semibold text-brand">
-        JY
-      </div>
     </div>
   );
 }

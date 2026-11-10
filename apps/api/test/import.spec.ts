@@ -53,7 +53,18 @@ beforeAll(async () => {
   http = app.getHttpServer();
 }, 120_000);
 
-afterAll(async () => { await app.close(); await admin.end(); });
+afterAll(async () => {
+  // 가져온 행사가 같은 DB를 쓰는 다른 스펙의 행사 개수 검증에 섞이지 않게 지운다 (최소 PM 유지 트리거는 건너뛴다).
+  const mine = `(SELECT id FROM events WHERE created_by = '${U.importer}')`;
+  await admin.query(`BEGIN; SET LOCAL session_replication_role = replica;
+    DELETE FROM event_docs WHERE event_id IN ${mine};
+    DELETE FROM notifications WHERE event_id IN ${mine};
+    DELETE FROM audit_log WHERE event_id IN ${mine};
+    DELETE FROM event_members WHERE event_id IN ${mine};
+    DELETE FROM events WHERE created_by = '${U.importer}'; COMMIT;`);
+  await app.close();
+  await admin.end();
+});
 
 describe('Excel 일괄 가져오기', () => {
   it('업로드 → 시트 파싱 → 매핑·검증 → 실행까지 끝나고 원본이 지워진다', async () => {
@@ -119,6 +130,6 @@ describe('Excel 일괄 가져오기', () => {
     await api().post(`/import/${jobId}/parse`).set(as('importer')).send({ sheet: '행사', hasHeader: true, headerRow: 1 }).expect(201);
     const previewed = await api().post(`/import/${jobId}/preview`).set(as('importer')).send({ mapping: { 0: 'name' } }).expect(201);
     expect(previewed.body.validation).toMatchObject({ total: 3, valid: 0, invalid: 3 });
-    expect(previewed.body.validation.rows[0].failures).toContain('시작일이 비어 있음');
+    expect(previewed.body.validation.rows[0].issues).toContain('시작일이 비어 있음');
   });
 });

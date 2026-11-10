@@ -6,7 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * 엑셀에 없는 값(PM 등)을 모든 행에 같은 값으로 쓴다. 매핑한 컬럼이 비어 있는 행에도 대신 쓴다.
- */
 export type PreviewImportBodyFixed = {[key: string]: string};
