@@ -208,7 +208,7 @@ export function Select<T extends string = string>({
   };
 
   const enterCreate = (text: string) => {
-    if (!creatable) return;
+    if (!creatable || creating) return;
     setCreateText(text);
     setCreating(true);
   };
@@ -260,6 +260,7 @@ export function Select<T extends string = string>({
   const onCreateKey = (e: KeyboardEvent<HTMLInputElement>) => {
     e.stopPropagation();
     if (e.key === 'Enter') { e.preventDefault(); void commitCreate(); }
+    else if (e.key === 'Escape') { e.preventDefault(); setCreating(false); }
   };
 
   const selected = opts.find((o) => o.value === value);
@@ -283,87 +284,85 @@ export function Select<T extends string = string>({
       className={POPUP_CLS}
       style={{ left: pos.left, top: pos.top, bottom: pos.bottom, minWidth: pos.minWidth, width: 'max-content' }}
     >
-      {creating ? (
-        <div className="flex flex-col gap-[6px] p-[8px]">
+      {searchable && (
+        <div className="border-b border-solid border-border-soft p-[8px]">
           <input
-            ref={createRef}
-            value={createText}
-            maxLength={200}
-            disabled={createPending}
-            onChange={(e) => setCreateText(e.target.value)}
-            onKeyDown={onCreateKey}
-            placeholder={`새 ${creatable}명 입력`}
-            aria-label={`새 ${creatable} 이름`}
-            className="h-[32px] w-full min-w-0 rounded-md border border-solid border-border bg-surface px-[10px] text-base text-fg outline-none placeholder:text-fg-tertiary focus:border-brand disabled:opacity-60"
+            ref={searchRef}
+            value={query}
+            onChange={(e) => {
+              const q = e.target.value;
+              setQuery(q);
+              const qt = q.trim();
+              const list = qt ? opts.filter((o) => fold(o.label).includes(fold(qt))) : opts;
+              const exact = list.findIndex((o) => o.label === qt);
+              // 생성 행이 보이면 옵션 인덱스가 한 칸 뒤로 밀린다. 일치 항목이 있으면 그것을, 없으면 첫 옵션을 본다.
+              const createNext = creatable !== undefined && !(qt !== '' && opts.some((o) => o.label === qt));
+              setHighlight(exact >= 0 ? exact : list.length > 0 ? (createNext ? 1 : 0) : 0);
+            }}
+            onKeyDown={onSearchKey}
+            placeholder="검색"
+            aria-label="옵션 검색"
+            className="h-[28px] w-full min-w-0 rounded-md border border-solid border-border bg-surface px-[8px] text-sm text-fg outline-none placeholder:text-fg-tertiary focus:border-brand"
           />
-          <p className="m-0 text-2xs text-fg-tertiary">{createPending ? '등록 중…' : 'Enter로 등록 · Esc로 취소'}</p>
         </div>
-      ) : (
-        <>
-          {searchable && (
-            <div className="border-b border-solid border-border-soft p-[8px]">
-              <input
-                ref={searchRef}
-                value={query}
-                onChange={(e) => {
-                  const q = e.target.value;
-                  setQuery(q);
-                  const qt = q.trim();
-                  const list = qt ? opts.filter((o) => fold(o.label).includes(fold(qt))) : opts;
-                  const exact = list.findIndex((o) => o.label === qt);
-                  // 생성 행이 보이면 옵션 인덱스가 한 칸 뒤로 밀린다. 일치 항목이 있으면 그것을, 없으면 첫 옵션을 본다.
-                  const createNext = creatable !== undefined && !(qt !== '' && opts.some((o) => o.label === qt));
-                  setHighlight(exact >= 0 ? exact : list.length > 0 ? (createNext ? 1 : 0) : 0);
-                }}
-                onKeyDown={onSearchKey}
-                placeholder="검색"
-                aria-label="옵션 검색"
-                className="h-[28px] w-full min-w-0 rounded-md border border-solid border-border bg-surface px-[8px] text-sm text-fg outline-none placeholder:text-fg-tertiary focus:border-brand"
-              />
-            </div>
-          )}
-          <ul ref={listRef} role="listbox" className="max-h-[240px] overflow-y-auto p-[4px]">
-            {showCreate && (
-              <li key="__create" role="option" aria-selected={false}>
-                <button
-                  type="button"
-                  data-active={actionable[highlight] === 'create'}
-                  onMouseEnter={() => setHighlight(0)}
-                  onClick={() => enterCreate(query.trim())}
-                  className={`${ROW_CLS} font-medium text-brand ${actionable[highlight] === 'create' ? 'bg-brand-tint' : 'hover:bg-brand-tint'}`}
-                >
-                  {query.trim() === '' ? `+ ${creatable} 새로 입력` : `+ '${query.trim()}' 추가`}
-                </button>
-              </li>
-            )}
-            {filtered.map((o, i) => {
-              const active = actionable[highlight] === i;
-              const isSelected = o.value === value;
-              return (
-                <li key={`${o.value}-${i}`} role="option" aria-selected={isSelected}>
-                  <button
-                    type="button"
-                    data-active={active}
-                    onMouseEnter={() => setHighlight(actionable.indexOf(i))}
-                    onClick={() => pick(o)}
-                    className={`${ROW_CLS} ${active ? 'bg-surface-chip' : 'hover:bg-surface-chip'}`}
-                  >
-                    <span className={`truncate ${isSelected ? 'font-semibold text-fg' : 'text-fg'}`}>{o.label}</span>
-                    {isSelected && (
-                      <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-brand">
-                        <path d="m3 8.5 3.5 3.5L13 5" />
-                      </svg>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-            {filtered.length === 0 && !showCreate && (
-              <li className="px-[10px] py-[8px] text-sm text-fg-tertiary">결과 없음</li>
-            )}
-          </ul>
-        </>
       )}
+      <ul ref={listRef} role="listbox" className="max-h-[240px] overflow-y-auto p-[4px]">
+        {showCreate && (
+          <li key="__create">
+            {creating ? (
+              <div className="flex flex-col gap-[4px] px-[6px] py-[4px]">
+                <input
+                  ref={createRef}
+                  value={createText}
+                  maxLength={200}
+                  disabled={createPending}
+                  onChange={(e) => setCreateText(e.target.value)}
+                  onKeyDown={onCreateKey}
+                  placeholder={`새 ${creatable}명 입력`}
+                  aria-label={`새 ${creatable} 이름`}
+                  className="h-[32px] w-full min-w-0 rounded-md border border-solid border-border bg-surface px-[10px] text-base text-fg outline-none placeholder:text-fg-tertiary focus:border-brand disabled:opacity-60"
+                />
+                <p className="m-0 px-[2px] text-2xs text-fg-tertiary">{createPending ? '등록 중…' : 'Enter로 등록 · Esc로 취소'}</p>
+              </div>
+            ) : (
+              <button
+                type="button"
+                data-active={actionable[highlight] === 'create'}
+                onMouseEnter={() => setHighlight(0)}
+                onClick={() => enterCreate(query.trim())}
+                className={`${ROW_CLS} font-medium text-brand ${actionable[highlight] === 'create' ? 'bg-brand-tint' : 'hover:bg-brand-tint'}`}
+              >
+                {query.trim() === '' ? `+ ${creatable} 새로 입력` : `+ '${query.trim()}' 추가`}
+              </button>
+            )}
+          </li>
+        )}
+        {filtered.map((o, i) => {
+          const active = actionable[highlight] === i;
+          const isSelected = o.value === value;
+          return (
+            <li key={`${o.value}-${i}`} role="option" aria-selected={isSelected}>
+              <button
+                type="button"
+                data-active={active}
+                onMouseEnter={() => setHighlight(actionable.indexOf(i))}
+                onClick={() => pick(o)}
+                className={`${ROW_CLS} ${active ? 'bg-surface-chip' : 'hover:bg-surface-chip'}`}
+              >
+                <span className={`truncate ${isSelected ? 'font-semibold text-fg' : 'text-fg'}`}>{o.label}</span>
+                {isSelected && (
+                  <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-brand">
+                    <path d="m3 8.5 3.5 3.5L13 5" />
+                  </svg>
+                )}
+              </button>
+            </li>
+          );
+        })}
+        {filtered.length === 0 && !showCreate && (
+          <li className="px-[10px] py-[8px] text-sm text-fg-tertiary">결과 없음</li>
+        )}
+      </ul>
     </div>
   ) : null;
 
