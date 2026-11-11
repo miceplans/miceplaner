@@ -1,9 +1,10 @@
 'use client';
 
 import {
-  Children, isValidElement, useEffect, useId, useMemo, useRef, useState,
+  Children, isValidElement, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState,
   type KeyboardEvent, type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { SIZE_CLS, type FieldSize, type FieldVariant } from './field';
 
 export type SelectOption<T extends string = string> = { value: T; label: string };
@@ -63,13 +64,18 @@ function extractOptions<T extends string>(options: ReadonlyArray<SelectOption<T>
 }
 
 const POPUP_CLS =
-  'absolute left-0 right-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-lg border border-solid border-border bg-surface shadow-[0_8px_24px_rgba(23,23,28,0.12)]';
+  'fixed z-[100] overflow-hidden rounded-lg border border-solid border-border bg-surface shadow-[0_8px_24px_rgba(23,23,28,0.12)] max-w-[min(340px,calc(100vw-16px))]';
 
 const ROW_CLS =
   'flex w-full min-w-0 items-center justify-between gap-[8px] rounded-md px-[10px] py-[8px] text-left text-base outline-none';
 
+/** 팝업 위치. fixed라 body에 붙는다. 위로 열 때는 bottom을 쓴다. */
+type PopupPos = { left: number; top?: number; bottom?: number; minWidth: number };
+
 /**
  * 표준 드롭다운. DatePicker와 같은 스타일의 팝업을 띄우고, 검색과 '+ 새 항목' 입력을 지원한다.
+ * 팝업은 body로 포털링해 fixed로 띄운다. 좁은 테이블 셀이나 overflow 컨테이너에 잘리지 않고,
+ * 뷰포트 아래 공간이 모자라면 위로 열린다. 너비는 트리거 너비 이상, 긴 항목은 말줄임한다.
  * 검색 입력과 생성 입력의 Enter는 폼 제출을 일으키지 않는다.
  */
 export function Select<T extends string = string>({
@@ -98,7 +104,9 @@ export function Select<T extends string = string>({
   const [creating, setCreating] = useState(false);
   const [createText, setCreateText] = useState('');
   const [createPending, setCreatePending] = useState(false);
+  const [pos, setPos] = useState<PopupPos | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const createRef = useRef<HTMLInputElement>(null);
@@ -116,10 +124,44 @@ export function Select<T extends string = string>({
     [showCreate, filtered],
   );
 
+  /** 트리거 위치를 재측정해 팝업 자리를 잡는다. 내용이 뷰포트를 넘기면 위로 띄운다. */
+  const measure = useCallback(() => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const gap = 6;
+    const popHeight = popRef.current?.getBoundingClientRect().height ?? 0;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const spaceAbove = rect.top - 8;
+    const fitsBelow = popHeight > 0 ? rect.bottom + gap + popHeight <= window.innerHeight - 4 : spaceBelow >= 200;
+    const up = !fitsBelow && spaceAbove > spaceBelow;
+    setPos({
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8)),
+      top: up ? undefined : rect.bottom + gap,
+      bottom: up ? window.innerHeight - rect.top + gap : undefined,
+      minWidth: rect.width,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    measure();
+    const onScroll = () => measure();
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [open, creating, searchable, filtered.length, measure]);
+
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) close();
+      const target = e.target as Node;
+      if (!rootRef.current?.contains(target) && !popRef.current?.contains(target)) close();
     };
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === 'Escape') close();
@@ -155,7 +197,8 @@ export function Select<T extends string = string>({
     if (disabled) return;
     setQuery('');
     setCreating(false);
-    setHighlight(highlightIndex(opts, value));
+    // 생성 행이 맨 위에 들어가므로 옵션 인덱스를 한 칸 밀어 준다(옵션이 없으면 생성 행의 0).
+    setHighlight(creatable !== undefined && opts.length > 0 ? 1 + highlightIndex(opts, value) : 0);
     setOpen(true);
   };
 
@@ -231,6 +274,99 @@ export function Select<T extends string = string>({
         ? 'bg-surface-chip'
         : '';
 
+  const popup = open && pos ? (
+    <div
+      ref={popRef}
+      id={popId}
+      role="dialog"
+      aria-label={ariaLabel ?? '선택'}
+      className={POPUP_CLS}
+      style={{ left: pos.left, top: pos.top, bottom: pos.bottom, minWidth: pos.minWidth, width: 'max-content' }}
+    >
+      {creating ? (
+        <div className="flex flex-col gap-[6px] p-[8px]">
+          <input
+            ref={createRef}
+            value={createText}
+            maxLength={200}
+            disabled={createPending}
+            onChange={(e) => setCreateText(e.target.value)}
+            onKeyDown={onCreateKey}
+            placeholder={`새 ${creatable}명 입력`}
+            aria-label={`새 ${creatable} 이름`}
+            className="h-[32px] w-full min-w-0 rounded-md border border-solid border-border bg-surface px-[10px] text-base text-fg outline-none placeholder:text-fg-tertiary focus:border-brand disabled:opacity-60"
+          />
+          <p className="m-0 text-2xs text-fg-tertiary">{createPending ? '등록 중…' : 'Enter로 등록 · Esc로 취소'}</p>
+        </div>
+      ) : (
+        <>
+          {searchable && (
+            <div className="border-b border-solid border-border-soft p-[8px]">
+              <input
+                ref={searchRef}
+                value={query}
+                onChange={(e) => {
+                  const q = e.target.value;
+                  setQuery(q);
+                  const qt = q.trim();
+                  const list = qt ? opts.filter((o) => fold(o.label).includes(fold(qt))) : opts;
+                  const exact = list.findIndex((o) => o.label === qt);
+                  // 생성 행이 보이면 옵션 인덱스가 한 칸 뒤로 밀린다. 일치 항목이 있으면 그것을, 없으면 첫 옵션을 본다.
+                  const createNext = creatable !== undefined && !(qt !== '' && opts.some((o) => o.label === qt));
+                  setHighlight(exact >= 0 ? exact : list.length > 0 ? (createNext ? 1 : 0) : 0);
+                }}
+                onKeyDown={onSearchKey}
+                placeholder="검색"
+                aria-label="옵션 검색"
+                className="h-[28px] w-full min-w-0 rounded-md border border-solid border-border bg-surface px-[8px] text-sm text-fg outline-none placeholder:text-fg-tertiary focus:border-brand"
+              />
+            </div>
+          )}
+          <ul ref={listRef} role="listbox" className="max-h-[240px] overflow-y-auto p-[4px]">
+            {showCreate && (
+              <li key="__create" role="option" aria-selected={false}>
+                <button
+                  type="button"
+                  data-active={actionable[highlight] === 'create'}
+                  onMouseEnter={() => setHighlight(0)}
+                  onClick={() => enterCreate(query.trim())}
+                  className={`${ROW_CLS} font-medium text-brand ${actionable[highlight] === 'create' ? 'bg-brand-tint' : 'hover:bg-brand-tint'}`}
+                >
+                  {query.trim() === '' ? `+ ${creatable} 새로 입력` : `+ '${query.trim()}' 추가`}
+                </button>
+              </li>
+            )}
+            {filtered.map((o, i) => {
+              const active = actionable[highlight] === i;
+              const isSelected = o.value === value;
+              return (
+                <li key={`${o.value}-${i}`} role="option" aria-selected={isSelected}>
+                  <button
+                    type="button"
+                    data-active={active}
+                    onMouseEnter={() => setHighlight(actionable.indexOf(i))}
+                    onClick={() => pick(o)}
+                    className={`${ROW_CLS} ${active ? 'bg-surface-chip' : 'hover:bg-surface-chip'}`}
+                  >
+                    <span className={`truncate ${isSelected ? 'font-semibold text-fg' : 'text-fg'}`}>{o.label}</span>
+                    {isSelected && (
+                      <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-brand">
+                        <path d="m3 8.5 3.5 3.5L13 5" />
+                      </svg>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+            {filtered.length === 0 && !showCreate && (
+              <li className="px-[10px] py-[8px] text-sm text-fg-tertiary">결과 없음</li>
+            )}
+          </ul>
+        </>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div ref={rootRef} className={`relative min-w-0 ${className}`}>
       <button
@@ -252,90 +388,7 @@ export function Select<T extends string = string>({
           <path d="M4.5 6.5 8 10l3.5-3.5" />
         </svg>
       </button>
-
-      {open && (
-        <div id={popId} role="dialog" aria-label={ariaLabel ?? '선택'} className={POPUP_CLS}>
-          {creating ? (
-            <div className="flex flex-col gap-[6px] p-[8px]">
-              <input
-                ref={createRef}
-                value={createText}
-                maxLength={200}
-                disabled={createPending}
-                onChange={(e) => setCreateText(e.target.value)}
-                onKeyDown={onCreateKey}
-                placeholder={`새 ${creatable}명 입력`}
-                aria-label={`새 ${creatable} 이름`}
-                className="h-[32px] w-full min-w-0 rounded-md border border-solid border-border bg-surface px-[10px] text-base text-fg outline-none placeholder:text-fg-tertiary focus:border-brand disabled:opacity-60"
-              />
-              <p className="m-0 text-2xs text-fg-tertiary">{createPending ? '등록 중…' : 'Enter로 등록 · Esc로 취소'}</p>
-            </div>
-          ) : (
-            <>
-              {searchable && (
-                <div className="border-b border-solid border-border-soft p-[8px]">
-                  <input
-                    ref={searchRef}
-                    value={query}
-                    onChange={(e) => {
-                      const q = e.target.value;
-                      setQuery(q);
-                      const qt = q.trim();
-                      const list = qt ? opts.filter((o) => fold(o.label).includes(fold(qt))) : opts;
-                      const exact = list.findIndex((o) => o.label === qt);
-                      setHighlight(exact >= 0 ? exact : 0);
-                    }}
-                    onKeyDown={onSearchKey}
-                    placeholder="검색"
-                    aria-label="옵션 검색"
-                    className="h-[28px] w-full min-w-0 rounded-md border border-solid border-border bg-surface px-[8px] text-sm text-fg outline-none placeholder:text-fg-tertiary focus:border-brand"
-                  />
-                </div>
-              )}
-              <ul ref={listRef} role="listbox" className="max-h-[240px] overflow-y-auto p-[4px]">
-                {showCreate && (
-                  <li key="__create" role="option" aria-selected={false}>
-                    <button
-                      type="button"
-                      data-active={actionable[highlight] === 'create'}
-                      onMouseEnter={() => setHighlight(0)}
-                      onClick={() => enterCreate(query.trim())}
-                      className={`${ROW_CLS} font-medium text-brand ${actionable[highlight] === 'create' ? 'bg-brand-tint' : 'hover:bg-brand-tint'}`}
-                    >
-                      {query.trim() === '' ? `+ ${creatable} 새로 입력` : `+ '${query.trim()}' 추가`}
-                    </button>
-                  </li>
-                )}
-                {filtered.map((o, i) => {
-                  const active = actionable[highlight] === i;
-                  const isSelected = o.value === value;
-                  return (
-                    <li key={`${o.value}-${i}`} role="option" aria-selected={isSelected}>
-                      <button
-                        type="button"
-                        data-active={active}
-                        onMouseEnter={() => setHighlight(actionable.indexOf(i))}
-                        onClick={() => pick(o)}
-                        className={`${ROW_CLS} ${active ? 'bg-surface-chip' : 'hover:bg-surface-chip'}`}
-                      >
-                        <span className={`truncate ${isSelected ? 'font-semibold text-fg' : 'text-fg'}`}>{o.label}</span>
-                        {isSelected && (
-                          <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-brand">
-                            <path d="m3 8.5 3.5 3.5L13 5" />
-                          </svg>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-                {filtered.length === 0 && !showCreate && (
-                  <li className="px-[10px] py-[8px] text-sm text-fg-tertiary">결과 없음</li>
-                )}
-              </ul>
-            </>
-          )}
-        </div>
-      )}
+      {popup && typeof document !== 'undefined' ? createPortal(popup, document.body) : null}
     </div>
   );
 }
