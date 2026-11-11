@@ -8,9 +8,6 @@ import { useDirectoryClients, useDirectoryCreateClient, useDirectoryUsers, useEv
 import type { ClientDto } from '../../../lib/api/generated/model';
 import { ApiError } from '../../../lib/api';
 
-/** '+ 고객사'를 뜻하는 선택지 값. 실제 고객사 id와 겹치지 않는다. */
-const NEW_CLIENT = '__new__';
-
 function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
     <label className="flex min-w-0 flex-col items-start gap-[6px]">
@@ -35,8 +32,6 @@ export function NewEventForm() {
   const createClient = useDirectoryCreateClient();
   const [name, setName] = useState('');
   const [clientId, setClientId] = useState('');
-  const [addingClient, setAddingClient] = useState(false);
-  const [newClientName, setNewClientName] = useState('');
   const [pmId, setPmId] = useState('');
   const [amId, setAmId] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -47,42 +42,28 @@ export function NewEventForm() {
 
   const dateError = startDate !== '' && endDate !== '' && endDate < startDate;
   const amError = amId !== '' && amId === pmId;
-  const missing = { name: name.trim() === '', clientId: addingClient ? newClientName.trim() === '' : clientId === '', pmId: pmId === '', startDate: startDate === '', endDate: endDate === '' };
+  const missing = { name: name.trim() === '', clientId: clientId === '', pmId: pmId === '', startDate: startDate === '', endDate: endDate === '' };
   const invalid = Object.values(missing).some(Boolean) || dateError || amError;
 
   const loading = clients.isPending || users.isPending;
   const loadFailed = clients.isError || users.isError;
   const userOptions = (users.data ?? []).map((u) => ({ value: u.id, label: u.jobTitle ? `${u.name} · ${u.jobTitle}` : u.name }));
 
-  /** '+ 고객사' 입력을 Enter로 확정한다. 목록에 같은 이름이 있으면 재사용하고, 없으면 새로 만든 뒤 고른다. */
-  const commitNewClient = async () => {
-    const trimmed = newClientName.trim();
-    if (trimmed === '') return;
+  /** '+ 고객사'에서 Enter로 확정한 이름을 등록하고 고른다. 목록에 같은 이름이 있으면 재사용한다. 실패하면 오류를 표시하고 입력 모드 유지를 위해 다시 던진다. */
+  const registerClient = async (rawName: string) => {
+    const name = rawName.trim();
     try {
-      const existing = (clients.data ?? []).find((c) => c.name === trimmed);
-      const created = existing ?? (await createClient.mutateAsync({ data: { name: trimmed } }));
+      const existing = (clients.data ?? []).find((c) => c.name === name);
+      const created = existing ?? (await createClient.mutateAsync({ data: { name } }));
       if (!existing) {
         queryClient.setQueryData<ClientDto[]>(['/clients'], (old) => (old ? [...old, created] : old));
         void queryClient.invalidateQueries({ queryKey: ['/clients'] });
       }
-      setAddingClient(false);
-      setNewClientName('');
       setClientId(created.id);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : '[500] 고객사를 추가하지 못했습니다.');
+      throw error;
     }
-  };
-
-  /** 제출까지 Enter를 안 친 경우를 대비해 고객사 id를 확정한다. */
-  const resolveClientId = async () => {
-    if (!addingClient) return clientId;
-    const trimmed = newClientName.trim();
-    if (trimmed === '') return clientId;
-    const existing = (clients.data ?? []).find((c) => c.name === trimmed);
-    if (existing) return existing.id;
-    const created = await createClient.mutateAsync({ data: { name: trimmed } });
-    void queryClient.invalidateQueries({ queryKey: ['/clients'] });
-    return created.id;
   };
 
   const submit = async () => {
@@ -90,7 +71,7 @@ export function NewEventForm() {
     if (invalid) return;
     try {
       const event = await create.mutateAsync({
-        data: { name: name.trim(), clientId: await resolveClientId(), pmId, amId: amId || null, startDate, endDate, place: place.trim(), status: '진행중', priority: false, color: null, budget: budget === '' ? null : Number(budget) },
+        data: { name: name.trim(), clientId, pmId, amId: amId || null, startDate, endDate, place: place.trim(), status: '진행중', priority: false, color: null, budget: budget === '' ? null : Number(budget) },
       });
       void queryClient.invalidateQueries();
       toast.info('행사를 추가했습니다.');
@@ -126,35 +107,16 @@ export function NewEventForm() {
         </div>
         <Field label="고객사" required>
           <Select
-            value={addingClient ? NEW_CLIENT : clientId}
+            value={clientId}
             disabled={loading}
-            onChange={(e) => {
-              const value = e.target.value;
-              setAddingClient(value === NEW_CLIENT);
-              if (value !== NEW_CLIENT) setClientId(value);
-            }}
+            onChange={(e) => setClientId(e.target.value)}
             invalid={tried && missing.clientId}
-            options={[{ value: NEW_CLIENT, label: '+ 고객사' }, { value: '', label: loading ? '불러오는 중…' : '고객사 선택' }, ...(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))]}
+            options={[{ value: '', label: loading ? '불러오는 중…' : '고객사 선택' }, ...(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))]}
+            searchable
+            creatable="고객사"
+            onCreate={registerClient}
             className="w-full"
           />
-          {addingClient && (
-            <Input
-              value={newClientName}
-              maxLength={200}
-              onChange={(e) => setNewClientName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  void commitNewClient();
-                }
-              }}
-              disabled={createClient.isPending}
-              invalid={tried && missing.clientId}
-              placeholder="새 고객사명 (Enter로 등록)"
-              className="w-full"
-              autoFocus
-            />
-          )}
         </Field>
         <Field label="예산 (원)">
           <Input
@@ -172,6 +134,7 @@ export function NewEventForm() {
             onChange={(e) => setPmId(e.target.value)}
             invalid={tried && missing.pmId}
             options={[{ value: '', label: loading ? '불러오는 중…' : 'PM 선택' }, ...userOptions]}
+            searchable
             className="w-full"
           />
         </Field>
@@ -182,6 +145,7 @@ export function NewEventForm() {
             onChange={(e) => setAmId(e.target.value)}
             invalid={tried && amError}
             options={[{ value: '', label: '선택 안 함' }, ...userOptions]}
+            searchable
             className="w-full"
           />
         </Field>
