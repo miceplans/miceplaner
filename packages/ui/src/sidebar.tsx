@@ -17,7 +17,7 @@ export type SidebarKey =
 const A = '/assets/sidebar';
 
 /** 사이드바 하단에 표시할 로그인 사용자. 앱이 Provider로 주입하며, 없으면 프로필 영역을 숨긴다. */
-export type SidebarUser = { name: string; jobTitle?: string };
+export type SidebarUser = { name: string; email?: string; jobTitle?: string; team?: string; subTeam?: string };
 const SidebarUserContext = createContext<SidebarUser | null>(null);
 export const SidebarUserProvider = SidebarUserContext.Provider;
 
@@ -82,6 +82,7 @@ function readNavOrder(): SidebarKey[] {
 export function Sidebar({ active, className = '' }: { active: SidebarKey; className?: string }): ReactNode {
   const [navOrder, setNavOrder] = useState<SidebarKey[]>(NAV.map((n) => n.key));
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [draggedKey, setDraggedKey] = useState<SidebarKey | null>(null);
   const [dropTargetKey, setDropTargetKey] = useState<SidebarKey | null>(null);
 
@@ -222,12 +223,18 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
       </div>
       <div className="flex h-[52px] shrink-0 items-center gap-[10px] border-t border-solid border-border px-[14px] max-md:hidden">
         {user ? (
-          <>
+          <button
+            type="button"
+            aria-label="내 프로필 보기"
+            aria-haspopup="dialog"
+            onClick={() => setProfileOpen(true)}
+            className="-ml-[4px] flex min-w-0 flex-1 items-center gap-[10px] rounded-sm p-[4px] text-left hover:bg-surface-chip"
+          >
             <span aria-hidden="true" className="flex size-[24px] shrink-0 items-center justify-center rounded-md bg-brand-tint text-2xs font-semibold text-brand">
               {Array.from(user.name)[0] ?? ''}
             </span>
             <span className="min-w-0 flex-1 truncate text-sm font-semibold text-fg" title={user.jobTitle ? `${user.name} · ${user.jobTitle}` : user.name}>{user.name}</span>
-          </>
+          </button>
         ) : null}
         <button
           type="button"
@@ -241,6 +248,42 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
         </button>
         <img alt="" src={`${A}/chevron.svg`} className="size-[13px]" />
       </div>
+      {profileOpen && user ? createPortal(
+        <Dialog onClose={() => setProfileOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="내 프로필"
+            onClick={(e) => e.stopPropagation()}
+            className="flex w-[280px] max-w-full flex-col gap-[16px] rounded-lg bg-surface p-[20px] shadow-card"
+          >
+            <div className="flex items-center gap-[12px]">
+              <span aria-hidden="true" className="flex size-[44px] shrink-0 items-center justify-center rounded-lg bg-brand-tint text-lg font-semibold text-brand">
+                {Array.from(user.name)[0] ?? ''}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="m-0 truncate text-lg font-semibold text-fg">{user.name}</p>
+                {user.jobTitle ? <p className="m-0 truncate text-base text-fg-secondary">{user.jobTitle}</p> : null}
+              </div>
+              <button type="button" onClick={() => setProfileOpen(false)} aria-label="프로필 닫기" className="flex size-[28px] shrink-0 items-center justify-center self-start rounded-sm text-lg text-fg-secondary hover:bg-surface-chip">
+                ×
+              </button>
+            </div>
+            <dl className="m-0 flex flex-col gap-[8px] text-base">
+              <div className="flex gap-[12px]">
+                <dt className="w-[40px] shrink-0 text-fg-tertiary">팀</dt>
+                <dd className="m-0 min-w-0 flex-1 text-fg">{user.team ? (user.subTeam ? `${user.team} · ${user.subTeam}` : user.team) : '소속 정보 없음'}</dd>
+              </div>
+              {user.email ? (
+                <div className="flex gap-[12px]">
+                  <dt className="w-[40px] shrink-0 text-fg-tertiary">메일</dt>
+                  <dd className="m-0 min-w-0 flex-1 break-all text-fg">{user.email}</dd>
+                </div>
+              ) : null}
+            </dl>
+          </div>
+        </Dialog>
+      , document.body) : null}
       {settingsOpen ? createPortal(
         <Dialog onClose={() => setSettingsOpen(false)}>
           <div
