@@ -1,10 +1,10 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { eventDto, eventMemberDto, type ListEventsQuery, type UpdateEventBody } from '@miceplans/contracts';
+import { eventDto, eventListItemDto, eventMemberDto, type CreateEventBody, type ListEventsQuery, type UpdateEventBody } from '@miceplans/contracts';
 import {
-  addEventMember, changeEventMemberRole, eventRole, getEvent, listEventClients, listEventMembers, listEvents,
-  removeEventMember, setEventClient, softDeleteEvent, updateEvent, withContext,
+  addEventMember, changeEventMemberRole, createEvent, eventRole, getEvent, listEventClients, listEventMembers, listEvents,
+  removeEventMember, setEventClient, softDeleteEvent, transferPm, updateEvent, withContext,
 } from '@miceplans/db';
-import { canDeleteEvent, canEditEventItems, canManageMembers } from '@miceplans/domain';
+import { canDeleteEvent, canEditEventItems, canManageMembers, canTransferPm } from '@miceplans/domain';
 import type { Pool, PoolClient } from '@miceplans/db';
 import { AuthUser, requireInternal } from '../common/auth';
 import { assertFound, assertOk, mapDbError } from '../common/http';
@@ -34,13 +34,21 @@ export class EventsService {
   async list(user: AuthUser, query: ListEventsQuery) {
     requireInternal(user);
     const rows = await this.run(user, (db) => listEvents(db, query));
-    return rows.map((r) => eventDto.parse(r));
+    return rows.map((r) => eventListItemDto.parse(r));
+  }
+
+  /** Staff를 포함한 내부 직원이 행사 생성 시 본인을 PM으로 함께 등록한다. */
+  async create(user: AuthUser, body: CreateEventBody) {
+    requireInternal(user);
+    const row = await this.run(user, (db) => createEvent(db, body));
+    this.rt.eventChanged(row.id);
+    return eventListItemDto.parse(row);
   }
 
   async get(user: AuthUser, id: string) {
     requireInternal(user);
     const row = await this.run(user, (db) => getEvent(db, id));
-    return eventDto.parse(assertFound(row, '행사'));
+    return eventListItemDto.parse(assertFound(row, '행사'));
   }
 
   /** 일반 필드는 마지막 저장 우선 (명세 3.2). 행사 멤버만 수정한다 (명세 2.2). */
@@ -94,6 +102,19 @@ export class EventsService {
     });
     this.rt.eventChanged(eventId);
     return eventMemberDto.parse(row);
+  }
+
+  /** 현재 PM이 기존 행사 멤버에게 역할을 넘기고, 본인은 일반 멤버로 남는다. 양쪽에 알림이 간다 (F-06). */
+  async transferPm(user: AuthUser, eventId: string, targetUserId: string) {
+    requireInternal(user);
+    await this.run(user, async (db) => {
+      await this.requireEvent(db, eventId);
+      await this.requireRole(db, eventId, canTransferPm, 'PM만 역할을 넘길 수 있다');
+      if (!(await transferPm(db, eventId, user.userId, targetUserId))) throw new ForbiddenException('그 행사의 PM만 다른 멤버에게 PM을 넘길 수 있다');
+    });
+    this.rt.eventChanged(eventId);
+    this.rt.notification(targetUserId);
+    this.rt.notification(user.userId);
   }
 
   async removeMember(user: AuthUser, eventId: string, targetUserId: string) {

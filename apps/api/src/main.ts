@@ -3,9 +3,9 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule, type SchemaObject } from '@nestjs/swagger';
 import { z, type ZodType } from 'zod';
 import {
-  addEventMemberBody, assignItemBody, authSessionDto, chatBody, createDocBody, docPageDto, proposalDto, saveDocBodyBody, searchHitDto, wikiRevisionDetailDto, wikiRevisionDto, changeEventMemberRoleBody, clientDto, createItemBody, eventDocDto, eventDto,
-  eventItemDto, eventMemberDto, loginBody, registerBody, changePasswordBody, leaveBalanceDto, leaveRecordDto, moveFileBody, notificationDto,
-  requestLeaveBody, rescheduleItemBody, setClientVisibleBody, setDocVisibilityBody, updateEventBody, updateItemBody, userDto, weekendWorkDto,
+  addEventMemberBody, assignItemBody, authSessionDto, chatBody, createDocBody, docPageDto, proposalDto, saveDocBodyBody, searchHitDto, wikiRevisionDetailDto, wikiRevisionDto, changeEventMemberRoleBody, clientDto, createItemBody, eventDocDto, eventDto, transferPmBody,
+  eventItemDto, eventListItemDto, eventMemberDto, loginBody, registerBody, changePasswordBody, leaveBalanceDto, leaveRecordDto, moveFileBody, notificationDto,
+  requestLeaveBody, rescheduleItemBody, setClientVisibleBody, setDocVisibilityBody, createEventBody, updateEventBody, updateItemBody, userDto, weekendWorkDto,
 } from '@miceplans/contracts';
 import { portalEventDto, portalProgramDto } from '@miceplans/contracts/portal';
 import { AppModule } from './app.module';
@@ -20,10 +20,13 @@ const API_SCHEMAS: Record<string, ZodType> = {
   UserDto: userDto,
   ClientDto: clientDto,
   EventDto: eventDto,
+  EventListItemDto: eventListItemDto,
+  CreateEventBody: createEventBody,
   UpdateEventBody: updateEventBody,
   EventMemberDto: eventMemberDto,
   AddEventMemberBody: addEventMemberBody,
   ChangeEventMemberRoleBody: changeEventMemberRoleBody,
+  TransferPmBody: transferPmBody,
   EventItemDto: eventItemDto,
   CreateItemBody: createItemBody,
   UpdateItemBody: updateItemBody,
