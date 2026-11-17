@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, DatePicker, Input, Select, toast } from '@miceplans/ui';
-import { useDirectoryClients, useDirectoryCreateClient, useDirectoryUsers, useEventsCreate } from '../../../lib/api/generated/endpoints';
+import { useDirectoryClients, useDirectoryCreateClient, useEventsCreate } from '../../../lib/api/generated/endpoints';
 import type { ClientDto } from '../../../lib/api/generated/model';
 import { ApiError } from '../../../lib/api';
 
@@ -27,13 +27,10 @@ export function NewEventForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const clients = useDirectoryClients();
-  const users = useDirectoryUsers();
   const create = useEventsCreate();
   const createClient = useDirectoryCreateClient();
   const [name, setName] = useState('');
   const [clientId, setClientId] = useState('');
-  const [pmId, setPmId] = useState('');
-  const [amId, setAmId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [place, setPlace] = useState('');
@@ -41,13 +38,11 @@ export function NewEventForm() {
   const [tried, setTried] = useState(false);
 
   const dateError = startDate !== '' && endDate !== '' && endDate < startDate;
-  const amError = amId !== '' && amId === pmId;
-  const missing = { name: name.trim() === '', clientId: clientId === '', pmId: pmId === '', startDate: startDate === '', endDate: endDate === '' };
-  const invalid = Object.values(missing).some(Boolean) || dateError || amError;
+  const missing = { name: name.trim() === '', clientId: clientId === '', startDate: startDate === '', endDate: endDate === '' };
+  const invalid = Object.values(missing).some(Boolean) || dateError;
 
-  const loading = clients.isPending || users.isPending;
-  const loadFailed = clients.isError || users.isError;
-  const userOptions = (users.data ?? []).map((u) => ({ value: u.id, label: u.jobTitle ? `${u.name} · ${u.jobTitle}` : u.name }));
+  const loading = clients.isPending;
+  const loadFailed = clients.isError;
 
   /** '+ 고객사'에서 Enter로 확정한 이름을 등록하고 고른다. 목록에 같은 이름이 있으면 재사용한다. 실패하면 오류를 표시하고 입력 모드 유지를 위해 다시 던진다. */
   const registerClient = async (rawName: string) => {
@@ -71,11 +66,11 @@ export function NewEventForm() {
     if (invalid) return;
     try {
       const event = await create.mutateAsync({
-        data: { name: name.trim(), clientId, pmId, amId: amId || null, startDate, endDate, place: place.trim(), status: '진행중', priority: false, color: null, budget: budget === '' ? null : Number(budget) },
+        data: { name: name.trim(), clientId, startDate, endDate, place: place.trim(), status: '진행중', priority: false, color: null, budget: budget === '' ? null : Number(budget) },
       });
       void queryClient.invalidateQueries();
       toast.info('행사를 추가했습니다.');
-      router.push(`/events/${event.id}`);
+      router.push(`/events/detail?id=${event.id}`);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : '[500] 행사를 추가하지 못했습니다.');
     }
@@ -84,7 +79,7 @@ export function NewEventForm() {
   if (loadFailed) {
     return (
       <div className="flex w-full flex-col items-start gap-[16px] rounded-lg bg-surface p-[24px] shadow-card">
-        <p className="m-0 text-base text-fg">고객사·직원 목록을 불러오지 못했습니다.</p>
+        <p className="m-0 text-base text-fg">고객사 목록을 불러오지 못했습니다.</p>
         <Button variant="secondary" href="/">행사 목록으로</Button>
       </div>
     );
@@ -127,28 +122,6 @@ export function NewEventForm() {
             className="w-full text-right"
           />
         </Field>
-        <Field label="PM" required>
-          <Select
-            value={pmId}
-            disabled={loading}
-            onChange={(e) => setPmId(e.target.value)}
-            invalid={tried && missing.pmId}
-            options={[{ value: '', label: loading ? '불러오는 중…' : 'PM 선택' }, ...userOptions]}
-            searchable
-            className="w-full"
-          />
-        </Field>
-        <Field label="AM">
-          <Select
-            value={amId}
-            disabled={loading}
-            onChange={(e) => setAmId(e.target.value)}
-            invalid={tried && amError}
-            options={[{ value: '', label: '선택 안 함' }, ...userOptions]}
-            searchable
-            className="w-full"
-          />
-        </Field>
         <Field label="시작일" required>
           <DatePicker value={startDate} onChange={setStartDate} invalid={tried && missing.startDate} className="w-full" />
         </Field>
@@ -160,9 +133,9 @@ export function NewEventForm() {
             <Input value={place} maxLength={200} onChange={(e) => setPlace(e.target.value)} placeholder="장소" className="w-full" />
           </Field>
         </div>
-        {tried && (dateError || amError) && (
+        {tried && dateError && (
           <p role="alert" className="col-span-2 m-0 text-xs text-error max-md:col-span-1">
-            {dateError ? '종료일은 시작일 이후여야 합니다.' : 'PM과 AM은 다른 사람이어야 합니다.'}
+            종료일은 시작일 이후여야 합니다.
           </p>
         )}
       </div>
@@ -174,6 +147,7 @@ export function NewEventForm() {
           {create.isPending || createClient.isPending ? '추가 중…' : '행사 추가'}
         </Button>
       </div>
+      <p className="m-0 w-full text-xs text-fg-secondary">생성한 사용자는 자동으로 이 행사의 PM이 됩니다. PM은 나중에 행사 멤버에게 넘길 수 있습니다.</p>
     </form>
   );
 }

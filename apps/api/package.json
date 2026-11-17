@@ -9,6 +9,7 @@
     "start": "tsx --env-file-if-exists=../../.env src/main.ts",
     "openapi": "tsx scripts/export-openapi.ts",
     "typecheck": "tsc -p tsconfig.json",
+    "pretypecheck": "tsup",
     "lint": "eslint src test",
     "test": "vitest run"
   },

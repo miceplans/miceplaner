@@ -18,7 +18,7 @@ export type ProductPart = (typeof PRODUCT_PARTS)[number];
 export const EVENT_STATUSES = ['진행중', '성공', '확인중', '만료', '제출', '보류중'] as const;
 export type EventStatus = (typeof EVENT_STATUSES)[number];
 
-export const NOTIFICATION_KINDS = ['assigned', 'schedule_changed', 'due_soon', 'member_changed', 'client_application'] as const;
+export const NOTIFICATION_KINDS = ['assigned', 'schedule_changed', 'due_soon', 'member_changed', 'pm_transferred', 'client_application'] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 const ITEM_EDITORS: readonly Role[] = ['super_admin', 'pm', 'am', 'member'];
@@ -32,3 +32,10 @@ export const canManageMembers = (role: Role): boolean => MEMBER_MANAGERS.include
 
 /** 행사 삭제는 PM과 Super Admin. */
 export const canDeleteEvent = (role: Role): boolean => role === 'super_admin' || role === 'pm';
+
+/**
+ * PM 넘기기는 현재 행사의 PM만 할 수 있다. Super Admin이 행사를 만들면 그 행사의 PM이
+ * 되므로(명세 F-02) Super Admin도 자기 행사의 PM을 넘길 수 있다. 다른 사람의 행사에서
+ * Super Admin이 직접 넘기는 것은 여전히 허용하지 않는다 — 넘기려면 먼저 그 행사의 PM이어야 한다.
+ */
+export const canTransferPm = (role: Role): boolean => role === 'pm' || role === 'super_admin';

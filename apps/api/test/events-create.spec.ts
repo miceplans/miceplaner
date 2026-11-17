@@ -58,32 +58,27 @@ afterAll(async () => {
 describe('행사 생성', () => {
   const base = { name: '신규 행사', clientId: CO, startDate: '2026-03-01', endDate: '2026-03-03', place: '코엑스' };
 
-  it('고객사·PM·AM·예산을 받아 만들고 역할을 맞춘다', async () => {
-    const res = await api().post('/events').set(as('creator')).send({ ...base, pmId: U.pm, amId: U.am, budget: 12_500_000 }).expect(201);
+  it('고객사·예산을 받아 만들고 생성자가 PM이 된다 (명세 F-02)', async () => {
+    const res = await api().post('/events').set(as('creator')).send({ ...base, budget: 12_500_000 }).expect(201);
     expect(res.body).toMatchObject({ name: '신규 행사', clientId: CO, budget: 12_500_000 });
-    const members = await api().get(`/events/${res.body.id}/members`).set(as('creator')).expect(200);
-    const roles = Object.fromEntries(members.body.map((m: { userId: string; role: string }) => [m.userId, m.role]));
-    expect(roles).toEqual({ [U.pm]: 'pm', [U.am]: 'am', [U.creator]: 'member' });
-  });
-
-  it('작성자가 PM이면 그대로 PM이고 예산은 비울 수 있다', async () => {
-    const res = await api().post('/events').set(as('creator')).send({ ...base, pmId: U.creator }).expect(201);
-    expect(res.body.budget).toBeNull();
     const members = await api().get(`/events/${res.body.id}/members`).set(as('creator')).expect(200);
     expect(members.body).toEqual([{ eventId: res.body.id, userId: U.creator, role: 'pm' }]);
   });
 
+  it('예산은 비울 수 있다', async () => {
+    const res = await api().post('/events').set(as('creator')).send(base).expect(201);
+    expect(res.body.budget).toBeNull();
+  });
+
   it('예산을 수정할 수 있다', async () => {
-    const res = await api().post('/events').set(as('creator')).send({ ...base, pmId: U.creator, budget: 1000 }).expect(201);
+    const res = await api().post('/events').set(as('creator')).send({ ...base, budget: 1000 }).expect(201);
     const patched = await api().patch(`/events/${res.body.id}`).set(as('creator')).send({ budget: 2000 }).expect(200);
     expect(patched.body.budget).toBe(2000);
   });
 
   it('잘못된 입력과 Client 주체는 거절한다', async () => {
-    await api().post('/events').set(as('creator')).send({ ...base, pmId: U.pm, amId: U.pm }).expect(400);
-    await api().post('/events').set(as('creator')).send({ ...base, pmId: U.pm, budget: -1 }).expect(400);
-    await api().post('/events').set(as('creator')).send({ ...base, endDate: '2026-02-01', pmId: U.pm }).expect(400);
-    await api().post('/events').set(as('creator')).send({ ...base, pmId: id(999) }).expect(400);
-    await api().post('/events').set(as('client')).send({ ...base, pmId: U.pm }).expect(403);
+    await api().post('/events').set(as('creator')).send({ ...base, budget: -1 }).expect(400);
+    await api().post('/events').set(as('creator')).send({ ...base, endDate: '2026-02-01' }).expect(400);
+    await api().post('/events').set(as('client')).send(base).expect(403);
   });
 });

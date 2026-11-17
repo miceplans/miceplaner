@@ -1,8 +1,8 @@
 import { Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
-  addEventMemberBody, changeEventMemberRoleBody, createEventBody, listEventsQuery, updateEventBody,
-  type AddEventMemberBody, type CreateEventBody, type ListEventsQuery, type UpdateEventBody,
+  addEventMemberBody, changeEventMemberRoleBody, createEventBody, listEventsQuery, transferPmBody, updateEventBody,
+  type AddEventMemberBody, type CreateEventBody, type ListEventsQuery, type TransferPmBody, type UpdateEventBody,
 } from '@miceplans/contracts';
 import { Auth, type AuthUser } from '../common/auth';
 import { Returns } from '../common/openapi';
@@ -16,21 +16,21 @@ export class EventsController {
 
   @Get()
   @ApiOperation({ summary: '행사 목록 (Staff도 전체 조회, 명세 2.2)' })
-  @Returns('EventDto', { array: true })
+  @Returns('EventListItemDto', { array: true })
   list(@Auth() user: AuthUser, @ZodQuery(listEventsQuery) query: ListEventsQuery) {
     return this.events.list(user, query);
   }
 
   @Post()
-  @ApiOperation({ summary: '행사 생성 (고객사·PM·AM·예산 지정, 감사 로그 대상)' })
-  @Returns('EventDto', { created: true })
+  @ApiOperation({ summary: '행사 생성 (내부 직원, 생성자는 자동 PM, 감사 로그 대상)' })
+  @Returns('EventListItemDto', { created: true })
   create(@Auth() user: AuthUser, @ZodBody(createEventBody) body: CreateEventBody) {
     return this.events.create(user, body);
   }
 
   @Get(':id')
   @ApiOperation({ summary: '행사 상세' })
-  @Returns('EventDto')
+  @Returns('EventListItemDto')
   get(@Auth() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.events.get(user, id);
   }
@@ -72,6 +72,13 @@ export class EventsController {
     @ZodBody(changeEventMemberRoleBody) body: { role: 'pm' | 'am' | 'member' },
   ) {
     return this.events.changeMemberRole(user, id, userId, body.role);
+  }
+
+  @Post(':id/transfer-pm')
+  @ApiOperation({ summary: 'PM 넘기기 (현재 PM은 일반 멤버가 됨, 감사 로그 대상)' })
+  @Returns('EventMemberDto', { array: true, created: true })
+  transferPm(@Auth() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @ZodBody(transferPmBody) body: TransferPmBody) {
+    return this.events.transferPm(user, id, body.userId);
   }
 
   @Delete(':id/members/:userId')

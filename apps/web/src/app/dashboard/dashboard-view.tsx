@@ -27,33 +27,6 @@ const TAB_ROWS: Record<string, typeof SCHEDULES> = {
   통계: [],
 };
 
-type Task = { title: string; meta: string; done?: boolean };
-
-const COLUMNS: { dot: string; title: string; count: number; pill: string; pillText: string; more: string; tasks: Task[] }[] = [];
-
-const MORE_COLOR = ['text-error-delay', 'text-brand-deep', 'text-success-deep', 'text-fg-secondary'];
-
-function TaskCard({ task }: { task: Task }) {
-  return (
-    <div className="flex w-full shrink-0 flex-col items-start gap-[7px] rounded-xl bg-surface-muted px-[11px] py-[10px]">
-      <div className="flex w-full items-center gap-[8px]">
-        {task.done ? (
-          <div className="flex size-[17px] shrink-0 items-center justify-center rounded-sm bg-success-solid">
-            <img alt="" src={`${A}/check-icon.svg`} className="size-[10px]" />
-          </div>
-        ) : (
-          <div className="size-[17px] shrink-0 rounded-sm border-[1.5px] border-solid border-border-placeholder" />
-        )}
-        <span className={`whitespace-nowrap text-xs font-semibold ${task.done ? 'text-fg-secondary' : 'text-fg'}`}>{task.title}</span>
-      </div>
-      <div className="flex w-full items-center gap-[5px]">
-        <img alt="" src={`${A}/meta-dot.svg`} className="size-[3px]" />
-        <span className="whitespace-nowrap text-2xs text-fg-muted">{task.meta}</span>
-      </div>
-    </div>
-  );
-}
-
 const HOURS = ['9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM'];
 const WEEK_START = (() => {
   const t = new Date();
@@ -131,25 +104,6 @@ export function DashboardView() {
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="flex w-full items-start gap-[16px]">
-        {COLUMNS.map((c, ci) => (
-          <div key={c.title} className={`flex min-w-px flex-1 flex-col items-start gap-[10px] self-stretch rounded-md bg-surface p-[14px] ${SHADOW}`}>
-            <div className="flex w-full items-center gap-[8px]">
-              <img alt="" src={`${A}/${c.dot}.svg`} className="size-[8px]" />
-              <span className="whitespace-nowrap text-base font-bold text-fg">{c.title}</span>
-              <div className="h-px min-w-px flex-1" />
-              <span className={`flex items-center justify-center self-stretch rounded-full px-[9px] py-[2px] text-2xs font-bold ${c.pill} ${c.pillText}`}>{c.count}</span>
-            </div>
-            {c.tasks.map((t) => (
-              <TaskCard key={t.title} task={t} />
-            ))}
-            <div className="flex w-full items-start p-[2px]">
-              <span className={`whitespace-nowrap text-2xs font-semibold ${MORE_COLOR[ci]}`}>{c.more}</span>
-            </div>
-          </div>
-        ))}
       </div>
 
       <div className="flex w-full items-center gap-[20px] px-[5px]">
