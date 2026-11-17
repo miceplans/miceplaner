@@ -6,7 +6,8 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    # postgresql-16 패키지는 ubuntu-24.04 기본 저장소에 있다(26.04에선 제외됨).
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
