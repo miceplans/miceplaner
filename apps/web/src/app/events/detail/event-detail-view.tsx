@@ -10,6 +10,7 @@ import { PART_FILTERS, type PartFilter } from './event-parts';
 import { CURRENT_USER, getAssignableNames, isEventMember } from './event-members';
 import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event-filter';
 import { PmTransfer } from './pm-transfer';
+import { TaskBoard } from './task-board-view';
 import { getEvent, getMe, listEventMembers } from '../../../lib/api';
 import type { EventListItemDto } from '@miceplans/contracts';
 
@@ -547,6 +548,8 @@ export function EventDetailView() {
           </div>
         )}
       </div>
+
+      <TaskBoard eventId={eventId} reloadKey={tick} />
 
       <div className="flex items-stretch gap-[20px] px-[5px] max-lg:flex-col">
         <div

@@ -1,4 +1,4 @@
-import type { AuthSessionDto, ChatBody, ChatEvent, ClientDto, CreateEventBody, DocPageDto, EventListItemDto, EventMemberDto, FileDto, ListEventsQuery, ProposalDto, UserDto } from '@miceplans/contracts';
+import type { AuthSessionDto, ChatBody, ChatEvent, ClientDto, CreateEventBody, DocPageDto, EventItemDto, EventListItemDto, EventMemberDto, FileDto, ListEventsQuery, ListItemsQuery, ProposalDto, UserDto } from '@miceplans/contracts';
 
 /** 빌드 시점에 정해지는 공개 주소다. 비밀 값은 두지 않는다. */
 export const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -119,6 +119,13 @@ export async function listEvents(query: ListEventsQuery = {}): Promise<EventList
 
 export async function getEvent(id: string): Promise<EventListItemDto> {
   return (await (await request(`/events/${id}`, { method: 'GET' })).json()) as EventListItemDto;
+}
+
+/** 행사의 Program·Task·Subtask 목록. Staff도 조회할 수 있다. */
+export async function listItems(eventId: string, query: ListItemsQuery = {}): Promise<EventItemDto[]> {
+  const params = new URLSearchParams(Object.entries(query).filter((e): e is [string, string] => typeof e[1] === 'string'));
+  const qs = params.toString();
+  return (await (await request(`/events/${eventId}/items${qs ? `?${qs}` : ''}`, { method: 'GET' })).json()) as EventItemDto[];
 }
 
 export async function listEventMembers(eventId: string): Promise<EventMemberDto[]> {
