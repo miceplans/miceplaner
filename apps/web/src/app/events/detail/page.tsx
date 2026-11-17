@@ -1,20 +1,16 @@
+'use client';
+
 import { AppShell } from '@miceplans/ui/sidebar';
 import { EventDetailView } from './event-detail-view';
 
-const EVENT_IDS = ['e1', 'e2', 'e3', 'e4', 'e5'];
-
-export const dynamicParams = false;
-
-export function generateStaticParams() {
-  return EVENT_IDS.map((id) => ({ id }));
-}
-
-export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-
+/**
+ * 행사 상세. 정적 export(ADR 0001)라 경로 파라미터 대신 쿼리로 받는다: /events/detail?id=<uuid>.
+ * 실제 데이터가 없는 목업 id도 기존처럼 볼 수 있다.
+ */
+export default function EventDetailPage() {
   return (
     <AppShell active="events">
-      <EventDetailView eventId={id} />
+      <EventDetailView />
     </AppShell>
   );
 }

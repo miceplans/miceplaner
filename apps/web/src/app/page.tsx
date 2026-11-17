@@ -1,24 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { EventTable } from './event-table';
+import { useEffect, useMemo, useState } from 'react';
+import { EventTable, type EventRow } from './event-table';
 import { NoticeList } from './notice-list';
-import { ViewTabs, type CalCell, type ChipKey, type StatusKey, type ViewTab } from '@miceplans/ui';
+import { ViewTabs, type CalCell, type ChipKey, type ViewTab } from '@miceplans/ui';
 import { AppShell } from '@miceplans/ui/sidebar';
 import { ScheduleViewCalendar } from './schedule-calendar/schedule-view-calendar';
+import { getMe, listEvents, type Me } from '../lib/api';
+import type { EventListItemDto } from '@miceplans/contracts';
 
 const TABS: ViewTab[] = [
   { label: '전체 행사', icon: '10b86', activeIcon: '753c4', href: '/' },
   { label: '공지', icon: '/assets/sidebar/notifications.svg' },
   { label: '내 행사', icon: '10b86' },
-];
-
-const EVENTS: { id: string; name: string; dot: string; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; status: StatusKey; place: string; budget?: string }[] = [
-  { id: 'e1', name: '제54회 KIMES 2025', dot: 'b7f4e', startDate: '2026-03-13', endDate: '2026-03-16', priority: true, client: '메디코리아', pm: '박서연', am: '최민준', design: '이하은', status: '진행중', place: '코엑스 Hall A·B', budget: '1.2억' },
-  { id: 'e2', name: '글로벌 AI 서밋 2025', dot: '175f6', startDate: '2026-11-03', endDate: '2026-11-04', priority: true, client: '테크노웨이', pm: '김도현', am: '한지우', design: '오세민', status: '성공', budget: '8,500만', place: '인터컨티넨탈 파르나스' },
-  { id: 'e3', name: '삼성 파트너스 데이', dot: 'd8446', startDate: '2026-10-22', endDate: '2026-10-22', priority: true, client: '삼성전자', pm: '박서연', am: '이준호', design: '윤서준', status: '진행중', budget: '6,000만', place: '코엑스 오디토리움' },
-  { id: 'e4', name: '제12회 프랜차이즈 엑스포', dot: 'ff1cc', startDate: '2026-05-08', endDate: '2026-05-10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', design: '강예린', status: '제출', budget: '4,500만', place: '일산 킨텍스 Hall 1' },
-  { id: 'e5', name: '현대자동차 신차 발표회', dot: 'd8446', startDate: '2026-12-15', endDate: '2026-12-15', client: '현대자동차', pm: '김도현', am: '한지우', design: '이하은', status: '보류중', budget: '9,800만', place: '잠실 롯데월드타워' },
 ];
 
 const c = (d: number, ...chips: ChipKey[]): CalCell => ({ d, chips });
@@ -61,10 +55,43 @@ const WORK_WEEKS: CalCell[][] = WEEKS.map((week) =>
   week.map((cell) => (cell.d === undefined ? cell : { ...cell, chips: WORK_CHIPS[cell.d] })),
 );
 
+/** API 행사를 표 행으로 바꾼다. 아직 데이터 모델에 없는 값(디자인 담당, 예산)은 비워 둔다. */
+function toRow(event: EventListItemDto): EventRow {
+  return {
+    id: event.id,
+    name: event.name,
+    color: event.color,
+    startDate: event.startDate,
+    endDate: event.endDate,
+    priority: event.priority,
+    client: event.clientName ?? '',
+    pm: event.pmName ?? '',
+    am: event.amName ?? '',
+    design: '',
+    status: event.status,
+    place: event.place,
+  };
+}
+
 export default function HomePage() {
   const [tab, setTab] = useState(0);
-  const [addingEvent, setAddingEvent] = useState(false);
-  const events = tab === 2 ? EVENTS.filter((event) => event.pm === '박서연' || event.am === '박서연') : EVENTS;
+  const [events, setEvents] = useState<EventListItemDto[]>([]);
+  const [me, setMe] = useState<Me | null>(null);
+  useEffect(() => {
+    void listEvents().then(setEvents).catch(() => setEvents([]));
+    void getMe().then(setMe).catch(() => undefined);
+  }, []);
+  const rows = useMemo(() => events.map(toRow), [events]);
+  // PM·AM 이름은 다중이면 ', '로 묶여 오므로 포함 여부로 본다. 로그인 정보가 없으면 비워 둔다.
+  const shown = useMemo(
+    () =>
+      tab === 2
+        ? me
+          ? rows.filter((row) => [row.pm, row.am].some((names) => names.split(',').map((s) => s.trim()).includes(me.name)))
+          : []
+        : rows,
+    [tab, me, rows],
+  );
   return (
     <AppShell active="events">
       <div className="flex min-h-screen flex-col leading-[normal]">
@@ -73,13 +100,13 @@ export default function HomePage() {
           active={tab}
           onChange={setTab}
           bordered
-          action={tab !== 1 ? <button type="button" onClick={() => setAddingEvent(true)} className="flex h-[32px] items-center gap-[6px] rounded-md bg-brand px-[12px] text-sm font-semibold text-fg-inverse hover:opacity-90"><span className="text-base font-normal leading-none">+</span> 행사 추가</button> : undefined}
+          action={tab !== 1 ? <a href="/events/new" className="flex h-[32px] items-center gap-[6px] rounded-md bg-brand px-[12px] text-sm font-semibold text-fg-inverse no-underline hover:opacity-90"><span className="text-base font-normal leading-none">+</span> 행사 추가</a> : undefined}
         />
         {tab === 1 ? (
           <NoticeList />
         ) : (
           <div className="flex w-full flex-col gap-[24px]">
-            <EventTable key={tab} initial={events} adding={addingEvent} onAddingChange={setAddingEvent} />
+            <EventTable key={tab} initial={shown} />
             <ScheduleViewCalendar eventWeeks={WEEKS} workWeeks={WORK_WEEKS} gridGap={19} padX={20} />
           </div>
         )}
