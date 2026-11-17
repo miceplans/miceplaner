@@ -91,7 +91,7 @@ export function ScheduleList({
           <Input
             autoFocus
             value={value}
-            placeholder="새 Schedule 입력 후 Enter"
+            placeholder="새 일정 입력 후 Enter"
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.nativeEvent.isComposing) submit();
@@ -104,7 +104,7 @@ export function ScheduleList({
         ) : (
           <button type="button" onClick={() => setAdding(true)} className="flex items-center gap-[8px] text-[13px] text-fg-tertiary hover:text-fg-secondary">
             <img alt="" src={`${A}/plus-schedule.svg`} className="size-[14px]" />
-            새 Schedule 추가
+            새 일정 추가
           </button>
         )}
       </li>

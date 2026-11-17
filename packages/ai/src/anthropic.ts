@@ -1,3 +1,4 @@
+import { fetchWithRetry } from './retry';
 import type { ChatMsg, LlmChunk, LlmClient, ToolCall, ToolSpec } from './llm';
 
 export type AnthropicCompatOptions = { baseUrl: string; apiKey: string; model: string; fetch?: typeof fetch; temperature?: number; maxTokens?: number };
@@ -41,7 +42,7 @@ export function anthropicCompatible({ baseUrl, apiKey, model, fetch: doFetch = f
     model,
     async *stream({ messages, tools, signal }) {
       const wire = toWire(messages);
-      const res = await doFetch(`${baseUrl.replace(/\/$/, '')}/v1/messages`, {
+      const res = await fetchWithRetry(doFetch, `${baseUrl.replace(/\/$/, '')}/v1/messages`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({

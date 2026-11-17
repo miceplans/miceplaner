@@ -4,17 +4,17 @@ import { isRole, type EventStatus, type Role } from '@miceplans/domain';
 
 export type EventRow = {
   id: string; clientId: string; name: string; startDate: string; endDate: string; place: string; status: EventStatus;
-  priority: boolean; color: string | null; version: number; createdBy: string | null; createdAt: string; updatedAt: string;
+  priority: boolean; color: string | null; budget: number | null; version: number; createdBy: string | null; createdAt: string; updatedAt: string;
   clientName: string; pmName: string | null; amName: string | null;
 };
 
 const COLUMNS = `id, client_id AS "clientId", name, to_char(start_date, 'YYYY-MM-DD') AS "startDate", to_char(end_date, 'YYYY-MM-DD') AS "endDate",
-  place, status, priority, color, version, created_by AS "createdBy", ${isoTs('created_at', 'createdAt')}, ${isoTs('updated_at', 'updatedAt')}`;
+  place, status, priority, color, budget::float8 AS budget, version, created_by AS "createdBy", ${isoTs('created_at', 'createdAt')}, ${isoTs('updated_at', 'updatedAt')}`;
 
 // 목록·상세는 고객사 이름과 PM·AM 이름까지 함께 보여 준다. 고객사는 삭제돼도 행사가
 // 사라지지 않게 LEFT JOIN으로 건다(삭제된 고객사는 RLS로 이름이 null이 된다).
 const SELECT_COLUMNS = `e.id, e.client_id AS "clientId", e.name, to_char(e.start_date, 'YYYY-MM-DD') AS "startDate", to_char(e.end_date, 'YYYY-MM-DD') AS "endDate",
-  e.place, e.status, e.priority, e.color, e.version, e.created_by AS "createdBy", ${isoTs('e.created_at', 'createdAt')}, ${isoTs('e.updated_at', 'updatedAt')},
+  e.place, e.status, e.priority, e.color, e.budget::float8 AS budget, e.version, e.created_by AS "createdBy", ${isoTs('e.created_at', 'createdAt')}, ${isoTs('e.updated_at', 'updatedAt')},
   c.name AS "clientName",
   (SELECT string_agg(u.name, ', ' ORDER BY u.name) FROM event_members m JOIN users u ON u.id = m.user_id WHERE m.event_id = e.id AND m.role = 'pm') AS "pmName",
   (SELECT string_agg(u.name, ', ' ORDER BY u.name) FROM event_members m JOIN users u ON u.id = m.user_id WHERE m.event_id = e.id AND m.role = 'am') AS "amName"`;
@@ -40,22 +40,22 @@ export async function getEvent(client: PoolClient, id: string): Promise<EventRow
   return rows[0];
 }
 
-export type EventPatch = { name?: string; startDate?: string; endDate?: string; place?: string; status?: EventStatus; priority?: boolean; color?: string | null };
+export type EventPatch = { name?: string; startDate?: string; endDate?: string; place?: string; status?: EventStatus; priority?: boolean; color?: string | null; budget?: number | null };
 
 export type NewEvent = {
   clientId: string; name: string; startDate: string; endDate: string; place?: string; status?: EventStatus;
-  priority?: boolean; color?: string | null;
+  priority?: boolean; color?: string | null; budget?: number | null;
 };
 
 /**
  * 내부 직원이 만든 행사는 생성자가 최초 PM이 된다. INSERT 정책과 함께
- * create_event_with_pm(0012) 함수 하나로 묶어 RLS 예외 없이 한 트랜잭션으로 처리한다.
+ * create_event_with_pm(0015) 함수 하나로 묶어 RLS 예외 없이 한 트랜잭션으로 처리한다.
  * 생성자는 컨텍스트의 app_user_id()로 정해지므로 호출자가 임의로 지정할 수 없다.
  */
 export async function createEvent(client: PoolClient, event: NewEvent): Promise<EventRow> {
   const { rows } = await client.query<{ id: string }>(
-    `SELECT create_event_with_pm($1, $2, $3, $4, $5, $6, $7, $8) AS id`,
-    [event.clientId, event.name, event.startDate, event.endDate, event.place ?? '', event.status ?? '진행중', event.priority ?? false, event.color ?? null],
+    `SELECT create_event_with_pm($1, $2, $3, $4, $5, $6, $7, $8, $9) AS id`,
+    [event.clientId, event.name, event.startDate, event.endDate, event.place ?? '', event.status ?? '진행중', event.priority ?? false, event.color ?? null, event.budget ?? null],
   );
   const row = await getEvent(client, rows[0]!.id);
   if (!row) throw new Error('행사 생성 후 조회에 실패했다');
@@ -74,6 +74,7 @@ export async function updateEvent(client: PoolClient, id: string, patch: EventPa
   if (patch.status !== undefined) put('status', patch.status);
   if (patch.priority !== undefined) put('priority', patch.priority);
   if (patch.color !== undefined) put('color', patch.color);
+  if (patch.budget !== undefined) put('budget', patch.budget);
   vals.push(id);
   const { rows } = await client.query<EventRow>(`UPDATE events SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING ${COLUMNS}`, vals);
   return rows[0];
@@ -204,10 +205,10 @@ export async function findUserByEmail(client: PoolClient, email: string): Promis
 }
 
 /** 가입 시 만든다. 역할은 기본 staff다. */
-export async function insertUser(client: PoolClient, user: { id: string; name: string; email: string; passwordHash?: string }): Promise<UserRow> {
+export async function insertUser(client: PoolClient, user: { id: string; name: string; email: string; passwordHash?: string; role?: 'staff' | 'client' }): Promise<UserRow> {
   const { rows } = await client.query<UserRow>(
-    `INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4) RETURNING ${USER_COLUMNS}`,
-    [user.id, user.name, user.email, user.passwordHash ?? null],
+    `INSERT INTO users (id, name, email, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING ${USER_COLUMNS}`,
+    [user.id, user.name, user.email, user.passwordHash ?? null, user.role ?? 'staff'],
   );
   return rows[0]!;
 }
@@ -241,4 +242,10 @@ export type ClientRow = { id: string; name: string };
 export async function listClients(client: PoolClient): Promise<ClientRow[]> {
   const { rows } = await client.query<ClientRow>(`SELECT id, name FROM clients ORDER BY name`);
   return rows;
+}
+
+/** 가져오기와 같은 clients_insert 정책(is_internal)으로 새 고객사를 만든다. */
+export async function createClient(client: PoolClient, name: string): Promise<ClientRow> {
+  const { rows } = await client.query<ClientRow>(`INSERT INTO clients (name) VALUES ($1) RETURNING id, name`, [name]);
+  return rows[0];
 }

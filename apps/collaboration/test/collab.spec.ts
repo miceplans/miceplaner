@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createCollabServer } from '../src/server';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-const U = { pm: id(3011), admin: id(3012), member: id(3013), staff: id(3014), client: id(3015) };
+const U = { pm: id(3011), admin: id(3012), member: id(3013), staff: id(3014), client: id(3015), am: id(3016) };
 const EVENT = id(3101);
 const CO = id(3201);
 const DOC = { members: id(3301), managers: id(3302), all: id(3303), edit: id(3304), api: id(3305), reload: id(3306) };
@@ -21,19 +21,21 @@ const tokens: Record<string, string> = {};
 const sign = (sub: string, role: string) => new SignJWT({ role }).setProtectedHeader({ alg: 'HS256' }).setSubject(sub).setExpirationTime('1h').sign(new TextEncoder().encode(process.env.JWT_SECRET));
 const open: HocuspocusProvider[] = [];
 
-type Client = { doc: Y.Doc; provider: HocuspocusProvider; synced: Promise<void>; failed: Promise<string> };
+type Client = { doc: Y.Doc; provider: HocuspocusProvider; synced: Promise<void>; failed: Promise<string>; closed: Promise<number> };
 const connect = (name: string, token: string, base = url): Client => {
   const doc = new Y.Doc();
   let onSynced!: () => void;
   let onFailed!: (reason: string) => void;
   const synced = new Promise<void>((r) => (onSynced = r));
   const failed = new Promise<string>((r) => (onFailed = r));
+  let onClosed!: (code: number) => void;
+  const closed = new Promise<number>((r) => (onClosed = r));
   const provider = new HocuspocusProvider({
     url: base, name, token, document: doc,
-    onSynced: () => onSynced(), onAuthenticationFailed: ({ reason }) => onFailed(reason),
+    onSynced: () => onSynced(), onAuthenticationFailed: ({ reason }) => onFailed(reason), onClose: ({ event }) => onClosed(event.code),
   });
   open.push(provider);
-  return { doc, provider, synced, failed };
+  return { doc, provider, synced, failed, closed };
 };
 const until = async <T>(fn: () => Promise<T | false | undefined> | T | false | undefined, ms = 5_000): Promise<T> => {
   const end = Date.now() + ms;
@@ -49,13 +51,15 @@ const md = (c: Client) => ydocToMarkdown(c.doc).trim();
 const changed: { docId: string; userId: string }[] = [];
 const internal = (docId: string, payload: unknown, secret: string | null = 'internal-test-secret') =>
   fetch(`${url.replace('ws:', 'http:')}/internal/docs/${docId}/replace`, { method: 'POST', headers: { 'content-type': 'application/json', ...(secret ? { 'x-internal-secret': secret } : {}) }, body: JSON.stringify(payload) });
+const revalidate = (payload: unknown, secret: string | null = 'internal-test-secret') =>
+  fetch(`${url.replace('ws:', 'http:')}/internal/access/revalidate`, { method: 'POST', headers: { 'content-type': 'application/json', ...(secret ? { 'x-internal-secret': secret } : {}) }, body: JSON.stringify(payload) });
 
 beforeAll(async () => {
   admin = await connectTestAdmin(process.env.TEST_PG_ADMIN_URL!);
   for (const [name, uid] of Object.entries(U)) await admin.query(`INSERT INTO users (id, name, email, role) VALUES ($1, $2, 'co-' || $2 || '@x.test', $3)`, [uid, name, name === 'admin' ? 'super_admin' : name === 'client' ? 'client' : 'staff']);
   await admin.query(`INSERT INTO clients (id, name) VALUES ($1, '협업 고객사')`, [CO]);
   await admin.query(`INSERT INTO events (id, client_id, name, start_date, end_date) VALUES ($1, $2, 'collab-event', '2026-03-13', '2026-03-16')`, [EVENT, CO]);
-  await admin.query(`INSERT INTO event_members VALUES ($1,$2,'pm'), ($1,$3,'member')`, [EVENT, U.pm, U.member]);
+  await admin.query(`INSERT INTO event_members VALUES ($1,$2,'pm'), ($1,$3,'member'), ($1,$4,'am')`, [EVENT, U.pm, U.member, U.am]);
   for (const [key, visibility, text] of [['members', 'members', '# 멤버 문서\n\n멤버 본문'], ['managers', 'managers', '매니저 본문'], ['all', 'all', '전체 본문'], ['edit', 'members', '# 편집 문서\n\n처음 내용'], ['api', 'members', '# API 문서\n\n옛 내용'], ['reload', 'members', '재접속 전 내용']] as const) {
     await admin.query(`INSERT INTO event_docs (id, event_id, title, visibility, body_md) VALUES ($1, $2, $3, $4, $5)`, [DOC[key], EVENT, key, visibility, text]);
   }
@@ -182,5 +186,38 @@ describe('내부 변경 API (AI 제안 승인·되돌리기)', () => {
   });
   it('GET /health는 인증 없이 응답한다', async () => {
     expect((await fetch(`${url.replace('ws:', 'http:')}/health`)).status).toBe(200);
+  });
+});
+
+describe('권한 회수', () => {
+  it('PM·AM이 멤버로 강등되면 열린 위키를 다시 인증해 읽기 전용으로만 연결한다', async () => {
+    const am = connect(DOC.members, tokens.am!);
+    await am.synced;
+    expect(am.provider.authorizedScope).toBe('read-write');
+    await admin.query(`UPDATE event_members SET role = 'member' WHERE event_id = $1 AND user_id = $2`, [EVENT, U.am]);
+
+    expect((await revalidate({ eventId: EVENT, userId: U.am })).status).toBe(204);
+    expect(await am.closed).toBeGreaterThanOrEqual(1000);
+    const reconnect = connect(DOC.members, tokens.am!);
+    await reconnect.synced;
+    expect(reconnect.provider.authorizedScope).toBe('readonly');
+  });
+
+  it('멤버 삭제 후 그 사용자의 열린 문서 연결을 끊고 재접속도 거부한다', async () => {
+    const member = connect(DOC.members, tokens.member!);
+    await member.synced;
+    await admin.query('DELETE FROM event_members WHERE event_id = $1 AND user_id = $2', [EVENT, U.member]);
+
+    expect((await revalidate({ eventId: EVENT, userId: U.member })).status).toBe(204);
+    // Hocuspocus protocol close then WebSocket close(1000)로 끝날 수 있으므로 종료 자체를 확인한다.
+    expect(await member.closed).toBeGreaterThanOrEqual(1000);
+
+    const reconnect = connect(DOC.members, tokens.member!);
+    expect(await Promise.race([reconnect.failed, reconnect.synced.then(() => 'synced')])).not.toBe('synced');
+  });
+
+  it('권한 갱신 내부 API는 공유 비밀과 입력을 검사한다', async () => {
+    expect((await revalidate({ eventId: EVENT, userId: U.pm }, null)).status).toBe(403);
+    expect((await revalidate({ eventId: 'bad', userId: U.pm })).status).toBe(400);
   });
 });

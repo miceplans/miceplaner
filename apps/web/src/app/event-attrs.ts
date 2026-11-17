@@ -22,7 +22,7 @@ function readColumns(): EventAttrColumn[] {
     const raw = window.localStorage.getItem(COLUMNS_KEY);
     if (raw) return JSON.parse(raw) as EventAttrColumn[];
   } catch {
-    /* 목업: 저장값이 깨져 있으면 기본값으로 돌아간다. */
+    /* 저장값이 깨져 있으면 기본값으로 돌아간다. */
   }
   return DEFAULT_COLUMNS;
 }

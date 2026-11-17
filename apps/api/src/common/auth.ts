@@ -8,5 +8,5 @@ export const Auth = createParamDecorator((_: unknown, ctx: ExecutionContext): Au
 
 /** 낮은 권한 이상의 기능에 쓴다. Client는 낮은 기능에 접근할 수 없다 (명세 2.2). */
 export const requireInternal = (user: AuthUser): void => {
-  if (user.role === 'client') throw new ForbiddenException('Client는 이 기능에 접근할 수 없다');
+  if (user.role === 'client') throw new ForbiddenException('[403] Client는 이 기능에 접근할 수 없습니다.');
 };

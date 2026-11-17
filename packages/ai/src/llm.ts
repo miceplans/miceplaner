@@ -1,3 +1,4 @@
+import { fetchWithRetry } from './retry';
 export type ToolCall = { id: string; name: string; arguments: string };
 
 export type ChatMsg =
@@ -37,7 +38,7 @@ export function openAiCompatible({ baseUrl, apiKey, model, fetch: doFetch = fetc
   return {
     model,
     async *stream({ messages, tools, signal }) {
-      const res = await doFetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      const res = await fetchWithRetry(doFetch, `${baseUrl.replace(/\/$/, '')}/chat/completions`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({

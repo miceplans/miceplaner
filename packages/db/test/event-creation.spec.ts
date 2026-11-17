@@ -46,7 +46,7 @@ describe('행사 생성 (F-02)', () => {
     expect(log.rows).toContainEqual({ action: 'event.create' });
   });
   it('Client는 행사를 만들 수 없다', async () => {
-    await expect(newEvent(as.client, 'x')).rejects.toThrow(/낮은 직원만/);
+    await expect(newEvent(as.client, 'x')).rejects.toThrow(/내부 직원만/);
   });
   it('앱 역할은 events에 직접 INSERT할 수 없다 (생성은 함수 경로만 허용)', async () => {
     await expect(

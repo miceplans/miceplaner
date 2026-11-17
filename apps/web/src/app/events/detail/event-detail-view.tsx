@@ -8,16 +8,22 @@ import type { Invitee, InviteRole } from './invite-dialog';
 import type { Team } from './event-products';
 import { PART_FILTERS, type PartFilter } from './event-parts';
 import { CURRENT_USER, getAssignableNames, isEventMember } from './event-members';
+import { getToken } from '../../../lib/api';
+import { useGetMe } from '../../../lib/api/generated/endpoints';
 import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event-filter';
 import { PmTransfer } from './pm-transfer';
 import { TaskBoard } from './task-board-view';
-import { getEvent, getMe, listEventMembers } from '../../../lib/api';
+import { getEvent, listEventMembers } from '../../../lib/api';
 import type { EventListItemDto } from '@miceplans/contracts';
+
+/** 하이웍스 소속 이름(`GET /auth/me`의 team). 영상팀·콘텐츠 제작팀도 이 팀의 소분류로 내려온다. */
+const DESIGN_TEAM = '디자인팀';
 
 // 탭별 큰 화면은 필요할 때 청크를 받아 첫 행사 상세 진입의 JS를 줄인다.
 const ScheduleList = dynamic(() => import('./event-schedule-list').then((module) => module.ScheduleList));
 const EventTasks = dynamic(() => import('./event-tasks').then((module) => module.EventTasks));
 const EventFiles = dynamic(() => import('./event-files').then((module) => module.EventFiles));
+const EventInfoSheet = dynamic(() => import('./event-info-sheet').then((module) => module.EventInfoSheet));
 const EventDocs = dynamic(() => import('./event-docs').then((module) => module.EventDocs));
 const EventStats = dynamic(() => import('./event-stats').then((module) => module.EventStats));
 const InviteDialog = dynamic(() => import('./invite-dialog').then((module) => module.InviteDialog));
@@ -41,15 +47,13 @@ type EventInfo = {
   color: string; // 행사 대표색(primary)
 };
 
-const EVENTS: Record<string, EventInfo> = {
-  e1: { name: '제54회 KIMES 2025', period: '2025. 03. 13 – 03. 16', client: '메디코리아', pm: '박서연', am: '최민준', design: '이하은', place: '코엑스 Hall A·B', status: '진행중', dday: 'D-14', color: '#f567a5' },
-  e2: { name: '글로벌 AI 서밋 2025', period: '2025. 04. 02 – 04. 03', client: '테크노웨이', pm: '김도현', am: '한지우', design: '오세민', place: '인터컨티넨탈 파르나스', status: '성공', dday: 'D-30', color: '#ffa83f' },
-  e3: { name: '삼성 파트너스 데이', period: '2025. 04. 18', client: '삼성전자', pm: '박서연', am: '이준호', design: '윤서준', place: '코엑스 오디토리움', status: '진행중', dday: 'D-46', color: '#ffc53d' },
-  e4: { name: '제12회 프랜차이즈 엑스포', period: '2025. 05. 08 – 05. 10', client: '프랜차이즈협회', pm: '정유나', am: '최민준', design: '강예린', place: '일산 킨텍스 Hall 1', status: '제출', dday: 'D-66', color: '#ff7a45' },
-  e5: { name: '현대자동차 신차 발표회', period: '2025. 05. 22', client: '현대자동차', pm: '김도현', am: '한지우', design: '이하은', place: '잠실 롯데월드타워', status: '보류중', dday: 'D-80', color: '#ff4c50' },
-};
+const EVENTS: Record<string, EventInfo> = {};
 
-const CLIENTS = ['메디코리아', '글로벌AI서밋 조직위', '삼성전자', '한국프랜차이즈협회', '로진컴퍼니', '테크노웨이', '프랜차이즈협회', '현대자동차'];
+/** 목업 데이터가 비어 있을 때(정적 프리렌더 포함) 보여 줄 빈 값이다. */
+const FALLBACK_EVENT: EventInfo = { name: '행사', period: '', client: '', pm: '', am: '', design: '', place: '', status: '진행중', dday: '', color: '#9aa0a6' };
+
+/** 행사 정보를 불러오기 전(또는 없을 때) 쓰는 빈 값. */
+const CLIENTS: string[] = [];
 
 function ClientSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -83,28 +87,20 @@ function ClientSelect({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
-const c = (id: string, title: string, done = false): CheckItem => ({ id, title, done });
 
 /** 스케줄의 children은 할 일, 할 일의 children은 하위 할 일이다. 할 일 탭에서 계층으로 다룬다. */
-const INITIAL_SCHEDULE: CheckItem[] = [
-  { id: 's1', title: '홈페이지 오픈', done: true, date: '02.24', owner: '박', part: '디자인', children: [c('s1a', '디자인 확정', true), c('s1b', '퍼블리싱', true), c('s1c', '오픈 점검', true)] },
-  { id: 's2', title: '초청장 발송', done: true, date: '03.03', owner: '최', children: [c('s2a', '명단 확정', true), c('s2b', '시안 제작', true), c('s2c', '발송', true), { id: 't3', title: '초청장 발송 대상 검토', done: true, date: '3월 8일', owner: '김' }] },
-  { id: 's3', title: '브로슈어 인쇄', done: false, late: true, date: '03.06', owner: '한', part: '디자인', children: [c('s3a', '원고 확정', true), c('s3b', '인쇄소 발주', true), c('s3c', '최종 교정'), { id: 't1', title: '브로슈어 인쇄 최종 확인', done: false, date: '오늘', owner: '박', children: [c('t1a', '색상 교정', true), c('t1b', '사이즈 확인', true), c('t1c', '입고 일정 확인')] }] },
-  { id: 's4', title: '디자인 승인', done: true, date: '03.05', owner: '박', part: '디자인' },
-  { id: 's5', title: '리허설', done: false, date: '03.12', owner: '최', part: '영상', children: [c('s5a', '동선 점검'), c('s5b', '음향 테스트')] },
-  { id: 's6', title: '행사 당일 운영', done: false, date: '03.13 – 03.16', owner: '박', children: [{ id: 't2', title: '참가 업체 부스 배치 확정', done: false, date: '3월 7일', owner: '최', children: [c('t2a', '업체 의견 취합', true), c('t2b', '도면 수정'), c('t2c', '최종 승인')] }, { id: 't4', title: '운영 인력 배치표 공유', done: false, date: '3월 10일', owner: '박' }] },
-];
+const INITIAL_SCHEDULE: CheckItem[] = [];
 
 const TABS_BY_TEAM = {
-  planning: ['스케줄', '할 일', '문서', '통계', '제작물', '인력'],
-  design: ['스케줄', '할 일', '문서', '통계', '인력'],
+  planning: ['스케줄', '할 일', '문서', '통계', '제작물', '행사 정보', '인력'],
+  design: ['스케줄', '할 일', '문서', '통계', '행사 정보', '인력'],
 } as const;
 type TabName = (typeof TABS_BY_TEAM)['planning'][number];
 const MEMBER_TABS: TabName[] = ['인력'];
 const DEFAULT_TAB: Record<Team, TabName> = { planning: '제작물', design: '스케줄' };
 const PART_OPTIONS = PART_FILTERS.map((p) => ({ value: p, label: p }));
 
-const TODOS = ['연사자 정리', '연사자 정리', '연사자 정리'];
+const TODOS: string[] = [];
 
 const CAL_VIEWS = [
   { value: 'Day', label: 'Day' },
@@ -113,8 +109,14 @@ const CAL_VIEWS = [
 ] as const;
 
 const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-const BASE_MONDAY = new Date(2026, 9, 12); // 디자인 기준 주(10월 12~18)
-const TODAY_INDEX = 2; // BASE_MONDAY 기준 오늘(수요일)
+// 실제 이번 주 월요일을 기준으로 삼는다. 고정 날짜를 쓰면 '오늘' 표시와 주 이동이 실제 날짜와 어긋난다.
+const BASE_MONDAY = (() => {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  t.setDate(t.getDate() - ((t.getDay() + 6) % 7));
+  return t;
+})();
+const TODAY_INDEX = (new Date().getDay() + 6) % 7; // 월=0 … 일=6
 const dateOf = (abs: number) => new Date(BASE_MONDAY.getFullYear(), BASE_MONDAY.getMonth(), BASE_MONDAY.getDate() + abs);
 
 const HOURS = ['9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM'];
@@ -131,22 +133,7 @@ type CalEvent = { id: string; eventId: string; day: number; title: string; start
 const OTHER_EVENT_OPACITY = 0.3;
 
 // day: BASE_MONDAY 기준 일수, start/end: 9시 기준 시간(h)
-const INITIAL_EVENTS: CalEvent[] = [
-  { id: 'c1', eventId: 'e1', day: 0, title: 'Design Review', start: 1, end: 2.5 },
-  { id: 'c2', eventId: 'e2', day: 0, title: 'Team Sync', start: 5, end: 6 },
-  { id: 'c3', eventId: 'e2', day: 1, title: 'Sprint Planning', start: 0.5, end: 2 },
-  { id: 'c4', eventId: 'e3', day: 1, title: 'Client Call', start: 4, end: 5.5 },
-  { id: 'c5', eventId: 'e5', day: 1, title: '1:1 · Sara', start: 7, end: 8 },
-  { id: 'c6', eventId: 'e3', day: 2, title: 'Standup', start: 0, end: 1 },
-  { id: 'c7', eventId: 'e5', day: 2, title: 'UX Workshop', start: 2, end: 4 },
-  { id: 'c8', eventId: 'e1', day: 2, title: 'Roadmap Review', start: 6, end: 7.5 },
-  { id: 'c9', eventId: 'e2', day: 3, title: 'Design Critique', start: 1.5, end: 3 },
-  { id: 'c10', eventId: 'e4', day: 3, title: 'Interview · FE', start: 5, end: 6.5 },
-  { id: 'c11', eventId: 'e4', day: 4, title: 'Retro', start: 0, end: 1 },
-  { id: 'c12', eventId: 'e1', day: 4, title: 'Demo Day', start: 2, end: 3 },
-  { id: 'c13', eventId: 'e2', day: 4, title: 'Design Sprint', start: 5, end: 7 },
-  { id: 'c14', eventId: 'e5', day: 5, title: 'Team Lunch', start: 2.5, end: 4 },
-];
+const INITIAL_EVENTS: CalEvent[] = [];
 
 function formatClock(h: number) {
   const total = DAY_START + h;
@@ -211,26 +198,23 @@ export function EventDetailView() {
     return () => { alive = false; };
   }, [eventId, tick]);
   // 실제 멤버십으로 인력 탭·PM 넘기기 노출을 결정한다. 목업 행사(API에 없는 id)는 기존 목업 판정을 쓴다.
-  const [meId, setMeId] = useState<string | null>(null);
+  const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
+  const meId = me.data?.id ?? null;
   const [myRole, setMyRole] = useState<'pm' | 'am' | 'member' | null>(null);
   const [roleResolved, setRoleResolved] = useState(false);
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId || !meId) return;
     let alive = true;
-    void (async () => {
-      try {
-        const [me, members] = await Promise.all([getMe(), listEventMembers(eventId)]);
+    listEventMembers(eventId)
+      .then((members) => {
         if (!alive) return;
-        setMeId(me.id);
-        setMyRole(members.find((m) => m.userId === me.id)?.role ?? null);
+        setMyRole(members.find((m) => m.userId === meId)?.role ?? null);
         setRoleResolved(true);
-      } catch {
-        // 목업 행사 등 실데이터 판정이 불가능하면 roleResolved를 false로 두어 목업 판정을 쓰게 한다.
-      }
-    })();
+      })
+      .catch(() => undefined); // 목업 행사 등 실데이터 판정이 불가능하면 roleResolved를 false로 두어 목업 판정을 쓰게 한다.
     return () => { alive = false; };
-  }, [eventId, tick]);
-  const event: EventInfo = useMemo(() => (real ? toEventInfo(real) : EVENTS[eventId] ?? EVENTS.e1), [real, eventId]);
+  }, [eventId, meId, tick]);
+  const event: EventInfo = useMemo(() => (real ? toEventInfo(real) : EVENTS[eventId] ?? FALLBACK_EVENT), [real, eventId]);
   const [isPublic, setIsPublic] = useState(true);
   const [client, setClient] = useState(event.client);
   // 실제 행사가 늦게 도착하면 선택 값도 그에 맞춘다.
@@ -246,11 +230,12 @@ export function EventDetailView() {
   // 실데이터에서 멤버십이 확인되면 그 결과를 쓰고, 목업 행사에서는 기존 목업 판정을 쓴다.
   const isMember = !previewNoAccess && (roleResolved ? myRole !== null : isEventMember(event, eventId, CURRENT_USER.name));
   const visibleTabs = isMember ? tabs : tabs.filter((t) => !(MEMBER_TABS as readonly string[]).includes(t));
+  const myTeam = me.data?.team;
   useEffect(() => {
-    const next: Team = new URLSearchParams(window.location.search).get('team') === 'design' ? 'design' : 'planning';
+    const next: Team = myTeam === DESIGN_TEAM ? 'design' : 'planning';
     setTeam(next);
     setTab(DEFAULT_TAB[next]);
-  }, []);
+  }, [myTeam]);
   // 멤버 탭을 보고 있을 때 권한이 사라지면(미리보기 토글 등) 기본 탭으로 돌아간다.
   useEffect(() => {
     if (!isMember && tab === '인력') setTab(DEFAULT_TAB[team]);
@@ -479,10 +464,10 @@ export function EventDetailView() {
 
         <div className="flex w-full flex-col py-[16px]">
           <Prop icon="prop-tag" label="상태"><StatusPill status={event.status} /></Prop>
-          <Prop icon="prop-client" label="Client"><ClientSelect value={client} onChange={setClient} /></Prop>
+          <Prop icon="prop-client" label="고객사"><ClientSelect value={client} onChange={setClient} /></Prop>
           <Prop icon="prop-person" label="PM">{event.pm}</Prop>
           <Prop icon="prop-person" label="AM">{event.am}</Prop>
-          <Prop icon="prop-person" label="Design">{event.design}</Prop>
+          <Prop icon="prop-person" label="디자인">{event.design}</Prop>
           {invited.length > 0 && (
             <Prop icon="prop-person" label="초대됨">
               <span className="flex items-center gap-[8px]">
@@ -539,6 +524,9 @@ export function EventDetailView() {
             <VideoSection eventId={eventId} />
           </div>
         )}
+        {tab === '행사 정보' && (
+          <EventInfoSheet eventId={eventId} canEdit={roleResolved ? myRole === 'pm' || myRole === 'am' : event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />
+        )}
         {tab === '인력' && isMember && (
           <div className="mt-[16px] flex w-full flex-col gap-[12px]">
             <div className="flex justify-end">
@@ -554,9 +542,9 @@ export function EventDetailView() {
       <div className="flex items-stretch gap-[20px] px-[5px] max-lg:flex-col">
         <div
           className="relative flex h-[230px] w-[369px] shrink-0 items-end overflow-hidden rounded-[27px] border-[10px] border-solid border-brand-pink bg-brand-gradient p-[24px] shadow-card max-lg:w-full"
-          aria-label={`BIPC ${event.dday}`}
+          aria-label={`${event.name} ${event.dday}`}
         >
-          <span className="relative z-[2] mr-[-108px] shrink-0 whitespace-nowrap text-[56px] font-bold leading-none tracking-[-0.8px] text-fg-inverse">BIPC</span>
+          <span className="relative z-[2] mr-[-108px] shrink-0 whitespace-nowrap text-[56px] font-bold leading-none tracking-[-0.8px] text-fg-inverse">{event.name}</span>
           <span className="relative z-[1] shrink-0 whitespace-nowrap text-[128px] font-bold leading-[0.9] tracking-[-0.9px] text-fg-inverse/60">{event.dday}</span>
         </div>
 
@@ -576,11 +564,6 @@ export function EventDetailView() {
               </label>
             ))}
           </div>
-        </section>
-
-        <section className={`flex w-[272px] shrink-0 flex-col gap-[24px] p-[24px] ${CARD} rounded-lg max-lg:w-full`}>
-          <h2 className="m-0 text-xl font-semibold text-black">새 알림</h2>
-          <div className="rounded-md bg-surface-muted px-[11px] py-[10px] text-sm font-semibold text-fg">[BIPC] 포스터 변경 부탁드립니다.</div>
         </section>
       </div>
 

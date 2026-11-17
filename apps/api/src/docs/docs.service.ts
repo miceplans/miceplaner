@@ -28,7 +28,7 @@ export class DocsService {
     requireInternal(user);
     const row = await this.run(user, async (db) => {
       const doc = assertFound(await getDoc(db, docId), '문서');
-      if (!canChangeDocVisibility(await eventRole(db, doc.eventId))) throw new ForbiddenException('열람 범위 변경은 PM·AM만 할 수 있다');
+      if (!canChangeDocVisibility(await eventRole(db, doc.eventId))) throw new ForbiddenException('[403] 열람 범위 변경은 PM·AM만 할 수 있습니다.');
       const updated = await setDocVisibility(db, docId, body.visibility, body.expectedVersion, user.userId);
       if (!updated) throw versionConflictError((await getDoc(db, docId))?.version ?? body.expectedVersion);
       return updated;

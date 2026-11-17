@@ -9,16 +9,7 @@ const COLS = [
   { label: '담당자', icon: '15302', w: 'w-[170px]' },
 ] as const;
 
-const ROWS: { name: string; event: string; date: string; owner: string; status: StatusKey }[] = [
-  { name: '홈페이지 오픈', event: '제54회 KIMES 2025', date: '02.24 – 02.26', owner: '박서연', status: '성공' },
-  { name: '초청장 발송', event: '제54회 KIMES 2025', date: '03.03', owner: '최민준', status: '성공' },
-  { name: '디자인 승인', event: '제54회 KIMES 2025', date: '03.05', owner: '박서연', status: '확인중' },
-  { name: '브로슈어 인쇄', event: '제54회 KIMES 2025', date: '03.06 – 03.10', owner: '한지우', status: '만료' },
-  { name: '리허설', event: '제54회 KIMES 2025', date: '03.12', owner: '최민준', status: '진행중' },
-  { name: '홈페이지 오픈', event: '글로벌 AI 서밋 2025', date: '03.10 – 03.14', owner: '김도현', status: '제출' },
-  { name: '초청장 발송', event: '삼성 파트너스 데이', date: '04.01 – 04.04', owner: '이준호', status: '제출' },
-  { name: '행사 당일 운영', event: '제54회 KIMES 2025', date: '03.13 – 03.16', owner: '박서연', status: '진행중' },
-];
+const ROWS: { name: string; event: string; date: string; owner: string; status: StatusKey }[] = [];
 
 export default function ScheduleTablePage() {
   return (

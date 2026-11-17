@@ -10,7 +10,8 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 import type { DocPageDto } from '@miceplans/contracts';
 import { baseExtensions } from '@miceplans/editor-schema';
-import { ApiError, collabUrl, getDocPage, getMe, getToken } from '@/lib/api';
+import { ApiError, collabUrl, getToken } from '@/lib/api';
+import { useGetDocPage, useGetMe } from '@/lib/api/generated/endpoints';
 
 const COLORS = ['#e5484d', '#2f6fed', '#2a9d62', '#c26d00', '#8e4ec6', '#0b8fa3'];
 const colorOf = (name: string) => COLORS[[...name].reduce((n, c) => n + c.charCodeAt(0), 0) % COLORS.length]!;
@@ -26,30 +27,19 @@ type Peer = { clientId: number; name: string; color: string };
  */
 export function WikiEditor() {
   const docId = useSearchParams().get('doc') ?? '';
-  const [page, setPage] = useState<DocPageDto | null>(null);
-  const [me, setMe] = useState<{ name: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const valid = UUID.test(docId);
+  const pageQuery = useGetDocPage(docId, { query: { enabled: valid } });
+  const meQuery = useGetMe({ query: { enabled: valid, staleTime: Infinity } });
+  const error = pageQuery.error ?? meQuery.error;
+  const failure = !valid ? '[400] 문서 주소가 올바르지 않습니다.' : error ? (error instanceof ApiError ? error.message : '[500] 문서를 불러오지 못했습니다.') : null;
 
   useEffect(() => {
-    if (error) toast.error(error);
-  }, [error]);
+    if (failure) toast.error(failure);
+  }, [failure]);
 
-  useEffect(() => {
-    if (!UUID.test(docId)) {
-      setError('문서 주소가 올바르지 않다');
-      return;
-    }
-    Promise.all([getDocPage(docId), getMe()])
-      .then(([p, m]) => {
-        setPage(p);
-        setMe(m);
-      })
-      .catch((e) => setError(e instanceof ApiError ? e.message : '문서를 불러오지 못했다'));
-  }, [docId]);
-
-  if (error) return null;
-  if (!page || !me) return <p className="p-[24px] text-base text-fg-secondary">불러오는 중…</p>;
-  return <Collaborative page={page} userName={me.name} />;
+  if (failure) return null;
+  if (!pageQuery.data || !meQuery.data) return <p className="p-[24px] text-base text-fg-secondary">불러오는 중…</p>;
+  return <Collaborative page={pageQuery.data} userName={meQuery.data.name} />;
 }
 
 function Collaborative({ page, userName }: { page: DocPageDto; userName: string }) {
@@ -63,7 +53,7 @@ function Collaborative({ page, userName }: { page: DocPageDto; userName: string 
   useEffect(() => {
     const token = getToken();
     if (!collabUrl || !token) {
-      setFailure(!token ? '로그인이 필요하다' : '협업 서버 주소(NEXT_PUBLIC_COLLAB_URL)가 설정되지 않았다');
+      setFailure(!token ? '[401] 로그인이 필요합니다.' : '[503] 협업 서버 주소(NEXT_PUBLIC_COLLAB_URL)가 설정되지 않았습니다.');
       return;
     }
     const p = new HocuspocusProvider({
@@ -73,7 +63,7 @@ function Collaborative({ page, userName }: { page: DocPageDto; userName: string 
       document: ydoc,
       onStatus: ({ status: s }) => setStatus(s as typeof status),
       onAuthenticated: ({ scope }) => setReadOnly(scope === 'readonly'),
-      onAuthenticationFailed: () => setFailure('이 문서를 열 권한이 없다'),
+      onAuthenticationFailed: () => setFailure('[403] 이 문서를 열 권한이 없습니다.'),
       onAwarenessChange: ({ states }) =>
         setPeers(states.flatMap((s) => (s.user ? [{ clientId: s.clientId, name: String(s.user.name), color: String(s.user.color) }] : []))),
     });
@@ -95,7 +85,7 @@ function Collaborative({ page, userName }: { page: DocPageDto; userName: string 
           <h1 className="text-xl font-semibold text-fg">{page.title}</h1>
           <p className="text-2xs text-fg-secondary">
             열람 범위 {VISIBILITY_LABEL[page.visibility]} · {readOnly ? '읽기 전용' : '편집 가능'} ·{' '}
-            {status === 'connected' ? '실시간 연결됨' : status === 'connecting' ? '연결 중…' : '연결 끊김, 재접속하면 동기화된다'}
+            {status === 'connected' ? '실시간 연결됨' : status === 'connecting' ? '연결 중…' : '연결 끊김, 재접속하면 동기화됩니다.'}
           </p>
         </div>
         <ul className="flex items-center gap-[6px]" aria-label="접속자">

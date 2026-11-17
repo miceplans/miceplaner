@@ -2,37 +2,15 @@ import { ClientHeader, ClientStatusPill, type PrepStatus } from '@miceplans/ui';
 
 const A = '/assets/client/dashboard';
 
-const PREP: { name: string; status: PrepStatus }[] = [
-  { name: '홈페이지 오픈', status: '성공' },
-  { name: '초청장 발송', status: '진행중' },
-  { name: '브로슈어 인쇄', status: '확인중' },
-  { name: '브로슈어 인쇄', status: '확인중' },
-];
+const PREP: { name: string; status: PrepStatus }[] = [];
 
-const SCHEDULES = [
-  { date: '3/10', title: '견적 안건 협의 미팅', meta: '14:00 · 코엑스 사무실 3F 회의실', dday: 'D-5', hot: true },
-  { date: '3/10', title: '견적 안건 협의 미팅', meta: '14:00 · 코엑스 사무실 3F 회의실', dday: 'D-7', hot: false },
-  { date: '3/10', title: '견적 안건 협의 미팅', meta: '14:00 · 코엑스 사무실 3F 회의실', dday: 'D-7', hot: false },
-];
+const SCHEDULES: { date: string; title: string; meta: string; dday: string; hot: boolean }[] = [];
 
-const STEPS = [
-  { label: '입찰', state: 'done' },
-  { label: '업로드', state: 'current', n: 2 },
-  { label: '업로드', state: 'todo', n: 3 },
-  { label: '업로드', state: 'todo', n: 3 },
-  { label: '업로드', state: 'todo', n: 3 },
-] as const;
+const STEPS: { label: string; state: 'done' | 'current' | 'todo'; n?: number }[] = [];
 
-const CONTACTS = [
-  { name: '박서연', role: 'PM' },
-  { name: '최민준', role: 'AM' },
-];
+const CONTACTS: { name: string; role: string }[] = [];
 
-const MEMOS = [
-  { text: '최종 견적서 안내드렸습니다 — 검토 후 회신 부탁드립니다', by: '최민준 / 03.29', fresh: true },
-  { text: '초청장 디자인 시안 2안 업로드되었습니다', by: '최민준 / 03.29', fresh: false },
-  { text: '3월 둘째 주 주간 일정 안내', by: '최민준 / 03.29', fresh: false },
-];
+const MEMOS: { text: string; by: string; fresh: boolean }[] = [];
 
 export default function ClientDashboardPage() {
   return (
@@ -45,7 +23,7 @@ export default function ClientDashboardPage() {
               href="/client/events"
               className="flex h-[260px] w-[575px] shrink-0 flex-col items-end justify-between rounded-2xl bg-brand-pink px-[53.077px] py-[35.385px]"
             >
-              <p className="w-full text-3xl font-semibold text-fg-inverse">제54회 KIMES 2026</p>
+              <p className="w-full text-3xl font-semibold text-fg-inverse">행사</p>
               <div className="flex items-center gap-[8px]">
                 <p className="whitespace-nowrap text-2xl font-semibold text-fg-inverse">바로가기</p>
                 <img alt="" src={`${A}/frame133.svg`} className="size-[31.096px]" />
@@ -126,8 +104,7 @@ export default function ClientDashboardPage() {
               <div className="relative h-[178.188px] w-[324.373px] shrink-0">
                 <img alt="" src={`${A}/group23.svg`} className="absolute inset-0 size-full max-w-none" />
                 <p className="absolute left-[106.83px] top-[107.99px] whitespace-nowrap text-center text-3xl font-bold tracking-[1.5651px] text-fg">
-                  84%
-                </p>
+                  </p>
               </div>
             </section>
 

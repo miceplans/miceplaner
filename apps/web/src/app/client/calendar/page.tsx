@@ -10,33 +10,8 @@ const TONE: Record<Tone, { bg: string; fg: string; dot: string }> = {
   yellow: { bg: 'bg-notice-bg', fg: 'text-notice', dot: 'dot7' },
 };
 
-const INVITE = ['초청장 발송', 'gray'] as const;
-const BROCHURE = ['브로슈어 인쇄', 'red'] as const;
-const SUMMIT = ['AI서밋 홈페이지', 'blue'] as const;
-const KIMES_OPS = ['KIMES 당일 운영', 'yellow'] as const;
+const CHIPS: Record<number, readonly (readonly [string, Tone])[]> = {};
 
-const CHIPS: Record<number, readonly (readonly [string, Tone])[]> = {
-  3: [INVITE],
-  5: [['디자인 승인', 'gray']],
-  6: [BROCHURE],
-  7: [BROCHURE],
-  8: [BROCHURE],
-  9: [BROCHURE],
-  10: [BROCHURE, SUMMIT],
-  11: [SUMMIT],
-  12: [SUMMIT, ['리허설', 'yellow']],
-  13: [SUMMIT, KIMES_OPS],
-  14: [SUMMIT, KIMES_OPS],
-  15: [KIMES_OPS],
-  16: [KIMES_OPS],
-  24: [['KIMES 홈페이지', 'gray']],
-  25: [['KIMES 홈페이지', 'gray']],
-  26: [['KIMES 홈페이지', 'gray']],
-};
-
-const TODAY = 6;
-const FIRST_WEEKDAY = 6; // 2025-03-01 = 토
-const DAYS = 31;
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const LEGEND = [
   ['진행중', 'dot'],
@@ -44,6 +19,14 @@ const LEGEND = [
   ['완료', 'dot2'],
   ['지연', 'dot3'],
 ] as const;
+
+// 현재 월 기준 그리드. 빌드(프리렌더) 시점의 날짜로 정해진다.
+const TODAY_DATE = new Date();
+const YEAR = TODAY_DATE.getFullYear();
+const MONTH = TODAY_DATE.getMonth() + 1;
+const FIRST_WEEKDAY = new Date(YEAR, MONTH - 1, 1).getDay();
+const DAYS = new Date(YEAR, MONTH, 0).getDate();
+const TODAY = TODAY_DATE.getDate();
 
 const cells: (number | null)[] = [
   ...Array<null>(FIRST_WEEKDAY).fill(null),
@@ -71,7 +54,7 @@ export default function ClientCalendarPage() {
         </div>
         <div className="flex h-[44px] w-full shrink-0 items-center gap-[10px] px-[24px]">
           <img alt="이전 달" src={`${A}/nav-icon.svg`} className="size-[15px]" />
-          <p className="whitespace-nowrap text-lg font-semibold text-fg">2025년 3월</p>
+          <p className="whitespace-nowrap text-lg font-semibold text-fg">{YEAR}년 {MONTH}월</p>
           <img alt="다음 달" src={`${A}/nav-icon1.svg`} className="size-[15px]" />
           <div className="h-px min-w-px flex-1" />
           <ul className="flex h-full items-center gap-[14px]">

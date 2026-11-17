@@ -1,8 +1,9 @@
 import { Controller, Get, Inject, Param, ParseUUIDPipe, Post, Res } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { ServerResponse } from 'node:http';
 import { chatBody, listProposalsQuery, type ChatBody, type ChatEvent, type ListProposalsQuery } from '@miceplans/contracts';
 import { Auth, type AuthUser } from '../common/auth';
+import { Returns } from '../common/openapi';
 import { ZodBody, ZodQuery } from '../common/zod';
 import { AiService } from './ai.service';
 import { ProposalsService } from './proposals.service';
@@ -34,18 +35,21 @@ export class AiController {
 
   @Get('events/:eventId/ai/proposals')
   @ApiOperation({ summary: 'AI 제안 목록 (만든 사람과 PM·AM만)' })
+  @Returns('ProposalDto', { array: true })
   list(@Auth() user: AuthUser, @Param('eventId', ParseUUIDPipe) eventId: string, @ZodQuery(listProposalsQuery) query: ListProposalsQuery) {
     return this.proposals.list(user, eventId, query.status);
   }
 
   @Post('ai/proposals/:id/approve')
-  @ApiOperation({ summary: 'AI 제안 승인·반영 (PM·AM, 충돌 시 409, 감사 로그)' })
+  @ApiOperation({ summary: 'AI 제안 승인·반영 (PM·AM, 충돌 시 409, 감사 로그)', operationId: 'approveProposal' })
+  @ApiCreatedResponse({ schema: { $ref: '#/components/schemas/ProposalDto' } })
   approve(@Auth() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.proposals.approve(user, id);
   }
 
   @Post('ai/proposals/:id/reject')
-  @ApiOperation({ summary: 'AI 제안 반려 (PM·AM, 감사 로그)' })
+  @ApiOperation({ summary: 'AI 제안 반려 (PM·AM, 감사 로그)', operationId: 'rejectProposal' })
+  @ApiCreatedResponse({ schema: { $ref: '#/components/schemas/ProposalDto' } })
   reject(@Auth() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.proposals.reject(user, id);
   }

@@ -69,7 +69,7 @@ export function ProductNameCombobox({ value, onChange, onSelect }: Props) {
     <div ref={rootRef} className="relative w-[120px] shrink-0">
       <Input
         ref={inputRef}
-        aria-label="name"
+        aria-label="품명"
         value={value}
         autoComplete="off"
         placeholder="품명 검색"

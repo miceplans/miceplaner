@@ -1,7 +1,7 @@
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { eventDto, eventListItemDto, eventMemberDto, type CreateEventBody, type ListEventsQuery, type UpdateEventBody } from '@miceplans/contracts';
 import {
-  addEventMember, changeEventMemberRole, createEvent, eventRole, getEvent, listEventClients, listEventMembers, listEvents,
+  addEventMember, changeEventMemberRole, createEvent, eventRole, getEvent, getUserById, listEventClients, listEventMembers, listEvents,
   removeEventMember, setEventClient, softDeleteEvent, transferPm, updateEvent, withContext,
 } from '@miceplans/db';
 import { canDeleteEvent, canEditEventItems, canManageMembers, canTransferPm } from '@miceplans/domain';
@@ -10,12 +10,14 @@ import { AuthUser, requireInternal } from '../common/auth';
 import { assertFound, assertOk, mapDbError } from '../common/http';
 import { DB_POOL } from '../tokens';
 import { REALTIME, type Realtime } from '../realtime/realtime.gateway';
+import { CollabClient } from '../knowledge/collab.client';
 
 @Injectable()
 export class EventsService {
   constructor(
     @Inject(DB_POOL) private readonly pool: Pool,
     @Inject(REALTIME) private readonly rt: Realtime,
+    @Inject(CollabClient) private readonly collab: CollabClient,
   ) {}
 
   private run<T>(user: AuthUser, fn: (db: PoolClient) => Promise<T>): Promise<T> {
@@ -41,6 +43,7 @@ export class EventsService {
   async create(user: AuthUser, body: CreateEventBody) {
     requireInternal(user);
     const row = await this.run(user, (db) => createEvent(db, body));
+    this.rt.grantEventMemberAccess(row.id, user.userId);
     this.rt.eventChanged(row.id);
     return eventListItemDto.parse(row);
   }
@@ -56,7 +59,7 @@ export class EventsService {
     requireInternal(user);
     const row = await this.run(user, async (db) => {
       await this.requireEvent(db, id);
-      await this.requireRole(db, id, canEditEventItems, '행사 멤버만 수정할 수 있다');
+      await this.requireRole(db, id, canEditEventItems, '[403] 행사 멤버만 수정할 수 있습니다.');
       return assertFound(await updateEvent(db, id, body), '행사');
     });
     this.rt.eventChanged(id);
@@ -68,7 +71,7 @@ export class EventsService {
     requireInternal(user);
     await this.run(user, async (db) => {
       await this.requireEvent(db, id);
-      await this.requireRole(db, id, canDeleteEvent, '행사 삭제는 PM만 할 수 있다');
+      await this.requireRole(db, id, canDeleteEvent, '[403] 행사 삭제는 PM만 할 수 있습니다.');
       assertOk(await softDeleteEvent(db, user.userId, id), '행사');
     });
     this.rt.eventChanged(id);
@@ -85,9 +88,11 @@ export class EventsService {
     requireInternal(user);
     const row = await this.run(user, async (db) => {
       await this.requireEvent(db, eventId);
-      await this.requireRole(db, eventId, canManageMembers, '멤버 관리는 PM·AM만 할 수 있다');
+      await this.requireRole(db, eventId, canManageMembers, '[403] 멤버 관리는 PM·AM만 할 수 있습니다.');
       return addEventMember(db, user.userId, eventId, targetUserId, role);
     });
+    this.rt.grantEventMemberAccess(eventId, targetUserId);
+    await this.collab.revalidateEventAccess(eventId, targetUserId);
     this.rt.eventChanged(eventId);
     this.rt.notification(targetUserId);
     return eventMemberDto.parse(row);
@@ -97,33 +102,39 @@ export class EventsService {
     requireInternal(user);
     const row = await this.run(user, async (db) => {
       await this.requireEvent(db, eventId);
-      await this.requireRole(db, eventId, canManageMembers, '멤버 관리는 PM·AM만 할 수 있다');
+      await this.requireRole(db, eventId, canManageMembers, '[403] 멤버 관리는 PM·AM만 할 수 있습니다.');
       return assertFound(await changeEventMemberRole(db, user.userId, eventId, targetUserId, role), '행사 멤버');
     });
     this.rt.eventChanged(eventId);
+    this.rt.grantEventMemberAccess(eventId, targetUserId);
+    await this.collab.revalidateEventAccess(eventId, targetUserId);
     return eventMemberDto.parse(row);
   }
 
   /** 현재 PM이 기존 행사 멤버에게 역할을 넘기고, 본인은 일반 멤버로 남는다. 양쪽에 알림이 간다 (F-06). */
   async transferPm(user: AuthUser, eventId: string, targetUserId: string) {
     requireInternal(user);
-    await this.run(user, async (db) => {
+    const rows = await this.run(user, async (db) => {
       await this.requireEvent(db, eventId);
       await this.requireRole(db, eventId, canTransferPm, 'PM만 역할을 넘길 수 있다');
       if (!(await transferPm(db, eventId, user.userId, targetUserId))) throw new ForbiddenException('그 행사의 PM만 다른 멤버에게 PM을 넘길 수 있다');
+      return listEventMembers(db, eventId);
     });
     this.rt.eventChanged(eventId);
     this.rt.notification(targetUserId);
     this.rt.notification(user.userId);
+    return rows.map((r) => eventMemberDto.parse(r));
   }
 
   async removeMember(user: AuthUser, eventId: string, targetUserId: string) {
     requireInternal(user);
     await this.run(user, async (db) => {
       await this.requireEvent(db, eventId);
-      await this.requireRole(db, eventId, canManageMembers, '멤버 관리는 PM·AM만 할 수 있다');
+      await this.requireRole(db, eventId, canManageMembers, '[403] 멤버 관리는 PM·AM만 할 수 있습니다.');
       assertOk(await removeEventMember(db, user.userId, eventId, targetUserId), '행사 멤버');
     });
+    this.rt.revokeEventMemberAccess(eventId, targetUserId);
+    await this.collab.revalidateEventAccess(eventId, targetUserId);
     this.rt.eventChanged(eventId);
     this.rt.notification(targetUserId);
   }
@@ -132,7 +143,7 @@ export class EventsService {
     requireInternal(user);
     return this.run(user, async (db) => {
       await this.requireEvent(db, eventId);
-      await this.requireRole(db, eventId, canManageMembers, 'Client 목록은 PM·AM만 볼 수 있다');
+      await this.requireRole(db, eventId, canManageMembers, '[403] Client 목록은 PM·AM만 볼 수 있습니다.');
       return listEventClients(db, eventId);
     });
   }
@@ -142,7 +153,11 @@ export class EventsService {
     requireInternal(user);
     await this.run(user, async (db) => {
       await this.requireEvent(db, eventId);
-      await this.requireRole(db, eventId, canManageMembers, 'Client 지정은 PM·AM만 할 수 있다');
+      await this.requireRole(db, eventId, canManageMembers, '[403] Client 지정은 PM·AM만 할 수 있습니다.');
+      if (assigned) {
+        const target = await getUserById(db, targetUserId);
+        if (!target || target.role !== 'client') throw new BadRequestException('[400] Client 역할 사용자만 행사에 지정할 수 있습니다.');
+      }
       await setEventClient(db, user.userId, eventId, targetUserId, assigned);
     });
     this.rt.eventChanged(eventId);

@@ -14,7 +14,7 @@ const onBodyChanged = config.teiUrl
   : undefined;
 const server = createCollabServer(pool, { onBodyChanged });
 await server.listen();
-console.log(`MICEPLANS collaboration listening on :${config.port}`);
+console.log(`MICEPLANNER collaboration listening on :${config.port}`);
 
 const shutdown = async () => {
   await server.destroy();

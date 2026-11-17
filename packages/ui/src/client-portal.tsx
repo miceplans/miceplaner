@@ -22,7 +22,7 @@ export function ClientHeader({ active = 'dashboard' }: { active?: ClientNavKey }
             <img alt="" src={`${A}/shared/group5.svg`} className="h-[26.758px] w-[21px]" />
           </div>
           <div className="h-[16px] w-px shrink-0 bg-border-strong" />
-          <p className="whitespace-nowrap text-sm text-fg-secondary">Client Portal</p>
+          <p className="whitespace-nowrap text-sm text-fg-secondary">고객 포털</p>
         </div>
         <nav className="flex h-[48px] shrink-0 items-center gap-[2px] self-end rounded-md bg-surface-sunken px-[5px] max-md:w-full max-md:self-auto">
           {NAV.map((n) => {

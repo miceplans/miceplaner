@@ -6,13 +6,7 @@ import { ViewToggle } from '@miceplans/ui';
 
 const A = '/assets/events-by-year';
 
-const YEARS = [
-  { year: 2025, count: 12, current: true },
-  { year: 2024, count: 10 },
-  { year: 2023, count: 8 },
-  { year: 2022, count: 6 },
-  { year: 2021, count: 4 },
-];
+const YEARS: { year: number; count: number; current?: boolean }[] = [];
 
 const OPTIONS = [
   { value: 'folder', label: '폴더 뷰', icon: `${A}/gallery-icon.svg` },
@@ -38,7 +32,6 @@ export function EventsByYearView() {
           {YEARS.map((y) => (
             <a
               key={y.year}
-              href={y.year === 2025 ? '/events-by-year/2025' : undefined}
               className={`flex w-full shrink-0 items-center gap-[16px] border-solid border-border ${view === 'folder' ? 'h-[104px] border-b py-[20px]' : 'h-auto flex-wrap content-start rounded-xl border bg-surface-sunken p-[16px]'}`}
             >
               <div className={`flex shrink-0 flex-col items-start gap-[5px] whitespace-nowrap ${view === 'folder' ? 'h-full w-[70px] justify-center' : 'h-auto min-w-0 flex-1'}`}>

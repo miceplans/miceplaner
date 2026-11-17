@@ -33,22 +33,22 @@ export class FilesService {
   }
 
   private requireStore(): ObjectStore {
-    if (!this.store) throw new ServiceUnavailableException('파일 저장소가 설정되지 않았다 (S3_BUCKET 또는 FILES_DIR)');
+    if (!this.store) throw new ServiceUnavailableException('[503] 파일 저장소가 설정되지 않았습니다 (S3_BUCKET 또는 FILES_DIR).');
     return this.store;
   }
 
   async upload(user: AuthUser, eventId: string, file: Upload | undefined, itemId: string | null) {
     requireInternal(user);
-    if (!file) throw new BadRequestException('file 필드로 파일을 보내야 한다');
-    if (file.size > MAX_FILE_BYTES) throw new PayloadTooLargeException(`파일은 ${MAX_FILE_BYTES / 1024 / 1024}MB를 넘을 수 없다`);
+    if (!file) throw new BadRequestException('[400] file 필드로 파일을 보내야 합니다.');
+    if (file.size > MAX_FILE_BYTES) throw new PayloadTooLargeException(`[413] 파일은 ${MAX_FILE_BYTES / 1024 / 1024}MB를 넘을 수 없습니다.`);
     const name = cleanFileName(file.originalname);
     const ext = name.split('.').pop()?.toLowerCase() ?? '';
-    if (!name.includes('.') || !(SUPPORTED_EXTENSIONS as readonly string[]).includes(ext)) throw new BadRequestException(`지원하는 형식: ${SUPPORTED_EXTENSIONS.join(', ')}`);
+    if (!name.includes('.') || !(SUPPORTED_EXTENSIONS as readonly string[]).includes(ext)) throw new BadRequestException(`[415] 지원하는 형식: ${SUPPORTED_EXTENSIONS.join(', ')}`);
     const store = this.requireStore();
 
     // 권한(PM·AM)은 행 삽입 전에 확인한다. 원본은 권한 확인 뒤에만 저장소에 올린다.
     await this.run(user, async (db) => {
-      if (!canEditWiki(await eventRole(db, eventId))) throw new ForbiddenException('파일 업로드는 PM·AM만 할 수 있다');
+      if (!canEditWiki(await eventRole(db, eventId))) throw new ForbiddenException('[403] 파일 업로드는 PM·AM만 할 수 있습니다.');
       if (itemId) assertFound(await getItem(db, itemId), '첨부 대상 항목');
     });
     const storageKey = `events/${eventId}/${randomUUID()}`;
@@ -75,7 +75,7 @@ export class FilesService {
     requireInternal(user);
     const row = await this.run(user, async (db) => {
       const file = assertFound(await getFile(db, id), '파일');
-      if (!canEditWiki(await eventRole(db, file.eventId))) throw new ForbiddenException('파일 이동은 PM·AM만 할 수 있다');
+      if (!canEditWiki(await eventRole(db, file.eventId))) throw new ForbiddenException('[403] 파일 이동은 PM·AM만 할 수 있습니다.');
       if (body.itemId) assertFound(await getItem(db, body.itemId), '첨부 대상 항목');
       return assertFound(await moveFile(db, id, body.itemId), '파일');
     });
@@ -99,7 +99,7 @@ export class FilesService {
     requireInternal(user);
     await this.run(user, async (db) => {
       const file = assertFound(await getFile(db, id), '파일');
-      if (!canEditWiki(await eventRole(db, file.eventId))) throw new ForbiddenException('파일 삭제는 PM·AM만 할 수 있다');
+      if (!canEditWiki(await eventRole(db, file.eventId))) throw new ForbiddenException('[403] 파일 삭제는 PM·AM만 할 수 있습니다.');
       assertOk(await softDeleteFile(db, user.userId, id), '파일');
     });
   }

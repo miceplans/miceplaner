@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { LeaveRecord } from './data';
 
-/** 목업의 로그인 사용자가 직접 체크한 주말 근무와 대휴 사용 내역. 로컬 퍼스트로 저장한다. */
+/** 로그인 사용자가 직접 체크한 주말 근무와 대휴 사용 내역. 로컬 퍼스트로 저장한다. */
 
 const WORK_KEY = 'miceplans.leave.weekend-work';
 const COMP_USED_KEY = 'miceplans.leave.comp-used';
@@ -16,7 +16,7 @@ function readWeekendWork(): string[] {
     const raw = window.localStorage.getItem(WORK_KEY);
     if (raw) return JSON.parse(raw) as string[];
   } catch {
-    /* 목업: 저장값이 깨져 있으면 비어 있는 값으로 돌아간다. */
+    /* 저장값이 깨져 있으면 비어 있는 값으로 돌아간다. */
   }
   return [];
 }

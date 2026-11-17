@@ -1,21 +1,15 @@
 'use client';
 
 import { useEffect, useState, type DragEvent, type PointerEvent, type ReactNode } from 'react';
-import { Input, Select } from './field';
-
+import { Input } from './field';
+import { Select } from './select';
 const A = '/assets/schedule';
 
-const PROPS = [
-  { icon: 'f7145', label: '기간', value: '6월 13일 (금) · 오후 2:00 ~ 오후 3:30' },
-  { icon: '5b17e', label: '장소', value: '메인 스테이지 · 음향 감독 구역' },
-] as const;
+const PROPS = [] as readonly { icon: string; label: string; value: string }[];
 
-const LINKS = [
-  { icon: '04dda', name: '사운드 세팅 시트', meta: 'Google Sheets' },
-  { icon: '7197f', name: '스테이지 도면.pdf', meta: '2.4 MB' },
-] as const;
+const LINKS = [] as readonly { icon: string; name: string; meta: string }[];
 
-const MEMO = '메인 스테이지 전체 사운드 밸런싱 작업입니다. 음향 업체와 협의한 세팅 시트를 참고해 진행하세요.';
+const MEMO = '';
 
 type PeekComponentKey = 'period' | 'place' | 'assignee' | 'agenda' | 'description' | 'clientMemo' | 'tasks' | 'links';
 const PEEK_COMPONENTS: { key: PeekComponentKey; label: string }[] = [
@@ -25,7 +19,7 @@ const PEEK_COMPONENTS: { key: PeekComponentKey; label: string }[] = [
   { key: 'agenda', label: '이날의 내 일정' },
   { key: 'description', label: '설명' },
   { key: 'clientMemo', label: '클라이언트 메모' },
-  { key: 'tasks', label: 'Task · Subtask' },
+  { key: 'tasks', label: '할 일 · 하위 할 일' },
   { key: 'links', label: '관련 링크 및 첨부' },
 ];
 const PEEK_LAYOUT_KEY = 'miceplans.schedule.sidePeekLayout';
@@ -103,38 +97,22 @@ function AgendaSection({ items }: { items: AgendaItem[] }) {
   );
 }
 
-/* ---------- Task · Subtask 지정 ---------- */
+/* ---------- 할 일 · 하위 할 일 지정 ---------- */
 
 type AssigneeKey = '한' | '최' | '박' | '이' | '김';
 
 const ASSIGNEE: Record<AssigneeKey, { name: string }> = {
-  한: { name: '한지우' },
-  최: { name: '최민준' },
-  박: { name: '박서연' },
-  이: { name: '이준호' },
-  김: { name: '김도현' },
+  한: { name: '한' },
+  최: { name: '최' },
+  박: { name: '박' },
+  이: { name: '이' },
+  김: { name: '김' },
 };
 
 type SubtaskItem = { id: string; title: string; who: AssigneeKey; done: boolean };
 type TaskItem = { id: string; title: string; who: AssigneeKey; subs: SubtaskItem[] };
 
-const INITIAL_TASKS: TaskItem[] = [
-  {
-    id: 'task-1',
-    title: '장비 세팅',
-    who: '최',
-    subs: [
-      { id: 'sub-1', title: '스피커 배치 확인', who: '한', done: true },
-      { id: 'sub-2', title: '믹싱 콘솔 테스트', who: '최', done: false },
-    ],
-  },
-  {
-    id: 'task-2',
-    title: '리허설 준비',
-    who: '박',
-    subs: [{ id: 'sub-3', title: '리허설 순서표 작성', who: '박', done: false }],
-  },
-];
+const INITIAL_TASKS: TaskItem[] = [];
 
 function AssigneeAvatar({ who, size = 'md' }: { who: AssigneeKey; size?: 'md' | 'sm' }): React.ReactNode {
   const cls = size === 'sm' ? 'text-2xs' : 'text-xs';
@@ -211,7 +189,7 @@ export function TaskSubtaskSection(): React.ReactNode {
   return (
     <div className="flex w-full flex-col gap-[12px]">
       <div className="flex items-center gap-[8px]">
-        <p className="whitespace-nowrap text-md font-bold tracking-[0.4695px] text-fg-strong">Task · Subtask</p>
+        <p className="whitespace-nowrap text-md font-bold tracking-[0.4695px] text-fg-strong">할 일 · 하위 할 일</p>
         <span className="flex h-[18px] items-center justify-center rounded-md bg-border-strong px-[6px] text-2xs font-medium text-fg-secondary">
           {doneCount}/{totalCount}
         </span>
@@ -258,14 +236,14 @@ export function TaskSubtaskSection(): React.ReactNode {
                       addSub(task.id);
                     }
                   }}
-                  placeholder="Subtask 추가"
+                  placeholder="하위 할 일 추가"
                   variant="ghost"
                   className="flex-1 text-md"
                 />
                 <Select
                   value={subWhos[task.id] ?? task.who}
                   onChange={(e) => setSubWhos((prev) => ({ ...prev, [task.id]: e.target.value as AssigneeKey }))}
-                  aria-label="Subtask 담당자"
+                  aria-label="하위 할 일 담당자"
                   size="sm"
                   className={selectCls}
                 >
@@ -296,14 +274,14 @@ export function TaskSubtaskSection(): React.ReactNode {
                 addTask();
               }
             }}
-            placeholder="Task 추가"
+            placeholder="할 일 추가"
             size="sm"
             className={draftInputCls}
           />
           <Select
             value={taskWho}
             onChange={(e) => setTaskWho(e.target.value as AssigneeKey)}
-            aria-label="Task 담당자"
+            aria-label="할 일 담당자"
             size="sm"
             className={selectCls}
           >

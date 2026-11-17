@@ -14,6 +14,7 @@ export const eventDto = z.object({
   status: eventStatus,
   priority: z.boolean(),
   color: z.string().nullable(),
+  budget: z.number().int().nonnegative().nullable(),
   version: z.number().int().positive(),
   createdAt: isoDateTime,
   updatedAt: isoDateTime,
@@ -30,10 +31,14 @@ export type EventListItemDto = z.infer<typeof eventListItemDto>;
 
 const dateRange = (v: { startDate?: string; endDate?: string }) => !v.startDate || !v.endDate || v.endDate >= v.startDate;
 
-/** 내부 직원이 생성하고, 생성자는 해당 행사의 PM이 된다 (명세 F-02). */
+/** 예산(원). 비우면 미정이다. */
+const budget = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+
+/** 내부 직원이 생성하고, 생성자는 해당 행사의 PM이 된다 (명세 F-02, 2026-11-17 결정). */
 export const createEventBody = z
   .object({
     clientId: uuid,
+    budget: budget.nullable().default(null),
     name: z.string().trim().min(1).max(200),
     startDate: isoDate,
     endDate: isoDate,
@@ -55,6 +60,7 @@ export const updateEventBody = z
     status: eventStatus,
     priority: z.boolean(),
     color: z.string().max(32).nullable(),
+    budget: budget.nullable(),
   })
   .partial()
   .refine(dateRange, { message: '종료일은 시작일 이후여야 한다', path: ['endDate'] });

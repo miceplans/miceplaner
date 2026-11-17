@@ -1,5 +1,5 @@
 /**
- * MICEPLANS 디자인 토큰 상수.
+ * MICEPLANNER 디자인 토큰 상수.
  * CSS 변수(src/design-system.css)와 1:1 대응하며, 스크립트·인라인 스타일에서
  * 프로그래매틱 접근이 필요할 때 사용한다. 값은 Figma 분석 기준.
  */

@@ -1,0 +1,39 @@
+name: Migrate production database
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/db/migrations/**'
+      - 'packages/db/scripts/migrate.sh'
+      - 'Dockerfile'
+      - '.github/workflows/migrate-database.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Migration files are ordered and each is applied with its record in the same
+# transaction. Do not run two deployments against the schema at once.
+concurrency:
+  group: production-database-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Apply unapplied SQL migrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reuse the same image and script as the documented manual migration.
+      # The secret must be a schema-owner connection string, never the
+      # application role's DATABASE_URL.
+      - name: Build migration image
+        run: docker build --target migrate --tag miceplans-migrate:${{ github.sha }} .
+
+      - name: Apply unapplied migrations
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_MIGRATION_URL }}
+        run: docker run --rm --env DATABASE_URL miceplans-migrate:${{ github.sha }}

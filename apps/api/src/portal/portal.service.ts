@@ -12,7 +12,7 @@ export class PortalService {
   constructor(@Inject(DB_POOL) private readonly pool: Pool) {}
 
   private requireClient(user: AuthUser) {
-    if (user.role !== 'client') throw new ForbiddenException('Client 포털은 Client만 사용할 수 있다');
+    if (user.role !== 'client') throw new ForbiddenException('[403] Client 포털은 Client만 사용할 수 있습니다.');
   }
 
   async events(user: AuthUser) {

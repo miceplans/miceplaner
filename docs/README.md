@@ -1,4 +1,4 @@
-# MICEPLANS 문서
+# MICEPLANNER 문서
 
 이 디렉터리는 제품 요구사항과 기술 결정을 함께 관리한다. 기능을 구현하거나 정책을 바꾸기 전에 관련 문서의 확정 사항과 열린 결정을 확인한다.
 
@@ -6,6 +6,7 @@
 | --- | --- |
 | [기능 명세서](functional-specification.md) | 사용자 역할별 기능 범위, 권한, 수용 기준, 단계별 출시 범위 |
 | [기술 결정 ADR](adr/0001-technical-decisions.md) | 기술 스택, 아키텍처 경계, 보안 및 운영 결정 |
+| [Vercel + Supabase 배포](deployment-vercel-supabase.md) | 기존 Supabase와 Vercel 서버리스 API·정적 웹 배포 절차 및 제약 |
 | [디자인 시스템](design-system.md) | 색·타이포그래피·간격 토큰 정의와 컴포넌트 규격 |
 
 ## 문서 상태

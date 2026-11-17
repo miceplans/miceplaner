@@ -9,14 +9,7 @@ export type InviteRole = (typeof ROLES)[number];
 export type Invitee = { id: string; name: string; role: string };
 
 /** PM이 행사에 초대할 수 있는 내부 사용자 후보. */
-export const INVITEES: Invitee[] = [
-  { id: 'SJ', name: '서준', role: 'Member' },
-  { id: 'MK', name: '민기', role: 'Member' },
-  { id: 'TR', name: '태리', role: 'Member' },
-  { id: 'AL', name: '아린', role: 'Member' },
-  { id: 'DN', name: '다은', role: 'Member' },
-  { id: 'JP', name: '재필', role: 'Member' },
-];
+export const INVITEES: Invitee[] = [];
 
 export function InviteDialog({
   eventName,

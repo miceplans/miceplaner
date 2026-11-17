@@ -1,6 +1,6 @@
 <svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g id="Tab Icon">
-<path id="Vector" d="M13.75 7.5H10L8.75 9.375H6.25L5 7.5H1.25" stroke="#4A4EC4" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-<path id="Vector_2" d="M3.40625 3.19375L1.25 7.5V11.25C1.25 11.5815 1.3817 11.8995 1.61612 12.1339C1.85054 12.3683 2.16848 12.5 2.5 12.5H12.5C12.8315 12.5 13.1495 12.3683 13.3839 12.1339C13.6183 11.8995 13.75 11.5815 13.75 11.25V7.5L11.5937 3.19375C11.4903 2.98549 11.3307 2.81023 11.1331 2.68767C10.9355 2.56512 10.7076 2.50012 10.475 2.5H4.525C4.29245 2.50012 4.06454 2.56512 3.8669 2.68767C3.66927 2.81023 3.50974 2.98549 3.40625 3.19375Z" stroke="#4A4EC4" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector" d="M13.75 7.5H10L8.75 9.375H6.25L5 7.5H1.25" stroke="#FF3939" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_2" d="M3.40625 3.19375L1.25 7.5V11.25C1.25 11.5815 1.3817 11.8995 1.61612 12.1339C1.85054 12.3683 2.16848 12.5 2.5 12.5H12.5C12.8315 12.5 13.1495 12.3683 13.3839 12.1339C13.6183 11.8995 13.75 11.5815 13.75 11.25V7.5L11.5937 3.19375C11.4903 2.98549 11.3307 2.81023 11.1331 2.68767C10.9355 2.56512 10.7076 2.50012 10.475 2.5H4.525C4.29245 2.50012 4.06454 2.56512 3.8669 2.68767C3.66927 2.81023 3.50974 2.98549 3.40625 3.19375Z" stroke="#FF3939" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 </svg>

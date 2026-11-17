@@ -1,4 +1,4 @@
-/** 연차 사용 현황 목업 데이터. 연도는 2026년 기준. */
+/** 연차 사용 현황 타입과 상수. */
 
 export type LeaveEmployee = {
   id: string;
@@ -17,16 +17,10 @@ export type LeaveEmployee = {
 /** 잔여 연차가 이 일수 이하면 부족으로 강조한다. */
 export const LOW_REMAINING_DAYS = 3;
 
-export const LEAVE_EMPLOYEES: LeaveEmployee[] = [
-  { id: 'e1', name: '황지영', role: '대표', total: 15, used: 8, monthly: [1, 0, 2, 0, 1, 1, 0, 2, 0, 1, 0, 0] },
-  { id: 'e2', name: '김한나', role: '기획 팀장', total: 15, used: 11, monthly: [2, 1, 1, 2, 1, 1, 0, 1, 1, 0, 1, 0] },
-  { id: 'e3', name: '이준호', role: '운영 팀장', total: 15, used: 5, monthly: [1, 0, 0, 1, 0, 0, 2, 0, 1, 0, 0, 0] },
-  { id: 'e4', name: '최서연', role: '그래픽 디자이너', total: 15, used: 12, monthly: [1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 0, 0] },
-  { id: 'e5', name: '박민수', role: '개발자', total: 15, used: 4, monthly: [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0] },
-  { id: 'e6', name: '정다은', role: '마케터', total: 15, used: 9, monthly: [1, 0, 1, 0, 2, 0, 1, 0, 2, 1, 0, 1] },
-  { id: 'e7', name: '서동현', role: '해외 영업', total: 18, used: 15, monthly: [2, 1, 1, 2, 1, 1, 2, 1, 2, 1, 1, 0] },
-  { id: 'e8', name: '한소미', role: '인사 담당', total: 15, used: 2, monthly: [0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0] },
-];
+export const LEAVE_EMPLOYEES: LeaveEmployee[] = [];
+
+/** 로그인 사용자 정보가 연결되기 전 쓰는 빈 값. */
+export const LEAVE_ME: LeaveEmployee = { id: 'me', name: '나', role: '', total: 0, used: 0, monthly: [] };
 
 export const MONTH_LABELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 
@@ -48,28 +42,8 @@ export const LEAVE_KINDS: { kind: LeaveKind; label: string; days: number; icon: 
 
 export type LeaveRecord = { date: string; employeeId: string; kind: LeaveKind };
 
-/** 목업 기준 오늘. */
-export const LEAVE_TODAY = '2026-10-22';
+/** 오늘(YYYY-MM-DD, 로컬 시간대). */
+export const LEAVE_TODAY = new Date().toLocaleDateString('sv-SE');
 
-/** 일자별 휴가 사용 내역 목업(date는 YYYY-MM-DD). */
-export const LEAVE_RECORDS: LeaveRecord[] = [
-  { date: '2026-09-03', employeeId: 'e2', kind: 'full' },
-  { date: '2026-09-10', employeeId: 'e3', kind: 'am-half' },
-  { date: '2026-09-10', employeeId: 'e6', kind: 'full' },
-  { date: '2026-09-17', employeeId: 'e3', kind: 'pm-half' },
-  { date: '2026-09-18', employeeId: 'e7', kind: 'full' },
-  { date: '2026-09-24', employeeId: 'e4', kind: 'full' },
-  { date: '2026-09-25', employeeId: 'e6', kind: 'full' },
-  { date: '2026-09-28', employeeId: 'e7', kind: 'full' },
-  { date: '2026-09-30', employeeId: 'e8', kind: 'full' },
-  { date: '2026-10-08', employeeId: 'e1', kind: 'full' },
-  { date: '2026-10-14', employeeId: 'e4', kind: 'full' },
-  { date: '2026-10-14', employeeId: 'e2', kind: 'pm-half' },
-  { date: '2026-10-21', employeeId: 'e6', kind: 'full' },
-  { date: '2026-10-22', employeeId: 'e5', kind: 'am-quarter' },
-  { date: '2026-10-22', employeeId: 'e3', kind: 'pm-quarter' },
-  { date: '2026-10-16', employeeId: 'e8', kind: 'comp' },
-  { date: '2026-10-29', employeeId: 'e7', kind: 'full' },
-  { date: '2026-11-12', employeeId: 'e5', kind: 'full' },
-  { date: '2026-11-19', employeeId: 'e2', kind: 'am-half' },
-];
+/** 일자별 휴가 사용 내역(date는 YYYY-MM-DD). */
+export const LEAVE_RECORDS: LeaveRecord[] = [];

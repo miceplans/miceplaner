@@ -2,14 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { LEAVE_EMPLOYEES, LEAVE_KINDS, LEAVE_RECORDS, LEAVE_TODAY } from './data';
+import { LEAVE_ME, LEAVE_EMPLOYEES, LEAVE_KINDS, LEAVE_RECORDS, LEAVE_TODAY } from './data';
 import { useWorkCheck } from './use-work-check';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const KIND_BY_ID = new Map(LEAVE_KINDS.map((k, i) => [k.kind, { ...k, order: i }]));
 const NAME_BY_ID = new Map(LEAVE_EMPLOYEES.map((e) => [e.id, e.name]));
-/** 목업: 로그인 사용자는 대표(e1)로 가정한다. */
-const ME = LEAVE_EMPLOYEES[0]!;
+/** 로그인 사용자 연동 전까지는 빈 값(LEAVE_ME)으로 둔다. */
+const ME = LEAVE_EMPLOYEES[0] ?? LEAVE_ME;
 
 function pad(n: number): string {
   return String(n).padStart(2, '0');
@@ -17,8 +17,9 @@ function pad(n: number): string {
 
 export function LeaveCalendar() {
   const router = useRouter();
-  const [year, setYear] = useState(2026);
-  const [month, setMonth] = useState(10);
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
   const { weekendWork, toggleWeekendWork, compUsed, compEarned, compRemaining } = useWorkCheck();
 
   const workSet = useMemo(() => new Set(weekendWork), [weekendWork]);

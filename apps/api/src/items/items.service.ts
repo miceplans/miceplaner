@@ -25,7 +25,7 @@ export class ItemsService {
 
   /** 행사 멤버 권한을 확인한다. */
   private async requireEditor(db: PoolClient, eventId: string) {
-    if (!canEditEventItems(await eventRole(db, eventId))) throw new ForbiddenException('행사 멤버만 할 수 있다');
+    if (!canEditEventItems(await eventRole(db, eventId))) throw new ForbiddenException('[403] 행사 멤버만 할 수 있습니다.');
   }
 
   async list(user: AuthUser, eventId: string, query: ListItemsQuery) {
@@ -61,7 +61,7 @@ export class ItemsService {
       await this.requireEditor(db, item.eventId);
       if (patch.status === '완료') {
         const closer = item.assigneeId ?? item.createdBy;
-        if (closer !== user.userId) throw new ForbiddenException('완료 처리는 담당자만 할 수 있다');
+        if (closer !== user.userId) throw new ForbiddenException('[403] 완료 처리는 담당자만 할 수 있습니다.');
       }
       return assertFound(await updateItem(db, itemId, patch), '항목');
     });
@@ -106,7 +106,7 @@ export class ItemsService {
     requireInternal(user);
     const row = await this.run(user, async (db) => {
       const item = assertFound(await getItem(db, itemId), '항목');
-      if (item.kind !== 'program') throw new BadRequestException('Program만 Client에 공개할 수 있다');
+      if (item.kind !== 'program') throw new BadRequestException('[403] Program만 Client에 공개할 수 있습니다.');
       await this.requireEditor(db, item.eventId);
       const updated = await setClientVisible(db, user.userId, itemId, body.clientVisible, body.expectedVersion);
       if (!updated) throw versionConflictError((await getItem(db, itemId))?.version ?? body.expectedVersion);

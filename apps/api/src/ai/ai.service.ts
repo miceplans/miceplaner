@@ -3,9 +3,9 @@ import {
   PROPOSAL_PAYLOADS, proposalDto, type AgentToolName, type ChatBody, type ChatEvent, type SearchHitDto,
 } from '@miceplans/contracts';
 import { PARENT_KIND, canQueryAi } from '@miceplans/domain';
-import { runAgent, systemPrompt, ToolError, type ChatMsg, type LlmClient, type ToolHandlers } from '@miceplans/ai';
+import { PersonNameMasker, runAgent, systemPrompt, ToolError, type ChatMsg, type LlmClient, type ToolHandlers } from '@miceplans/ai';
 import {
-  getDocPage, getEvent, getItem, insertProposal, listEvents, listItems, logAiCall, withContext, type Pool, type PoolClient,
+  getDocPage, getEvent, getItem, insertProposal, listEvents, listItems, listUsers, logAiCall, withContext, type Pool, type PoolClient,
 } from '@miceplans/db';
 import { AuthUser } from '../common/auth';
 import { config } from '../config';
@@ -33,18 +33,19 @@ export class AiService {
   /** 사용자당 분당 한도. 인스턴스 메모리로 충분하다(별도 캐시 없음). */
   private throttle(userId: string, now = Date.now()) {
     const recent = (this.calls.get(userId) ?? []).filter((t) => now - t < 60_000);
-    if (recent.length >= config.aiRequestsPerMinute) throw new HttpException('AI 질의가 너무 잦다. 잠시 후 다시 시도하라', HttpStatus.TOO_MANY_REQUESTS);
+    if (recent.length >= config.aiRequestsPerMinute) throw new HttpException('[429] AI 질의가 너무 잦습니다. 잠시 후 다시 시도해 주세요.', HttpStatus.TOO_MANY_REQUESTS);
     this.calls.set(userId, [...recent, now]);
+    if (this.calls.size > 1000) for (const [id, ts] of this.calls) if (ts.every((t) => now - t >= 60_000)) this.calls.delete(id);
   }
 
   /** 스트리밍을 시작하기 전에 검사한다. 통과하면 chat()을 호출해도 된다. */
   async prepare(user: AuthUser, body: ChatBody): Promise<LlmClient> {
-    if (!canQueryAi(user.role)) throw new ForbiddenException('Client는 AI 질의를 할 수 없다');
-    if (!this.llm) throw new ServiceUnavailableException('AI가 설정되지 않았다');
+    if (!canQueryAi(user.role)) throw new ForbiddenException('[403] Client는 AI 질의를 할 수 없습니다.');
+    if (!this.llm) throw new ServiceUnavailableException('[503] AI가 설정되지 않았습니다.');
     if (body.eventId) {
       const eventId = body.eventId;
       const visible = await withContext(this.pool, user, (db) => getEvent(db, eventId));
-      if (!visible) throw new ForbiddenException('행사를 찾을 수 없거나 볼 수 없다');
+      if (!visible) throw new ForbiddenException('[404] 행사를 찾을 수 없거나 볼 수 없습니다.');
     }
     this.throttle(user.userId);
     return this.llm;
@@ -53,11 +54,14 @@ export class AiService {
   async chat(user: AuthUser, body: ChatBody, llm: LlmClient, send: (e: ChatEvent) => void, signal?: AbortSignal): Promise<void> {
     const started = Date.now();
     const sources = new Map<string, Pick<SearchHitDto, 'docId' | 'title' | 'heading' | 'snippet'>>();
+    const people = await this.run(user, (db) => listUsers(db));
+    const masker = new PersonNameMasker([...people.map((person) => person.name), user.name]);
+    const restore = masker.createStreamRestorer();
     const messages: ChatMsg[] = [
       { role: 'system', content: systemPrompt({ today: new Date().toISOString().slice(0, 10), eventId: body.eventId }) },
-      ...body.messages,
+      ...body.messages.map((message) => ({ ...message, content: masker.redactText(message.content) })),
     ];
-    const handlers = this.handlers(user, sources, send);
+    const handlers = this.handlers(user, sources, send, masker);
     let result: Awaited<ReturnType<typeof runAgent>> | undefined;
     let failure: string | null = null;
     try {
@@ -66,15 +70,20 @@ export class AiService {
         messages,
         handlers,
         signal,
-        onText: (delta) => send({ type: 'text', delta }),
+        onText: (delta) => {
+          const restored = restore.push(delta);
+          if (restored) send({ type: 'text', delta: restored });
+        },
         onTool: (t) => send({ type: 'tool', name: t.name, ok: t.ok }),
       });
+      const tail = restore.flush();
+      if (tail) send({ type: 'text', delta: tail });
       if (sources.size) send({ type: 'sources', sources: [...sources.values()] });
       send({ type: 'done' });
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error);
       console.error(`[ai] 답변 생성 실패 (model=${llm.model}): ${failure}`);
-      send({ type: 'error', message: '답변을 만들지 못했다. 잠시 후 다시 시도하라' });
+      send({ type: 'error', message: '[500] 답변을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.' });
     }
     await this.log(user, body.eventId ?? null, llm.model, [...messages, ...(result?.messages ?? [])], result, started, failure);
   }
@@ -97,9 +106,14 @@ export class AiService {
     return withContext(this.pool, user, fn);
   }
 
-  private handlers(user: AuthUser, sources: Map<string, Pick<SearchHitDto, 'docId' | 'title' | 'heading' | 'snippet'>>, send: (e: ChatEvent) => void): ToolHandlers {
+  private handlers(user: AuthUser, sources: Map<string, Pick<SearchHitDto, 'docId' | 'title' | 'heading' | 'snippet'>>, send: (e: ChatEvent) => void, masker: PersonNameMasker): ToolHandlers {
     const propose = async <K extends keyof typeof PROPOSAL_PAYLOADS>(kind: K, eventId: string, summary: string, payload: unknown) => {
-      const row = await this.run(user, (db) => insertProposal(db, user.userId, { eventId, kind, summary, payload: PROPOSAL_PAYLOADS[kind].parse(payload) }));
+      const row = await this.run(user, (db) => insertProposal(db, user.userId, {
+        eventId,
+        kind,
+        summary: masker.restoreText(summary),
+        payload: PROPOSAL_PAYLOADS[kind].parse(masker.restore(payload)),
+      }));
       send({ type: 'proposal', proposal: proposalDto.parse(row) });
       return { proposalId: row.id, status: 'pending' as const, note: PROPOSAL_NOTE };
     };
@@ -119,32 +133,37 @@ export class AiService {
       },
       read_wiki_page: async ({ docId }) => {
         const page = await this.run(user, (db) => getDocPage(db, docId));
-        if (!page) throw new ToolError('문서를 찾을 수 없거나 볼 수 없다');
+        if (!page) throw new ToolError('[404] 문서를 찾을 수 없거나 볼 수 없습니다.');
         sources.set(page.id, { docId: page.id, title: page.title, heading: '', snippet: page.bodyMd.slice(0, 160) });
         return { docId: page.id, title: page.title, version: page.version, bodyMd: page.bodyMd.slice(0, MAX_PAGE_CHARS) };
       },
       propose_task_drafts: async ({ eventId, summary, drafts }) => {
         await this.run(user, async (db) => {
-          if (!(await getEvent(db, eventId))) throw new ToolError('행사를 찾을 수 없다');
+          if (!(await getEvent(db, eventId))) throw new ToolError('[404] 행사를 찾을 수 없습니다.');
+          const parents = new Map<string, Awaited<ReturnType<typeof getItem>>>();
+          for (const id of new Set(drafts.map((d) => d.parentId))) parents.set(id, await getItem(db, id));
           for (const d of drafts) {
-            const parent = await getItem(db, d.parentId);
-            if (!parent || parent.eventId !== eventId) throw new ToolError(`상위 항목을 이 행사에서 찾을 수 없다: ${d.parentId}`);
+            const parent = parents.get(d.parentId);
+            if (!parent || parent.eventId !== eventId) throw new ToolError(`[404] 상위 항목을 이 행사에서 찾을 수 없습니다: ${d.parentId}.`);
             if (parent.kind !== PARENT_KIND[d.kind]) throw new ToolError(`${d.kind}의 상위는 ${PARENT_KIND[d.kind]}이어야 한다`);
           }
         });
         return propose('task_drafts', eventId, summary, { drafts });
       },
       propose_notification: async ({ eventId, summary, ...payload }) => {
-        if (!(await this.run(user, (db) => getEvent(db, eventId)))) throw new ToolError('행사를 찾을 수 없다');
+        if (!(await this.run(user, (db) => getEvent(db, eventId)))) throw new ToolError('[404] 행사를 찾을 수 없습니다.');
         return propose('notification', eventId, summary, payload);
       },
       propose_wiki_edit: async ({ summary, ...payload }) => {
         const doc = await this.run(user, (db) => getDocPage(db, payload.docId));
-        if (!doc) throw new ToolError('문서를 찾을 수 없거나 볼 수 없다');
-        if (doc.version !== payload.baseVersion) throw new ToolError(`문서가 바뀌었다. read_wiki_page로 다시 읽어라 (현재 version ${doc.version})`);
+        if (!doc) throw new ToolError('[404] 문서를 찾을 수 없거나 볼 수 없습니다.');
+        if (doc.version !== payload.baseVersion) throw new ToolError(`[409] 문서가 바뀌었습니다. read_wiki_page로 다시 읽어 주세요 (현재 version ${doc.version}).`);
         return propose('wiki_edit', doc.eventId, summary, payload);
       },
     };
-    return tools as ToolHandlers;
+    return Object.fromEntries(Object.entries(tools).map(([name, handler]) => [
+      name,
+      async (input: never) => masker.redact(await (handler as (value: never) => Promise<unknown>)(input)),
+    ])) as ToolHandlers;
   }
 }

@@ -29,17 +29,17 @@ export class JwtAuthGuard implements CanActivate {
     try {
       payload = await verifySession(token);
     } catch {
-      throw new UnauthorizedException('세션이 유효하지 않다');
+      throw new UnauthorizedException('[401] 세션이 유효하지 않습니다.');
     }
     const userId = payload.sub;
     const role = typeof payload.role === 'string' && isRole(payload.role) ? payload.role : undefined;
-    if (!userId || !role) throw new UnauthorizedException('세션이 유효하지 않다');
+    if (!userId || !role) throw new UnauthorizedException('[401] 세션이 유효하지 않습니다.');
 
     // 매 요청 사용자 행을 확인해 삭제되거나 권한이 바뀐 세션을 즉시 무효화한다.
     const user = await withContext(this.pool, { workspaceId: config.workspaceId, userId, role }, (db) => getUserById(db, userId)).catch(
       () => undefined,
     );
-    if (!user) throw new UnauthorizedException('사용자를 찾을 수 없다');
+    if (!user) throw new UnauthorizedException('[401] 사용자를 찾을 수 없습니다.');
 
     req.user = { workspaceId: config.workspaceId, userId: user.id, role: user.role, name: user.name };
     return true;

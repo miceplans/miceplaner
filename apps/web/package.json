@@ -7,19 +7,24 @@
     "build": "next build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run"
+    "test": "vitest run",
+    "api:gen": "orval"
   },
   "dependencies": {
     "@hocuspocus/provider": "^4.8.0",
     "@miceplans/contracts": "workspace:*",
     "@miceplans/editor-schema": "workspace:*",
     "@miceplans/ui": "workspace:*",
+    "@tanstack/react-query": "^5.107.1",
+    "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-notification": "^2.8.0",
     "@tiptap/extension-collaboration": "3.32.1",
     "@tiptap/extension-collaboration-caret": "3.32.1",
     "@tiptap/react": "3.32.1",
     "next": "^15.5.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "read-excel-file": "^9.3.14",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
@@ -28,6 +33,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "orval": "^8.47.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.6.0",

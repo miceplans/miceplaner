@@ -17,14 +17,7 @@ const BACK_PATH =
 const FRONT_PATH =
   'M0.0227783 12.731C-0.398431 5.82892 5.08561 0 12.0005 0H186.577C193.46 0 198.932 5.77727 198.56 12.65L193.304 109.532C192.959 115.898 187.697 120.882 181.322 120.882H17.9129C11.5694 120.882 6.32159 115.945 5.93519 109.613L0.0227783 12.731Z';
 
-const FOLDERS = [
-  { year: 2026, color: 'fill-brand', photos: [1, 2] },
-  { year: 2025, color: 'fill-brand-pink', photos: [3, 4], href: '/events-by-year/2025' },
-  { year: 2024, color: 'fill-brand-amber', photos: [5, 6] },
-  { year: 2023, color: 'fill-brand-green', photos: [7, 8] },
-  { year: 2022, color: 'fill-brand-blue', photos: [9, 10] },
-  { year: 2021, color: 'fill-submit', photos: [11, 12] },
-] as const;
+const FOLDERS = [] as { year: number; color: string; photos: number[]; href?: string }[];
 
 type FolderData = (typeof FOLDERS)[number];
 
@@ -35,7 +28,7 @@ function Folder({ year, color, photos, href }: FolderData & { href?: string }) {
         <svg width="199" height="145" viewBox="0 0 199 145" fill="none" className="absolute left-0 top-0 block" aria-hidden>
           <path d={BACK_PATH} className={color} />
         </svg>
-        {/* 목업 사진 2장: 뒷면과 앞면 사이에서 호버 시 살짝 올라온다 */}
+        {/* 폴터 사진 2장: 뒷면과 앞면 사이에서 호버 시 살짝 올라온다 */}
         <img
           alt=""
           src={`${A}/photos/p${photos[0]}.jpg`}
