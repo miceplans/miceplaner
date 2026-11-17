@@ -59,62 +59,6 @@ const TAB_ROWS: Record<string, typeof SCHEDULES> = {
   ],
 };
 
-type Task = { title: string; meta: string; done?: boolean };
-
-const COLUMNS: { dot: string; title: string; count: number; pill: string; pillText: string; more: string; tasks: Task[] }[] = [
-  {
-    dot: 'dot', title: '진행', count: 5, pill: 'bg-info-bg', pillText: 'text-error-delay', more: '+ 3 more',
-    tasks: [
-      { title: 'Onboarding flow v2', meta: 'Due Today · 4 comments' },
-      { title: 'Mobile navigation', meta: 'Due Wednesday' },
-    ],
-  },
-  {
-    dot: 'dot1', title: '편집', count: 2, pill: 'bg-brand-tint', pillText: 'text-brand-deep', more: '+ 2 more',
-    tasks: [
-      { title: 'Brand guidelines', meta: 'Due Today' },
-      { title: 'Case study · Acme', meta: 'Due Monday' },
-    ],
-  },
-  {
-    dot: 'dot2', title: '완료', count: 8, pill: 'bg-success-bg', pillText: 'text-success-deep', more: '+ 6 more',
-    tasks: [
-      { title: 'Pricing page revamp', meta: 'Shipped May 12', done: true },
-      { title: 'Design tokens v1.2', meta: 'Shipped May 10', done: true },
-    ],
-  },
-  {
-    dot: 'dot3', title: '보류', count: 3, pill: 'bg-surface-section', pillText: 'text-fg-secondary', more: '+ 5 more',
-    tasks: [
-      { title: 'Website copy rewrite', meta: 'Due Tomorrow' },
-      { title: 'Q3 research plan', meta: 'Due Friday' },
-    ],
-  },
-];
-
-const MORE_COLOR = ['text-error-delay', 'text-brand-deep', 'text-success-deep', 'text-fg-secondary'];
-
-function TaskCard({ task }: { task: Task }) {
-  return (
-    <div className="flex w-full shrink-0 flex-col items-start gap-[7px] rounded-xl bg-surface-muted px-[11px] py-[10px]">
-      <div className="flex w-full items-center gap-[8px]">
-        {task.done ? (
-          <div className="flex size-[17px] shrink-0 items-center justify-center rounded-sm bg-success-solid">
-            <img alt="" src={`${A}/check-icon.svg`} className="size-[10px]" />
-          </div>
-        ) : (
-          <div className="size-[17px] shrink-0 rounded-sm border-[1.5px] border-solid border-border-placeholder" />
-        )}
-        <span className={`whitespace-nowrap text-xs font-semibold ${task.done ? 'text-fg-secondary' : 'text-fg'}`}>{task.title}</span>
-      </div>
-      <div className="flex w-full items-center gap-[5px]">
-        <img alt="" src={`${A}/meta-dot.svg`} className="size-[3px]" />
-        <span className="whitespace-nowrap text-2xs text-fg-muted">{task.meta}</span>
-      </div>
-    </div>
-  );
-}
-
 function MiniTask({ title, meta, h37 }: { title: string; meta?: string; h37?: boolean }) {
   return (
     <div className={`flex shrink-0 flex-col items-start rounded-md bg-surface-muted px-[11px] py-[10px] ${h37 ? 'h-[37px] justify-between' : ''}`} style={{ width: meta ? 412 : 224 }}>
@@ -213,25 +157,6 @@ export function DashboardView() {
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="flex w-full items-start gap-[16px]">
-        {COLUMNS.map((c, ci) => (
-          <div key={c.title} className={`flex min-w-px flex-1 flex-col items-start gap-[10px] self-stretch rounded-md bg-surface p-[14px] ${SHADOW}`}>
-            <div className="flex w-full items-center gap-[8px]">
-              <img alt="" src={`${A}/${c.dot}.svg`} className="size-[8px]" />
-              <span className="whitespace-nowrap text-base font-bold text-fg">{c.title}</span>
-              <div className="h-px min-w-px flex-1" />
-              <span className={`flex items-center justify-center self-stretch rounded-full px-[9px] py-[2px] text-2xs font-bold ${c.pill} ${c.pillText}`}>{c.count}</span>
-            </div>
-            {c.tasks.map((t) => (
-              <TaskCard key={t.title} task={t} />
-            ))}
-            <div className="flex w-full items-start p-[2px]">
-              <span className={`whitespace-nowrap text-2xs font-semibold ${MORE_COLOR[ci]}`}>{c.more}</span>
-            </div>
-          </div>
-        ))}
       </div>
 
       <div className="flex w-full items-center gap-[20px] px-[5px]">
