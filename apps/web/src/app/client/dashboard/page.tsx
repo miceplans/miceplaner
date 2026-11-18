@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { ClientHeader } from '@miceplans/ui';
-import type { PortalEventDto, PortalProgramDto } from '@miceplans/contracts/portal';
-import { listPortalEvents, listPortalPrograms } from '../../../lib/api';
+import type { PortalProgramDto } from '@miceplans/contracts/portal';
 import {
   ddayLabel,
   daysUntil,
@@ -16,6 +15,7 @@ import {
   todayIso,
   type ScheduleState,
 } from '../portal';
+import { eventDetailHref, usePortalData } from '../use-portal-data';
 
 const A = '/assets/client/dashboard';
 
@@ -35,21 +35,10 @@ function StatePill({ state }: { state: ScheduleState }) {
 
 /** Client 대시보드. 명세 F-07 범위(행사·Program 일정) 데이터로만 구성한다. */
 export default function ClientDashboardPage() {
-  const [events, setEvents] = useState<PortalEventDto[] | null>(null);
-  const [programs, setPrograms] = useState<PortalProgramDto[] | null>(null);
+  const { events, programs, error } = usePortalData();
   const today = todayIso();
 
-  useEffect(() => {
-    let alive = true;
-    listPortalEvents().then((rows) => { if (alive) setEvents(rows); }).catch(() => { if (alive) setEvents([]); });
-    listPortalPrograms().then((rows) => { if (alive) setPrograms(rows); }).catch(() => { if (alive) setPrograms([]); });
-    return () => { alive = false; };
-  }, []);
-
-  const eventName = useMemo(() => {
-    if (!events || !programs) return new Map<string, string>();
-    return new Map(events.map((e) => [e.eventId, e.name]));
-  }, [events, programs]);
+  const eventName = useMemo(() => new Map((events ?? []).map((e) => [e.eventId, e.name])), [events]);
 
   const loading = events === null || programs === null;
   const sortedEvents = useMemo(() => (events ? [...events].sort((a, b) => a.startDate.localeCompare(b.startDate)) : []), [events]);
@@ -89,6 +78,9 @@ export default function ClientDashboardPage() {
       <ClientHeader active="dashboard" />
       <main className="flex min-h-px flex-1 items-start px-[40px] pb-[36px] pt-[40px]">
         <div className="flex w-[1361px] flex-col items-center gap-[22px]">
+          {error ? (
+            <p role="alert" className="w-full rounded-xl bg-error-bg px-[20px] py-[12px] text-sm text-error-delay">{error}</p>
+          ) : null}
           <div className="flex w-full items-center gap-[22px]">
             <a
               href="/client/events"
@@ -173,7 +165,7 @@ export default function ClientDashboardPage() {
                 ) : (
                   sortedEvents.slice(0, 5).map((e) => (
                     <li key={e.eventId} className="flex min-h-[36px] w-full items-center justify-between gap-[8px]">
-                      <a href={`/client/events/${e.eventId}`} className="min-w-px flex-1 truncate text-sm text-fg">
+                      <a href={eventDetailHref(e.eventId)} className="min-w-px flex-1 truncate text-sm text-fg">
                         {e.name}
                       </a>
                       <StatePill state={eventState(e.startDate, e.endDate, today)} />
@@ -236,7 +228,7 @@ export default function ClientDashboardPage() {
                     })}
                     {hiddenPrograms > 0 ? (
                       <li className="text-2xs font-medium text-brand">
-                        <a href={`/client/events/${focus.eventId}`}>+ {hiddenPrograms}개 더 보기</a>
+                        <a href={eventDetailHref(focus.eventId)}>+ {hiddenPrograms}개 더 보기</a>
                       </li>
                     ) : null}
                   </ul>

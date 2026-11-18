@@ -1,25 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { ClientHeader } from '@miceplans/ui';
-import type { PortalEventDto } from '@miceplans/contracts/portal';
-import { listPortalEvents } from '../../../lib/api';
 import { ddayLabel, formatDay, formatMonth, todayIso } from '../portal';
+import { eventDetailHref, usePortalData } from '../use-portal-data';
 
 const HOT = new Set(['D-7', 'D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1']);
 
 /** 내 지정 행사 목록. 시작일 오름차순 (명세 F-07). */
 export default function ClientEventsPage() {
-  const [events, setEvents] = useState<PortalEventDto[] | null>(null);
+  const { events: rows, error } = usePortalData();
+  const events = useMemo(() => (rows ? [...rows].sort((a, b) => a.startDate.localeCompare(b.startDate)) : null), [rows]);
   const today = todayIso();
-
-  useEffect(() => {
-    let alive = true;
-    listPortalEvents()
-      .then((rows) => { if (alive) setEvents([...rows].sort((a, b) => a.startDate.localeCompare(b.startDate))); })
-      .catch(() => { if (alive) setEvents([]); });
-    return () => { alive = false; };
-  }, []);
 
   return (
     <div className="flex min-h-[900px] w-full min-w-[1440px] flex-col bg-surface-sunken">
@@ -31,7 +23,9 @@ export default function ClientEventsPage() {
             <p className="text-md text-fg-secondary">공유된 행사만 표시됩니다</p>
           </div>
           <ul className="flex w-full flex-col items-start rounded-xl border border-solid border-border bg-surface py-[6px]">
-            {events === null ? (
+            {error ? (
+              <li role="alert" className="flex h-[72px] w-full items-center justify-center text-sm text-error-delay">{error}</li>
+            ) : events === null ? (
               <li className="flex h-[72px] w-full items-center justify-center text-sm text-fg-tertiary">불러오는 중…</li>
             ) : events.length === 0 ? (
               <li className="flex h-[72px] w-full items-center justify-center text-sm text-fg-tertiary">지정된 행사가 없습니다</li>
@@ -41,7 +35,7 @@ export default function ClientEventsPage() {
                 return (
                   <li key={e.eventId} className="w-full">
                     <a
-                      href={`/client/events/${e.eventId}`}
+                      href={eventDetailHref(e.eventId)}
                       className="flex min-h-[72px] w-full items-center gap-[16px] border-b border-solid border-border px-[20px] py-[12px]"
                     >
                       <div className="flex w-[48px] shrink-0 flex-col items-center whitespace-nowrap">

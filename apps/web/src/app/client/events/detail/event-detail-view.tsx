@@ -1,10 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import type { PortalEventDto, PortalProgramDto } from '@miceplans/contracts/portal';
-import { listPortalEvents, listPortalPrograms } from '../../../../lib/api';
+import { useSearchParams } from 'next/navigation';
 import { ddayLabel, eventState, formatRange, inclusiveDays, programState, sortPrograms, todayIso } from '../../portal';
+import { usePortalData } from '../../use-portal-data';
 
 const A = '/assets/client/event-detail';
 
@@ -18,17 +16,9 @@ const STATE_TONE: Record<string, string> = {
 
 /** 지정된 행사의 기본 정보와 공개 Program 일정 (명세 F-07). */
 export function ClientEventDetailView() {
-  const { id } = useParams<{ id: string }>();
-  const [events, setEvents] = useState<PortalEventDto[] | null>(null);
-  const [programs, setPrograms] = useState<PortalProgramDto[] | null>(null);
+  const id = useSearchParams().get('id') ?? '';
+  const { events, programs, error } = usePortalData();
   const today = todayIso();
-
-  useEffect(() => {
-    let alive = true;
-    listPortalEvents().then((rows) => { if (alive) setEvents(rows); }).catch(() => { if (alive) setEvents([]); });
-    listPortalPrograms().then((rows) => { if (alive) setPrograms(rows); }).catch(() => { if (alive) setPrograms([]); });
-    return () => { alive = false; };
-  }, []);
 
   const event = events?.find((e) => e.eventId === id) ?? null;
   const schedule = programs && event ? sortPrograms(programs.filter((p) => p.eventId === event.eventId)) : null;
@@ -54,7 +44,9 @@ export function ClientEventDetailView() {
             <img alt="" src={`${A}/back.svg`} className="size-[15px]" />
             <span className="whitespace-nowrap text-base text-fg-secondary">행사 일정</span>
           </a>
-          {events === null || programs === null ? (
+          {error ? (
+            <p role="alert" className="flex h-[120px] w-full items-center justify-center text-sm text-error-delay">{error}</p>
+          ) : events === null || programs === null ? (
             <p className="flex h-[120px] w-full items-center justify-center text-sm text-fg-tertiary">불러오는 중…</p>
           ) : !event ? (
             <p className="flex h-[120px] w-full items-center justify-center text-sm text-fg-tertiary">행사를 찾을 수 없습니다</p>

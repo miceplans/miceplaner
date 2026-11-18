@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ClientHeader } from '@miceplans/ui';
-import type { PortalProgramDto } from '@miceplans/contracts/portal';
-import { listPortalPrograms } from '../../../lib/api';
 import { calendarWeeks, chipsByDay, todayIso, type ScheduleState } from '../portal';
+import { usePortalData } from '../use-portal-data';
 
 const A = '/assets/client/calendar-view';
 
@@ -23,16 +22,10 @@ const LEGEND: [ScheduleState, string][] = [
 
 /** 지정된 행사의 Program 일정을 달력으로 본다. 지연 상태는 Client에게 노출하지 않는다 (명세 F-07). */
 export default function ClientCalendarPage() {
-  const [programs, setPrograms] = useState<PortalProgramDto[] | null>(null);
+  const { programs, error } = usePortalData();
   const today = todayIso();
   const [todayYear, todayMonth] = [Number(today.slice(0, 4)), Number(today.slice(5, 7))];
   const [cursor, setCursor] = useState({ year: todayYear, month: todayMonth });
-
-  useEffect(() => {
-    let alive = true;
-    listPortalPrograms().then((rows) => { if (alive) setPrograms(rows); }).catch(() => { if (alive) setPrograms([]); });
-    return () => { alive = false; };
-  }, []);
 
   const weeks = useMemo(() => calendarWeeks(cursor.year, cursor.month), [cursor]);
   const chips = useMemo(
@@ -136,7 +129,9 @@ export default function ClientCalendarPage() {
               })}
             </div>
           ))}
-          {programs !== null && chips.size === 0 ? (
+          {error ? (
+            <p role="alert" className="flex w-full justify-center pt-[16px] text-sm text-error-delay">{error}</p>
+          ) : programs !== null && chips.size === 0 ? (
             <p className="flex w-full justify-center pt-[16px] text-sm text-fg-tertiary">이 달에 공유된 일정이 없습니다</p>
           ) : null}
         </div>
