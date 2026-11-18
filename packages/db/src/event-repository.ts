@@ -5,10 +5,21 @@ import { isRole, type EventStatus, type Role } from '@miceplans/domain';
 export type EventRow = {
   id: string; clientId: string; name: string; startDate: string; endDate: string; place: string; status: EventStatus;
   priority: boolean; color: string | null; budget: number | null; version: number; createdBy: string | null; createdAt: string; updatedAt: string;
+  clientName: string; pmName: string | null; amName: string | null;
 };
 
 const COLUMNS = `id, client_id AS "clientId", name, to_char(start_date, 'YYYY-MM-DD') AS "startDate", to_char(end_date, 'YYYY-MM-DD') AS "endDate",
   place, status, priority, color, budget::float8 AS budget, version, created_by AS "createdBy", ${isoTs('created_at', 'createdAt')}, ${isoTs('updated_at', 'updatedAt')}`;
+
+// 목록·상세는 고객사 이름과 PM·AM 이름까지 함께 보여 준다. 고객사는 삭제돼도 행사가
+// 사라지지 않게 LEFT JOIN으로 건다(삭제된 고객사는 RLS로 이름이 null이 된다).
+const SELECT_COLUMNS = `e.id, e.client_id AS "clientId", e.name, to_char(e.start_date, 'YYYY-MM-DD') AS "startDate", to_char(e.end_date, 'YYYY-MM-DD') AS "endDate",
+  e.place, e.status, e.priority, e.color, e.budget::float8 AS budget, e.version, e.created_by AS "createdBy", ${isoTs('e.created_at', 'createdAt')}, ${isoTs('e.updated_at', 'updatedAt')},
+  c.name AS "clientName",
+  (SELECT string_agg(u.name, ', ' ORDER BY u.name) FROM event_members m JOIN users u ON u.id = m.user_id WHERE m.event_id = e.id AND m.role = 'pm') AS "pmName",
+  (SELECT string_agg(u.name, ', ' ORDER BY u.name) FROM event_members m JOIN users u ON u.id = m.user_id WHERE m.event_id = e.id AND m.role = 'am') AS "amName"`;
+
+const FROM = `FROM events e LEFT JOIN clients c ON c.id = e.client_id`;
 
 /** 조회 필터는 날짜·고객사·상태다. 권한 밖 행사는 RLS가 걸러낸다. */
 export async function listEvents(client: PoolClient, filter: { year?: number; clientId?: string; status?: string }): Promise<EventRow[]> {
@@ -16,20 +27,40 @@ export async function listEvents(client: PoolClient, filter: { year?: number; cl
   const vals: unknown[] = [];
   if (filter.year !== undefined) {
     vals.push(`${filter.year}-01-01`, `${filter.year + 1}-01-01`);
-    cond.push(`start_date >= $${vals.length - 1}::date AND start_date < $${vals.length}::date`);
+    cond.push(`e.start_date >= $${vals.length - 1}::date AND e.start_date < $${vals.length}::date`);
   }
-  if (filter.clientId) { vals.push(filter.clientId); cond.push(`client_id = $${vals.length}`); }
-  if (filter.status) { vals.push(filter.status); cond.push(`status = $${vals.length}`); }
-  const { rows } = await client.query<EventRow>(`SELECT ${COLUMNS} FROM events ${cond.length ? `WHERE ${cond.join(' AND ')}` : ''} ORDER BY start_date, name`, vals);
+  if (filter.clientId) { vals.push(filter.clientId); cond.push(`e.client_id = $${vals.length}`); }
+  if (filter.status) { vals.push(filter.status); cond.push(`e.status = $${vals.length}`); }
+  const { rows } = await client.query<EventRow>(`SELECT ${SELECT_COLUMNS} ${FROM} ${cond.length ? `WHERE ${cond.join(' AND ')}` : ''} ORDER BY e.start_date, e.name`, vals);
   return rows;
 }
 
 export async function getEvent(client: PoolClient, id: string): Promise<EventRow | undefined> {
-  const { rows } = await client.query<EventRow>(`SELECT ${COLUMNS} FROM events WHERE id = $1`, [id]);
+  const { rows } = await client.query<EventRow>(`SELECT ${SELECT_COLUMNS} ${FROM} WHERE e.id = $1`, [id]);
   return rows[0];
 }
 
 export type EventPatch = { name?: string; startDate?: string; endDate?: string; place?: string; status?: EventStatus; priority?: boolean; color?: string | null; budget?: number | null };
+
+export type NewEvent = {
+  clientId: string; name: string; startDate: string; endDate: string; place?: string; status?: EventStatus;
+  priority?: boolean; color?: string | null; budget?: number | null;
+};
+
+/**
+ * 내부 직원이 만든 행사는 생성자가 최초 PM이 된다. INSERT 정책과 함께
+ * create_event_with_pm(0015) 함수 하나로 묶어 RLS 예외 없이 한 트랜잭션으로 처리한다.
+ * 생성자는 컨텍스트의 app_user_id()로 정해지므로 호출자가 임의로 지정할 수 없다.
+ */
+export async function createEvent(client: PoolClient, event: NewEvent): Promise<EventRow> {
+  const { rows } = await client.query<{ id: string }>(
+    `SELECT create_event_with_pm($1, $2, $3, $4, $5, $6, $7, $8, $9) AS id`,
+    [event.clientId, event.name, event.startDate, event.endDate, event.place ?? '', event.status ?? '진행중', event.priority ?? false, event.color ?? null, event.budget ?? null],
+  );
+  const row = await getEvent(client, rows[0]!.id);
+  if (!row) throw new Error('행사 생성 후 조회에 실패했다');
+  return row;
+}
 
 /** 일반 필드는 마지막 저장 우선이라 version을 받지 않는다. 권한이 없거나 대상이 없으면 undefined다 (RLS). */
 export async function updateEvent(client: PoolClient, id: string, patch: EventPatch): Promise<EventRow | undefined> {
@@ -92,6 +123,31 @@ export async function changeEventMemberRole(client: PoolClient, actorId: string,
   return row;
 }
 
+/**
+ * PM 권한을 다른 기존 행사 멤버에게 넘긴다. 새 PM을 먼저 지정해 최소 한 명 PM
+ * 제약을 만족시킨 뒤, 요청자를 일반 멤버로 바꾼다. 호출자는 withContext 트랜잭션 안의 PM이다.
+ */
+export async function transferPm(client: PoolClient, eventId: string, fromUserId: string, toUserId: string): Promise<boolean> {
+  if (fromUserId === toUserId) return false;
+  const promoted = await client.query<EventMemberRow>(
+    `UPDATE event_members SET role = 'pm'
+     WHERE event_id = $1 AND user_id = $2
+     RETURNING event_id AS "eventId", user_id AS "userId", role`,
+    [eventId, toUserId],
+  );
+  if (!promoted.rows[0]) return false;
+  const demoted = await client.query<EventMemberRow>(
+    `UPDATE event_members SET role = 'member'
+     WHERE event_id = $1 AND user_id = $2 AND role = 'pm'
+     RETURNING event_id AS "eventId", user_id AS "userId", role`,
+    [eventId, fromUserId],
+  );
+  if (!demoted.rows[0]) return false;
+  await client.query(`INSERT INTO audit_log (event_id, actor_id, action, detail) VALUES ($1, $2, 'member.pm.transfer', $3)`, [eventId, fromUserId, JSON.stringify({ fromUserId, toUserId })]);
+  await notifyPmTransferred(client, eventId, fromUserId, toUserId);
+  return true;
+}
+
 /** 지정된 Client 목록. 조회는 행사 관리자만 한다 (RLS). */
 export async function listEventClients(client: PoolClient, eventId: string): Promise<string[]> {
   const { rows } = await client.query<{ userId: string }>(`SELECT client_user_id AS "userId" FROM event_clients WHERE event_id = $1 ORDER BY client_user_id`, [eventId]);
@@ -113,6 +169,16 @@ async function notifyMemberChanged(client: PoolClient, eventId: string, userId: 
   const { rows } = await client.query<{ name: string }>(`SELECT name FROM events WHERE id = $1`, [eventId]);
   const title = rows[0]?.name ?? '행사';
   await client.query(`INSERT INTO notifications (recipient_id, event_id, kind, title) VALUES ($1, $2, 'member_changed', $3)`, [userId, eventId, `${title} (${change === 'add' ? '추가' : '삭제'})`]);
+}
+
+/** PM 넘기기는 멤버 추가가 아니므로 넘긴 사람과 넘겨받은 사람 양쪽에 알림을 남긴다 (명세 F-06). */
+async function notifyPmTransferred(client: PoolClient, eventId: string, fromUserId: string, toUserId: string) {
+  const { rows } = await client.query<{ name: string }>(`SELECT name FROM events WHERE id = $1`, [eventId]);
+  const title = rows[0]?.name ?? '행사';
+  await client.query(
+    `INSERT INTO notifications (recipient_id, event_id, kind, title) VALUES ($1, $2, 'pm_transferred', $3), ($4, $2, 'pm_transferred', $5)`,
+    [toUserId, eventId, `${title}에서 PM을 넘겨받았습니다`, fromUserId, `${title}에서 PM을 넘겼습니다`],
+  );
 }
 
 // ── 사용자·고객사 조회 ──────────────────────────────────────────────────────

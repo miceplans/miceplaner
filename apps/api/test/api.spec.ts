@@ -57,7 +57,7 @@ beforeAll(async () => {
   await admin.query(`INSERT INTO event_clients VALUES ($1, $2)`, [EVENT, U.client]);
   await admin.query(`INSERT INTO event_docs (id, event_id, title, visibility) VALUES ($1,$2,'멤버 문서','members'), ($3,$2,'전체 문서','all')`, [DOC_MEMBERS, EVENT, DOC_ALL]);
 
-  for (const [name, uid] of Object.entries(U)) tokens[name] = await sign(uid, name === 'client' || name === 'client2' ? 'client' : 'staff');
+  for (const [name, uid] of Object.entries(U)) tokens[name] = await sign(uid, name === 'client' || name === 'client2' ? 'client' : name === 'admin' ? 'super_admin' : 'staff');
 
   const hiworksMembers = new Map([
     ['new@x.test', { email: 'new@x.test', name: '신규' }],
@@ -161,6 +161,23 @@ describe('행사 관리 (F-02)', () => {
     const log = await admin.query(`SELECT action FROM audit_log WHERE action = 'event.delete'`);
     expect(log.rowCount).toBe(1);
   });
+  it('Staff는 행사를 만들고 자동으로 PM이 된다', async () => {
+    const res = await api().post('/events').set(as('staff')).send({
+      clientId: CO,
+      name: '신규 행사',
+      startDate: '2026-09-10',
+      endDate: '2026-09-12',
+      place: '코엑스',
+    }).expect(201);
+    expect(res.body).toMatchObject({ name: '신규 행사', clientId: CO, status: '진행중' });
+    expect((await api().get(`/events/${res.body.id}/members`).set(as('staff')).expect(200)).body).toEqual([
+      { eventId: res.body.id, userId: U.staff, role: 'pm' },
+    ]);
+    expect((await admin.query(`SELECT action FROM audit_log WHERE event_id = $1`, [res.body.id])).rows).toContainEqual({ action: 'event.create' });
+  });
+  it('Client는 행사를 만들 수 없다', async () => {
+    await api().post('/events').set(as('client')).send({ clientId: CO, name: 'x', startDate: '2026-09-10', endDate: '2026-09-12' }).expect(403);
+  });
 });
 
 describe('행사 멤버 관리 (F-02, F-06)', () => {
@@ -176,6 +193,36 @@ describe('행사 멤버 관리 (F-02, F-06)', () => {
     await api().delete(`/events/${EVENT}/members/${U.pm}`).set(as('pm')).expect(409);
     const log = await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'member.role.change'`);
     expect(log.rows[0].n).toBe(1);
+  });
+  it('PM은 기존 행사 멤버에게 역할을 넘기고 본인은 일반 멤버가 된다', async () => {
+    const created = await api().post('/events').set(as('staff')).send({ clientId: CO, name: '인수인계 행사', startDate: '2026-10-01', endDate: '2026-10-02' }).expect(201);
+    await api().post(`/events/${created.body.id}/members`).set(as('staff')).send({ userId: U.target, role: 'am' }).expect(201);
+    await api().post(`/events/${created.body.id}/transfer-pm`).set(as('staff')).send({ userId: U.target }).expect(201);
+    expect((await api().get(`/events/${created.body.id}/members`).set(as('staff')).expect(200)).body).toEqual([
+      { eventId: created.body.id, userId: U.staff, role: 'member' },
+      { eventId: created.body.id, userId: U.target, role: 'pm' },
+    ]);
+    await api().post(`/events/${created.body.id}/transfer-pm`).set(as('staff')).send({ userId: U.target }).expect(403);
+    expect((await admin.query(`SELECT action FROM audit_log WHERE event_id = $1`, [created.body.id])).rows).toContainEqual({ action: 'member.pm.transfer' });
+  });
+  it('PM 넘기기는 양쪽에 pm_transferred 알림이 간다 (추가 알림이 아니다)', async () => {
+    const created = await api().post('/events').set(as('staff')).send({ clientId: CO, name: '알림 행사', startDate: '2026-10-05', endDate: '2026-10-06' }).expect(201);
+    await api().post(`/events/${created.body.id}/members`).set(as('staff')).send({ userId: U.target }).expect(201);
+    await api().post(`/events/${created.body.id}/transfer-pm`).set(as('staff')).send({ userId: U.target }).expect(201);
+    const received = (await api().get('/notifications').set(as('target')).expect(200)).body as { kind: string; title: string }[];
+    const given = (await api().get('/notifications').set(as('staff')).expect(200)).body as { kind: string; title: string }[];
+    expect(received.find((n) => n.kind === 'pm_transferred')?.title).toContain('넘겨받았습니다');
+    expect(given.find((n) => n.kind === 'pm_transferred')?.title).toContain('넘겼습니다');
+  });
+  it('Super Admin이 만든 행사는 Super Admin이 PM을 넘길 수 있다', async () => {
+    const created = await api().post('/events').set(as('admin')).send({ clientId: CO, name: '관리자 행사', startDate: '2026-10-07', endDate: '2026-10-08' }).expect(201);
+    expect(created.body).toMatchObject({ pmName: 'Admin', clientName: '고객사' });
+    await api().post(`/events/${created.body.id}/members`).set(as('admin')).send({ userId: U.target }).expect(201);
+    await api().post(`/events/${created.body.id}/transfer-pm`).set(as('admin')).send({ userId: U.target }).expect(201);
+    expect((await api().get(`/events/${created.body.id}/members`).set(as('admin')).expect(200)).body).toEqual([
+      { eventId: created.body.id, userId: U.admin, role: 'member' },
+      { eventId: created.body.id, userId: U.target, role: 'pm' },
+    ]);
   });
 });
 

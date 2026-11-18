@@ -14,5 +14,6 @@ export const NotificationDtoKind = {
   schedule_changed: 'schedule_changed',
   due_soon: 'due_soon',
   member_changed: 'member_changed',
+  pm_transferred: 'pm_transferred',
   client_application: 'client_application',
 } as const;

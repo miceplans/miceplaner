@@ -271,7 +271,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/EventDto"
+                    "$ref": "#/components/schemas/EventListItemDto"
                   }
                 }
               }
@@ -302,13 +302,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventDto"
+                  "$ref": "#/components/schemas/EventListItemDto"
                 }
               }
             }
           }
         },
-        "summary": "행사 생성 (고객사·PM·AM·예산 지정, 감사 로그 대상)",
+        "summary": "행사 생성 (내부 직원, 생성자는 자동 PM, 감사 로그 대상)",
         "tags": [
           "events"
         ]
@@ -334,7 +334,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventDto"
+                  "$ref": "#/components/schemas/EventListItemDto"
                 }
               }
             }
@@ -562,6 +562,51 @@
           }
         },
         "summary": "행사 멤버 삭제 (최소 1명 PM 유지, 당사자에게 알림)",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/events/{id}/transfer-pm": {
+      "post": {
+        "operationId": "eventsTransferPm",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferPmBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventMemberDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "PM 넘기기 (현재 PM은 일반 멤버가 됨, 감사 로그 대상)",
         "tags": [
           "events"
         ]
@@ -2805,22 +2850,112 @@
         ],
         "additionalProperties": false
       },
-      "CreateEventBody": {
+      "EventListItemDto": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
           "clientId": {
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           },
-          "pmId": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          "name": {
+            "type": "string"
           },
-          "amId": {
-            "default": null,
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "place": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "진행중",
+              "성공",
+              "확인중",
+              "만료",
+              "제출",
+              "보류중"
+            ]
+          },
+          "priority": {
+            "type": "boolean"
+          },
+          "color": {
             "nullable": true,
+            "type": "string"
+          },
+          "budget": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": true,
+            "maximum": 9007199254740991
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "clientName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "pmName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "amName": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "clientId",
+          "name",
+          "startDate",
+          "endDate",
+          "place",
+          "status",
+          "priority",
+          "color",
+          "budget",
+          "version",
+          "createdAt",
+          "updatedAt",
+          "clientName",
+          "pmName",
+          "amName"
+        ],
+        "additionalProperties": false
+      },
+      "CreateEventBody": {
+        "type": "object",
+        "properties": {
+          "clientId": {
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -2877,8 +3012,6 @@
         },
         "required": [
           "clientId",
-          "pmId",
-          "amId",
           "budget",
           "name",
           "startDate",
@@ -3007,6 +3140,20 @@
         },
         "required": [
           "role"
+        ],
+        "additionalProperties": false
+      },
+      "TransferPmBody": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "userId"
         ],
         "additionalProperties": false
       },
@@ -3357,6 +3504,7 @@
               "schedule_changed",
               "due_soon",
               "member_changed",
+              "pm_transferred",
               "client_application"
             ]
           },

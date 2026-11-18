@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canDeleteEvent, canEditEventItems, canManageMembers } from './event-items';
+import { canDeleteEvent, canEditEventItems, canManageMembers, canTransferPm } from './event-items';
 
 describe('행사 권한 (명세 2.2)', () => {
   it('Program 이하 편집은 행사 멤버까지', () => {
@@ -12,5 +12,12 @@ describe('행사 권한 (명세 2.2)', () => {
   it('행사 삭제는 PM만', () => {
     expect(canDeleteEvent('pm')).toBe(true);
     expect(canDeleteEvent('am')).toBe(false);
+  });
+  it('PM 넘기기는 현재 PM과 Super Admin (명세 F-02: 생성자는 PM이 된다)', () => {
+    expect(canTransferPm('pm')).toBe(true);
+    expect(canTransferPm('super_admin')).toBe(true);
+    expect(canTransferPm('am')).toBe(false);
+    expect(canTransferPm('member')).toBe(false);
+    expect(canTransferPm('staff')).toBe(false);
   });
 });

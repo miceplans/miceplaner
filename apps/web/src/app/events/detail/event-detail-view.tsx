@@ -11,6 +11,10 @@ import { CURRENT_USER, getAssignableNames, isEventMember } from './event-members
 import { getToken } from '../../../lib/api';
 import { useGetMe } from '../../../lib/api/generated/endpoints';
 import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event-filter';
+import { PmTransfer } from './pm-transfer';
+import { TaskBoard } from './task-board-view';
+import { getEvent, listEventMembers } from '../../../lib/api';
+import type { EventListItemDto } from '@miceplans/contracts';
 
 /** 하이웍스 소속 이름(`GET /auth/me`의 team). 영상팀·콘텐츠 제작팀도 이 팀의 소분류로 내려온다. */
 const DESIGN_TEAM = '디자인팀';
@@ -45,9 +49,10 @@ type EventInfo = {
 
 const EVENTS: Record<string, EventInfo> = {};
 
-/** 행사 정보를 불러오기 전(또는 없을 때) 쓰는 빈 값. */
-const EMPTY_EVENT: EventInfo = { name: '행사', period: '', client: '', pm: '', am: '', design: '', place: '', status: '진행중', dday: '', color: '#9aa0a6' };
+/** 목업 데이터가 비어 있을 때(정적 프리렌더 포함) 보여 줄 빈 값이다. */
+const FALLBACK_EVENT: EventInfo = { name: '행사', period: '', client: '', pm: '', am: '', design: '', place: '', status: '진행중', dday: '', color: '#9aa0a6' };
 
+/** 행사 정보를 불러오기 전(또는 없을 때) 쓰는 빈 값. */
 const CLIENTS: string[] = [];
 
 function ClientSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -94,10 +99,6 @@ type TabName = (typeof TABS_BY_TEAM)['planning'][number];
 const MEMBER_TABS: TabName[] = ['인력'];
 const DEFAULT_TAB: Record<Team, TabName> = { planning: '제작물', design: '스케줄' };
 const PART_OPTIONS = PART_FILTERS.map((p) => ({ value: p, label: p }));
-
-type Task = { title: string; meta: string; done?: boolean };
-
-const COLUMNS: { title: string; dot: string; count: number; badge: string; more: string; moreTone: string; tasks: Task[] }[] = [];
 
 const TODOS: string[] = [];
 
@@ -160,12 +161,65 @@ function Prop({ icon, label, children }: { icon: string; label: string; children
   );
 }
 
-export function EventDetailView({ eventId }: { eventId: string }) {
-  const event = EVENTS[eventId] ?? EMPTY_EVENT;
+/** 실제 행사 정보를 화면 표시 형식으로 바꾼다. */
+function toEventInfo(real: EventListItemDto): EventInfo {
+  const fmt = (d: string) => d.split('-').join('. ');
+  const start = new Date(`${real.startDate}T00:00:00`);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const diff = Math.round((start.getTime() - todayStart.getTime()) / 86_400_000);
+  return {
+    name: real.name,
+    period: real.startDate === real.endDate ? fmt(real.startDate) : `${fmt(real.startDate)} – ${fmt(real.endDate)}`,
+    client: real.clientName ?? '(삭제된 고객사)',
+    pm: real.pmName ?? '',
+    am: real.amName ?? '',
+    design: '',
+    place: real.place,
+    status: real.status,
+    dday: diff === 0 ? 'D-Day' : diff > 0 ? `D-${diff}` : '종료',
+    color: real.color ?? '#f567a5',
+  };
+}
+
+export function EventDetailView() {
+  const [eventId, setEventId] = useState('');
+  useEffect(() => {
+    setEventId(new URLSearchParams(window.location.search).get('id') ?? '');
+  }, []);
+  const [real, setReal] = useState<EventListItemDto | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!eventId) return;
+    let alive = true;
+    getEvent(eventId)
+      .then((row) => { if (alive) setReal(row); })
+      .catch(() => undefined); // 목업 id(e1~e5)처럼 API에 없는 행사는 기존 목업 데이터를 쓴다.
+    return () => { alive = false; };
+  }, [eventId, tick]);
+  // 실제 멤버십으로 인력 탭·PM 넘기기 노출을 결정한다. 목업 행사(API에 없는 id)는 기존 목업 판정을 쓴다.
+  const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
+  const meId = me.data?.id ?? null;
+  const [myRole, setMyRole] = useState<'pm' | 'am' | 'member' | null>(null);
+  const [roleResolved, setRoleResolved] = useState(false);
+  useEffect(() => {
+    if (!eventId || !meId) return;
+    let alive = true;
+    listEventMembers(eventId)
+      .then((members) => {
+        if (!alive) return;
+        setMyRole(members.find((m) => m.userId === meId)?.role ?? null);
+        setRoleResolved(true);
+      })
+      .catch(() => undefined); // 목업 행사 등 실데이터 판정이 불가능하면 roleResolved를 false로 두어 목업 판정을 쓰게 한다.
+    return () => { alive = false; };
+  }, [eventId, meId, tick]);
+  const event: EventInfo = useMemo(() => (real ? toEventInfo(real) : EVENTS[eventId] ?? FALLBACK_EVENT), [real, eventId]);
   const [isPublic, setIsPublic] = useState(true);
   const [client, setClient] = useState(event.client);
-  // 팀 구분: 하이웍스 소속이 디자인팀(영상팀·콘텐츠 제작팀 포함)이면 디자인팀 화면, 그 밖에는 일반(기획)팀 화면이다.
-  const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
+  // 실제 행사가 늦게 도착하면 선택 값도 그에 맞춘다.
+  useEffect(() => { setClient(event.client); }, [event.client]);
+  // TODO: 팀 구분 기준(역할·소속)이 확정되면 인증 정보에서 가져온다. 그전에는 ?team=design 으로 디자인팀 화면을 본다.
   const [team, setTeam] = useState<Team>('planning');
   const [tab, setTab] = useState<TabName>(DEFAULT_TAB.planning);
   const tabs = TABS_BY_TEAM[team];
@@ -173,7 +227,8 @@ export function EventDetailView({ eventId }: { eventId: string }) {
   const [filter, setFilter] = useState<ItemFilter>(DEFAULT_FILTER);
   // TODO: 개발용 — '권한 없는 사용자로 미리보기'를 켜면 비멤버 화면(인력 탭 숨김)을 확인할 수 있다.
   const [previewNoAccess, setPreviewNoAccess] = useState(false);
-  const isMember = !previewNoAccess && isEventMember(event, eventId, CURRENT_USER.name);
+  // 실데이터에서 멤버십이 확인되면 그 결과를 쓰고, 목업 행사에서는 기존 목업 판정을 쓴다.
+  const isMember = !previewNoAccess && (roleResolved ? myRole !== null : isEventMember(event, eventId, CURRENT_USER.name));
   const visibleTabs = isMember ? tabs : tabs.filter((t) => !(MEMBER_TABS as readonly string[]).includes(t));
   const myTeam = me.data?.team;
   useEffect(() => {
@@ -226,7 +281,7 @@ export function EventDetailView({ eventId }: { eventId: string }) {
   const [peekId, setPeekId] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [invited, setInvited] = useState<(Invitee & { as: InviteRole })[]>([]);
-  const canInvite = CURRENT_USER.name === event.pm;
+  const canInvite = roleResolved ? myRole === 'pm' : CURRENT_USER.name === event.pm;
   const gridRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; x: number; y: number; origin: CalEvent; moved: boolean } | null>(null);
 
@@ -469,41 +524,20 @@ export function EventDetailView({ eventId }: { eventId: string }) {
             <VideoSection eventId={eventId} />
           </div>
         )}
-        {tab === '행사 정보' && <EventInfoSheet eventId={eventId} canEdit={event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />}
-        {tab === '인력' && isMember && <EventMembers event={event} eventId={eventId} />}
+        {tab === '행사 정보' && (
+          <EventInfoSheet eventId={eventId} canEdit={roleResolved ? myRole === 'pm' || myRole === 'am' : event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />
+        )}
+        {tab === '인력' && isMember && (
+          <div className="mt-[16px] flex w-full flex-col gap-[12px]">
+            <div className="flex justify-end">
+              <PmTransfer eventId={eventId} meId={meId} isPm={roleResolved && myRole === 'pm'} onTransferred={() => setTick((t) => t + 1)} />
+            </div>
+            <EventMembers event={event} eventId={eventId} />
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-4 gap-[24px] px-[5px] max-lg:grid-cols-2 max-sm:grid-cols-1">
-        {COLUMNS.map((c) => (
-          <section key={c.title} className={`flex flex-col gap-[8px] p-[14px] ${CARD}`}>
-            <div className="mb-[2px] flex items-center gap-[7px]">
-              <span className={`size-[8px] rounded-full ${c.dot}`} />
-              <h3 className="m-0 text-base font-semibold text-fg">{c.title}</h3>
-              <span className="flex-1" />
-              <span className={`flex h-[18px] min-w-[26px] items-center justify-center rounded-full px-[6px] text-2xs font-semibold ${c.badge}`}>{c.count}</span>
-            </div>
-            {c.tasks.map((t) => (
-              <div key={t.title} className="flex flex-col gap-[7px] rounded-xl bg-surface-muted px-[11px] py-[10px]">
-                <div className="flex items-center gap-[8px]">
-                  {t.done ? (
-                    <span className="flex size-[17px] shrink-0 items-center justify-center rounded-md bg-success-solid">
-                      <img alt="" src={`${A}/check.svg`} className="size-[10px]" />
-                    </span>
-                  ) : (
-                    <span className="size-[17px] shrink-0 rounded-md border-[1.5px] border-solid border-border-strong" />
-                  )}
-                  <span className={`min-w-0 flex-1 truncate text-sm font-semibold ${t.done ? 'text-fg-secondary' : 'text-fg'}`}>{t.title}</span>
-                </div>
-                <p className="m-0 flex items-center gap-[5px] text-[10.5px] text-fg-muted">
-                  <span className="size-[3px] rounded-full bg-fg-muted" />
-                  {t.meta}
-                </p>
-              </div>
-            ))}
-            <p className={`m-0 p-[2px] text-[11px] font-semibold ${c.moreTone}`}>{c.more}</p>
-          </section>
-        ))}
-      </div>
+      <TaskBoard eventId={eventId} reloadKey={tick} />
 
       <div className="flex items-stretch gap-[20px] px-[5px] max-lg:flex-col">
         <div
