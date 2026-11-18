@@ -1,44 +1,57 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
 import { ClientHeader } from '@miceplans/ui';
+import type { PortalProgramDto } from '@miceplans/contracts/portal';
+import { listPortalPrograms } from '../../../lib/api';
+import { calendarWeeks, chipsByDay, todayIso, type ScheduleState } from '../portal';
 
 const A = '/assets/client/calendar-view';
 
-type Tone = 'gray' | 'red' | 'blue' | 'yellow';
-const TONE: Record<Tone, { bg: string; fg: string; dot: string }> = {
-  gray: { bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: 'dot4' },
-  red: { bg: 'bg-error-bg', fg: 'text-error-delay', dot: 'dot5' },
-  blue: { bg: 'bg-info-bg', fg: 'text-brand-blue', dot: 'dot6' },
-  yellow: { bg: 'bg-notice-bg', fg: 'text-notice', dot: 'dot7' },
+const TONE: Record<ScheduleState, { bg: string; fg: string; dot: string }> = {
+  예정: { bg: 'bg-info-bg', fg: 'text-brand-blue', dot: 'dot6' },
+  진행중: { bg: 'bg-notice-bg', fg: 'text-notice', dot: 'dot7' },
+  완료: { bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: 'dot4' },
 };
 
-const CHIPS: Record<number, readonly (readonly [string, Tone])[]> = {};
-
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-const LEGEND = [
-  ['진행중', 'dot'],
-  ['예정', 'dot1'],
-  ['완료', 'dot2'],
-  ['지연', 'dot3'],
-] as const;
-
-// 현재 월 기준 그리드. 빌드(프리렌더) 시점의 날짜로 정해진다.
-const TODAY_DATE = new Date();
-const YEAR = TODAY_DATE.getFullYear();
-const MONTH = TODAY_DATE.getMonth() + 1;
-const FIRST_WEEKDAY = new Date(YEAR, MONTH - 1, 1).getDay();
-const DAYS = new Date(YEAR, MONTH, 0).getDate();
-const TODAY = TODAY_DATE.getDate();
-
-const cells: (number | null)[] = [
-  ...Array<null>(FIRST_WEEKDAY).fill(null),
-  ...Array.from({ length: DAYS }, (_, i) => i + 1),
+const LEGEND: [ScheduleState, string][] = [
+  ['진행중', '진행중'],
+  ['예정', '예정'],
+  ['완료', '완료'],
 ];
-while (cells.length % 7) cells.push(null);
-const weeks = Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
 
+/** 지정된 행사의 Program 일정을 달력으로 본다. 지연 상태는 Client에게 노출하지 않는다 (명세 F-07). */
 export default function ClientCalendarPage() {
+  const [programs, setPrograms] = useState<PortalProgramDto[] | null>(null);
+  const today = todayIso();
+  const [todayYear, todayMonth] = [Number(today.slice(0, 4)), Number(today.slice(5, 7))];
+  const [cursor, setCursor] = useState({ year: todayYear, month: todayMonth });
+
+  useEffect(() => {
+    let alive = true;
+    listPortalPrograms().then((rows) => { if (alive) setPrograms(rows); }).catch(() => { if (alive) setPrograms([]); });
+    return () => { alive = false; };
+  }, []);
+
+  const weeks = useMemo(() => calendarWeeks(cursor.year, cursor.month), [cursor]);
+  const chips = useMemo(
+    () => chipsByDay(programs ?? [], cursor.year, cursor.month, today),
+    [programs, cursor, today],
+  );
+  const isCurrentMonth = cursor.year === todayYear && cursor.month === todayMonth;
+  const todayDay = Number(today.slice(8, 10));
+
+  const shiftMonth = (delta: number) => {
+    setCursor(({ year, month }) => {
+      const next = new Date(year, month - 1 + delta, 1);
+      return { year: next.getFullYear(), month: next.getMonth() + 1 };
+    });
+  };
+
   return (
     <div className="flex min-h-[900px] w-full min-w-[1440px] flex-col bg-surface-sunken">
-      <ClientHeader active="dashboard" />
+      <ClientHeader active="calendar" />
       <main className="relative flex min-h-px flex-1 flex-col items-start bg-surface px-[32px]">
         <div className="flex h-[52px] w-full shrink-0 items-center px-[24px]">
           <div className="flex h-full items-start gap-[2px]">
@@ -53,14 +66,18 @@ export default function ClientCalendarPage() {
           </div>
         </div>
         <div className="flex h-[44px] w-full shrink-0 items-center gap-[10px] px-[24px]">
-          <img alt="이전 달" src={`${A}/nav-icon.svg`} className="size-[15px]" />
-          <p className="whitespace-nowrap text-lg font-semibold text-fg">{YEAR}년 {MONTH}월</p>
-          <img alt="다음 달" src={`${A}/nav-icon1.svg`} className="size-[15px]" />
+          <button type="button" aria-label="이전 달" onClick={() => shiftMonth(-1)} className="cursor-pointer border-0 bg-transparent p-0">
+            <img alt="이전 달" src={`${A}/nav-icon.svg`} className="size-[15px]" />
+          </button>
+          <p className="whitespace-nowrap text-lg font-semibold text-fg">{cursor.year}년 {cursor.month}월</p>
+          <button type="button" aria-label="다음 달" onClick={() => shiftMonth(1)} className="cursor-pointer border-0 bg-transparent p-0">
+            <img alt="다음 달" src={`${A}/nav-icon1.svg`} className="size-[15px]" />
+          </button>
           <div className="h-px min-w-px flex-1" />
           <ul className="flex h-full items-center gap-[14px]">
-            {LEGEND.map(([label, dot]) => (
-              <li key={label} className="flex h-full items-center gap-[5px]">
-                <img alt="" src={`${A}/${dot}.svg`} className="size-[7px]" />
+            {LEGEND.map(([state, label]) => (
+              <li key={state} className="flex h-full items-center gap-[5px]">
+                <img alt="" src={`${A}/${TONE[state].dot}.svg`} className="size-[7px]" />
                 <span className="whitespace-nowrap text-xs text-fg-secondary">{label}</span>
               </li>
             ))}
@@ -83,16 +100,17 @@ export default function ClientCalendarPage() {
               className={`flex h-[102px] w-full shrink-0 items-start border-solid border-border-strong ${w === weeks.length - 1 ? 'border' : 'border-b'}`}
             >
               {week.map((day, i) => {
-                const chips = day ? (CHIPS[day] ?? []) : [];
+                const dayChips = day ? (chips.get(day) ?? []) : [];
                 const last = i === 6;
+                const isToday = isCurrentMonth && day === todayDay;
                 return (
                   <div
                     key={i}
-                    className={`flex h-full flex-col items-start gap-[4px] border-solid border-border-soft px-[8px] pb-[6px] pt-[8px] ${
+                    className={`flex h-full flex-col items-start gap-[4px] overflow-hidden border-solid border-border-soft px-[8px] pb-[6px] pt-[8px] ${
                       last ? 'w-[164.5px] shrink-0 border' : 'min-w-px flex-1 border-r'
                     } ${day ? 'bg-surface' : 'bg-surface-subtle'}`}
                   >
-                    {day === TODAY ? (
+                    {isToday ? (
                       <span className="flex shrink-0 items-center gap-[4px]">
                         <span className="flex size-[22px] items-center justify-center rounded-lg bg-brand text-xs font-semibold text-fg-inverse">
                           {day}
@@ -104,12 +122,12 @@ export default function ClientCalendarPage() {
                         {day} <span className="text-2xs text-fg-tertiary">({WEEKDAYS[i]})</span>
                       </p>
                     ) : null}
-                    {chips.map(([label, tone]) => {
-                      const t = TONE[tone];
+                    {dayChips.map((c) => {
+                      const t = TONE[c.state];
                       return (
-                        <div key={label} className={`flex h-[20px] shrink-0 items-center gap-[4px] rounded-xs px-[6px] ${t.bg}`}>
+                        <div key={c.programId} className={`flex h-[20px] max-w-full shrink-0 items-center gap-[4px] rounded-xs px-[6px] ${t.bg}`}>
                           <img alt="" src={`${A}/${t.dot}.svg`} className="size-[5px] shrink-0" />
-                          <p className={`whitespace-nowrap text-2xs font-medium ${t.fg}`}>{label}</p>
+                          <p className={`truncate whitespace-nowrap text-2xs font-medium ${t.fg}`}>{c.title}</p>
                         </div>
                       );
                     })}
@@ -118,6 +136,9 @@ export default function ClientCalendarPage() {
               })}
             </div>
           ))}
+          {programs !== null && chips.size === 0 ? (
+            <p className="flex w-full justify-center pt-[16px] text-sm text-fg-tertiary">이 달에 공유된 일정이 없습니다</p>
+          ) : null}
         </div>
       </main>
     </div>
