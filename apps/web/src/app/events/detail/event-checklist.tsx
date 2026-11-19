@@ -122,8 +122,16 @@ function addChild(items: CheckItem[], parentId: string, title: string, createdBy
   return mapTree(items, parentId, (item) => ({ ...item, children: [...(item.children ?? []), child] })).map(normalize);
 }
 
-export function addRoot(items: CheckItem[], title: string, createdBy?: string): CheckItem[] {
-  return [...items, { id: `n${Date.now()}${Math.random().toString(36).slice(2, 6)}`, title, done: false, createdBy }];
+export function addRoot(items: CheckItem[], title: string, createdBy?: string, details: Pick<CheckItem, 'date' | 'assignee'> = {}): CheckItem[] {
+  return [...items, {
+    id: `n${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
+    title,
+    done: false,
+    createdBy,
+    date: details.date || undefined,
+    assignee: details.assignee || undefined,
+    owner: details.assignee?.slice(0, 1),
+  }];
 }
 
 export function assignItem(items: CheckItem[], id: string, assignee: string | undefined, me: string): CheckItem[] {
@@ -346,11 +354,18 @@ function Row({ item, depth, showStatus, onChange }: RowProps) {
           <Select
             aria-label={`${item.title} 상태`}
             value={item.done ? '완료' : item.workflowStatus ?? '진행'}
-            onChange={(e) => onChange((items) => setWorkflowStatus(items, item.id, e.target.value as NonNullable<CheckItem['workflowStatus']>, me))}
+            onChange={(e) => {
+              const next: string = e.target.value;
+              if (next === '삭제') {
+                setConfirming(true);
+                return;
+              }
+              onChange((items) => setWorkflowStatus(items, item.id, next as NonNullable<CheckItem['workflowStatus']>, me));
+            }}
             size="sm"
             className="w-[92px] shrink-0"
           >
-            {(['진행', '검토 대기', '완료', '보류'] as const).map((status) => <option key={status} value={status}>{status}</option>)}
+            {(['진행', '검토 대기', '완료', '보류', '삭제'] as const).map((status) => <option key={status} value={status}>{status}</option>)}
           </Select>
         )}
         {editable && <button

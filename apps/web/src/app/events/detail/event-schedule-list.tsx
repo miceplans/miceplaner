@@ -1,7 +1,7 @@
 'use client';
 
 import { useContext, useState } from 'react';
-import { ConfirmDialog, Input } from '@miceplans/ui';
+import { ConfirmDialog, Input, Select } from '@miceplans/ui';
 
 import { AssigneeBadge, EditableTitle, ItemAccessContext, addRoot, assignItem, canEditItem, canToggleItem, removeItem, renameItem, toggleItem, type CheckItem } from './event-checklist';
 import { matchPart, type PartFilter } from './event-parts';
@@ -28,9 +28,11 @@ export function ScheduleList({
   part?: PartFilter;
   filter?: ItemFilter;
 }) {
-  const { me } = useContext(ItemAccessContext);
+  const { me, members } = useContext(ItemAccessContext);
   const [adding, setAdding] = useState(false);
   const [value, setValue] = useState('');
+  const [date, setDate] = useState('');
+  const [assignee, setAssignee] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const visible = applyFilter(matchPart(items, part), filter, me);
@@ -38,8 +40,17 @@ export function ScheduleList({
 
   const submit = () => {
     const title = value.trim();
-    if (title) onChange((list) => addRoot(list, title, me));
+    if (title) onChange((list) => addRoot(list, title, me, { date, assignee }));
     setValue('');
+    setDate('');
+    setAssignee('');
+    setAdding(false);
+  };
+
+  const cancel = () => {
+    setValue('');
+    setDate('');
+    setAssignee('');
     setAdding(false);
   };
 
@@ -86,21 +97,30 @@ export function ScheduleList({
       {!visible.length && (
         <li className="flex h-[36px] items-center px-[17px] text-base text-fg-tertiary">{isFilterActive(filter) ? '조건에 맞는 항목이 없습니다.' : '해당 파트의 일정이 없습니다.'}</li>
       )}
-      <li className="flex h-[36px] items-center px-[17px]">
+      <li className="flex min-h-[36px] items-center px-[17px]">
         {adding ? (
-          <Input
-            autoFocus
-            value={value}
-            placeholder="새 일정 입력 후 Enter"
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.nativeEvent.isComposing) submit();
-              if (e.key === 'Escape') { setValue(''); setAdding(false); }
-            }}
-            onBlur={() => { setValue(''); setAdding(false); }}
-            size="sm"
-            className="flex-1"
-          />
+          <div className="flex w-full flex-wrap items-center gap-[8px] py-[4px]">
+            <Input
+              autoFocus
+              value={value}
+              aria-label="새 일정 제목"
+              placeholder="일정 제목"
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) submit();
+                if (e.key === 'Escape') cancel();
+              }}
+              size="sm"
+              className="min-w-[180px] flex-1"
+            />
+            <Input type="date" aria-label="새 일정 날짜" value={date} onChange={(e) => setDate(e.target.value)} size="sm" className="w-[150px]" />
+            <Select aria-label="새 일정 담당자" value={assignee} onChange={(e) => setAssignee(e.target.value)} size="sm" className="w-[140px]">
+              <option value="">담당자 없음</option>
+              {members.map((member) => <option key={member} value={member}>{member}</option>)}
+            </Select>
+            <button type="button" onClick={submit} disabled={!value.trim()} className="h-[30px] rounded-md bg-brand px-[10px] text-xs font-semibold text-fg-inverse disabled:opacity-40">추가</button>
+            <button type="button" onClick={cancel} className="h-[30px] rounded-md px-[8px] text-xs text-fg-secondary hover:bg-surface-chip">취소</button>
+          </div>
         ) : (
           <button type="button" onClick={() => setAdding(true)} className="flex items-center gap-[8px] text-[13px] text-fg-tertiary hover:text-fg-secondary">
             <img alt="" src={`${A}/plus-schedule.svg`} className="size-[14px]" />
