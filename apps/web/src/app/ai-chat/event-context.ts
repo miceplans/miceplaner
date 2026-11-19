@@ -9,3 +9,8 @@ export const eventIdFrom = (pathname: string, search: string): string | undefine
   const id = new URLSearchParams(search).get('id');
   return id && UUID.test(id) ? id : undefined;
 };
+
+/** 행사 상세가 지금 보여 주는 탭. 패널은 레이아웃에 있어 페이지 상태를 직접 못 보므로, 상세 화면이 여기에 기록한다. */
+let currentTab: string | undefined;
+export const setEventTab = (tab: string | undefined) => { currentTab = tab; };
+export const getEventTab = () => currentTab;

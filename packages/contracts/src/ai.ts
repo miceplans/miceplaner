@@ -9,6 +9,8 @@ export const chatMessage = z.object({ role: z.enum(['user', 'assistant']), conte
 export const chatBody = z.object({
   /** 지정하면 이 행사를 대화의 기본 맥락으로 쓴다. */
   eventId: uuid.optional(),
+  /** eventId와 함께 쓴다. 사용자가 행사 상세에서 보고 있는 탭 이름(예: '할 일'). 모델에는 데이터로만 전달한다. */
+  eventTab: z.string().trim().min(1).max(40).optional(),
   messages: z.array(chatMessage).min(1).max(40),
 });
 export type ChatBody = z.infer<typeof chatBody>;

@@ -64,7 +64,7 @@ export class AiService {
       place: current.place ? masker.redactText(current.place) : null, status: current.status,
     };
     const messages: ChatMsg[] = [
-      { role: 'system', content: systemPrompt({ today: new Date().toISOString().slice(0, 10), eventId, event }) },
+      { role: 'system', content: systemPrompt({ today: new Date().toISOString().slice(0, 10), eventId, event, eventTab: eventId ? body.eventTab : undefined }) },
       ...body.messages.map((message) => ({ ...message, content: masker.redactText(message.content) })),
     ];
     const handlers = this.handlers(user, sources, send, masker);

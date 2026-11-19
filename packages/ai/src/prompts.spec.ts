@@ -11,6 +11,10 @@ describe('systemPrompt', () => {
     expect(p).toContain('코엑스');
   });
 
+  it('보고 있는 탭을 맥락으로 넣는다', () => {
+    expect(systemPrompt({ today: '2026-11-19', eventId: ID, eventTab: '할 일' })).toContain('"할 일"');
+  });
+
   it('행사 맥락이 없으면 행사 문구를 넣지 않는다', () => {
     expect(systemPrompt({ today: '2026-11-19' })).not.toContain('detail page');
   });
