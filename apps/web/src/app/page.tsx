@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { EventTable, type EventRow } from './event-table';
 import { NoticeList } from './notice-list';
 import { ViewTabs, type ViewTab } from '@miceplans/ui';
 import { AppShell } from '@miceplans/ui/sidebar';
 import { ScheduleViewCalendar } from './schedule-calendar/schedule-view-calendar';
-import { getMe, listEvents, type Me } from '../lib/api';
+import { getToken } from '../lib/api';
+import { useEventsList, useGetMe } from '../lib/api/generated/endpoints';
 import type { EventListItemDto } from '@miceplans/contracts';
 
 const TABS: ViewTab[] = [
@@ -35,22 +36,19 @@ function toRow(event: EventListItemDto): EventRow {
 
 export default function HomePage() {
   const [tab, setTab] = useState(0);
-  const [events, setEvents] = useState<EventListItemDto[]>([]);
-  const [me, setMe] = useState<Me | null>(null);
-  useEffect(() => {
-    void listEvents().then(setEvents).catch(() => setEvents([]));
-    void getMe().then(setMe).catch(() => undefined);
-  }, []);
-  const rows = useMemo(() => events.map(toRow), [events]);
+  const events = useEventsList();
+  const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
+  const rows = useMemo(() => (events.data ?? []).map(toRow), [events.data]);
   // PM·AM 이름은 다중이면 ', '로 묶여 오므로 포함 여부로 본다. 로그인 정보가 없으면 비워 둔다.
+  const meName = me.data?.name ?? null;
   const shown = useMemo(
     () =>
       tab === 2
-        ? me
-          ? rows.filter((row) => [row.pm, row.am].some((names) => names.split(',').map((s) => s.trim()).includes(me.name)))
+        ? meName
+          ? rows.filter((row) => [row.pm, row.am].some((names) => names.split(',').map((s) => s.trim()).includes(meName)))
           : []
         : rows,
-    [tab, me, rows],
+    [tab, meName, rows],
   );
   return (
     <AppShell active="events">

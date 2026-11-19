@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import type { EventItemDto } from '@miceplans/contracts';
-import { listItems } from '../../../lib/api';
+import { useMemo, useState } from 'react';
+import { useEventItemsList } from '../../../lib/api/generated/endpoints';
 import { BOARD_COLUMNS, buildBoardItems, groupBoardItems, type BoardColumnKey } from './task-board';
 import type { CheckItem } from './event-checklist';
 import type { RequestRow } from './event-products';
@@ -20,20 +19,11 @@ const STYLE: Record<BoardColumnKey, { dot: string; badge: string; moreTone: stri
 };
 
 /** 행사의 Task를 상태별 열로 보여 준다. API에 없는 목업 행사(e1~e5)는 표시하지 않는다. */
-export function TaskBoard({ eventId, schedules = [], products = [], reloadKey }: { eventId: string; schedules?: CheckItem[]; products?: RequestRow[]; reloadKey?: number }) {
-  const [items, setItems] = useState<EventItemDto[] | null>(null);
+export function TaskBoard({ eventId, schedules = [], products = [] }: { eventId: string; schedules?: CheckItem[]; products?: RequestRow[] }) {
   const [expanded, setExpanded] = useState<Partial<Record<BoardColumnKey, boolean>>>({});
+  const items = useEventItemsList(eventId, { kind: 'task' }, { query: { enabled: eventId !== '' } });
 
-  useEffect(() => {
-    if (!eventId) return;
-    let alive = true;
-    listItems(eventId, { kind: 'task' })
-      .then((rows) => { if (alive) setItems(rows); })
-      .catch(() => { if (alive) setItems(null); });
-    return () => { alive = false; };
-  }, [eventId, reloadKey]);
-
-  const groups = useMemo(() => groupBoardItems(buildBoardItems(items ?? [], schedules, products)), [items, schedules, products]);
+  const groups = useMemo(() => groupBoardItems(buildBoardItems(items.data ?? [], schedules, products)), [items.data, schedules, products]);
 
   return (
     <div className="grid grid-cols-4 gap-[24px] px-[5px] max-lg:grid-cols-2 max-sm:grid-cols-1">
