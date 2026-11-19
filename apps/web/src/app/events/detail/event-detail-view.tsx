@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { Checkbox, SidePeekPanel, SegmentControl, StatusPill, TextTabs, Toggle, type StatusKey } from '@miceplans/ui';
-import { ItemAccessContext, resolveOwners, type CheckItem } from './event-checklist';
+import { ItemAccessContext, normalizeTree, resolveOwners, type CheckItem } from './event-checklist';
 import type { Invitee, InviteRole } from './invite-dialog';
-import type { Team } from './event-products';
+import type { RequestRow, Team } from './event-products';
 import { PART_FILTERS, type PartFilter } from './event-parts';
 import { CURRENT_USER, getAssignableNames, isEventMember } from './event-members';
 import { getToken } from '../../../lib/api';
@@ -246,6 +246,7 @@ export function EventDetailView() {
   }, [visibleTabs, tab, team]);
   const assignable = useMemo(() => getAssignableNames({ pm: event.pm, am: event.am, design: event.design }, eventId), [event.pm, event.am, event.design, eventId]);
   const [schedule, setSchedule] = useState(() => resolveOwners(INITIAL_SCHEDULE, assignable));
+  const [products, setProducts] = useState<RequestRow[]>([]);
   const access = useMemo(() => ({ me: CURRENT_USER.name, members: assignable }), [assignable]);
   const [listsLoaded, setListsLoaded] = useState(false);
   const listsKey = `miceplans.event-lists.${eventId}`;
@@ -256,7 +257,8 @@ export function EventDetailView() {
       const raw = window.localStorage.getItem(listsKey);
       if (raw) {
         const saved = JSON.parse(raw) as { schedule?: CheckItem[] };
-        if (saved.schedule) setSchedule(resolveOwners(saved.schedule, assignable));
+        if (saved.schedule) setSchedule(normalizeTree(resolveOwners(saved.schedule, assignable)));
+        if (Array.isArray((saved as { products?: RequestRow[] }).products)) setProducts((saved as { products: RequestRow[] }).products);
       }
     } catch {
       // 저장소를 쓸 수 없으면 기본 데이터로 시작한다.
@@ -267,11 +269,11 @@ export function EventDetailView() {
   useEffect(() => {
     if (!listsLoaded) return;
     try {
-      window.localStorage.setItem(listsKey, JSON.stringify({ schedule }));
+      window.localStorage.setItem(listsKey, JSON.stringify({ schedule, products }));
     } catch {
       // 저장 실패는 화면 상태에만 영향을 주므로 무시한다.
     }
-  }, [schedule, listsLoaded, listsKey]);
+  }, [schedule, products, listsLoaded, listsKey]);
   const [todos, setTodos] = useState(TODOS.map(() => false));
   const [calView, setCalView] = useState<'Day' | 'Week' | 'Month'>('Week');
   const [calEvents, setCalEvents] = useState(INITIAL_EVENTS);
@@ -500,7 +502,7 @@ export function EventDetailView() {
         {team === 'design' && (
           <div className="flex w-full flex-col gap-[16px] pb-[8px]">
             <ProgressTable team="design" part={part} eventId={eventId} />
-            <DesignRequestTable team="design" part={part} eventId={eventId} eventName={event.name} />
+            <DesignRequestTable team="design" part={part} eventId={eventId} eventName={event.name} rows={products} onRowsChange={setProducts} />
             <VideoSection eventId={eventId} />
           </div>
         )}
@@ -520,7 +522,7 @@ export function EventDetailView() {
         {tab === '제작물' && (
           <div className="mt-[24px] flex w-full flex-col gap-[24px]">
             <ProgressTable team="planning" part={part} eventId={eventId} />
-            <DesignRequestTable team="planning" part={part} eventId={eventId} eventName={event.name} />
+            <DesignRequestTable team="planning" part={part} eventId={eventId} eventName={event.name} rows={products} onRowsChange={setProducts} />
             <VideoSection eventId={eventId} />
           </div>
         )}
@@ -537,7 +539,7 @@ export function EventDetailView() {
         )}
       </div>
 
-      <TaskBoard eventId={eventId} reloadKey={tick} />
+      <TaskBoard eventId={eventId} schedules={schedule} products={products} reloadKey={tick} />
 
       <div className="flex items-stretch gap-[20px] px-[5px] max-lg:flex-col">
         <div

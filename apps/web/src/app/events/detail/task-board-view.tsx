@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { EventItemDto } from '@miceplans/contracts';
 import { listItems } from '../../../lib/api';
-import { BOARD_COLUMNS, groupTasks, taskMeta, type BoardColumnKey } from './task-board';
+import { BOARD_COLUMNS, buildBoardItems, groupBoardItems, type BoardColumnKey } from './task-board';
+import type { CheckItem } from './event-checklist';
+import type { RequestRow } from './event-products';
 
 const A = '/assets/event-detail';
 const CARD = 'rounded-xl bg-surface shadow-card';
@@ -18,7 +20,7 @@ const STYLE: Record<BoardColumnKey, { dot: string; badge: string; moreTone: stri
 };
 
 /** 행사의 Task를 상태별 열로 보여 준다. API에 없는 목업 행사(e1~e5)는 표시하지 않는다. */
-export function TaskBoard({ eventId, reloadKey }: { eventId: string; reloadKey?: number }) {
+export function TaskBoard({ eventId, schedules = [], products = [], reloadKey }: { eventId: string; schedules?: CheckItem[]; products?: RequestRow[]; reloadKey?: number }) {
   const [items, setItems] = useState<EventItemDto[] | null>(null);
   const [expanded, setExpanded] = useState<Partial<Record<BoardColumnKey, boolean>>>({});
 
@@ -31,8 +33,7 @@ export function TaskBoard({ eventId, reloadKey }: { eventId: string; reloadKey?:
     return () => { alive = false; };
   }, [eventId, reloadKey]);
 
-  const groups = useMemo(() => (items ? groupTasks(items) : null), [items]);
-  if (!groups) return null;
+  const groups = useMemo(() => groupBoardItems(buildBoardItems(items ?? [], schedules, products)), [items, schedules, products]);
 
   return (
     <div className="grid grid-cols-4 gap-[24px] px-[5px] max-lg:grid-cols-2 max-sm:grid-cols-1">
@@ -51,7 +52,7 @@ export function TaskBoard({ eventId, reloadKey }: { eventId: string; reloadKey?:
             </div>
             {tasks.length === 0 && <p className="m-0 px-[2px] py-[6px] text-[11px] text-fg-muted">항목 없음</p>}
             {shown.map((t) => {
-              const done = t.status === '완료';
+              const done = t.column === '완료';
               return (
                 <div key={t.id} className="flex flex-col gap-[7px] rounded-xl bg-surface-muted px-[11px] py-[10px]">
                   <div className="flex items-center gap-[8px]">
@@ -68,7 +69,7 @@ export function TaskBoard({ eventId, reloadKey }: { eventId: string; reloadKey?:
                   </div>
                   <p className="m-0 flex items-center gap-[5px] text-[10.5px] text-fg-muted">
                     <span className="size-[3px] rounded-full bg-fg-muted" />
-                    {t.status === '할 일' ? `할 일 · ${taskMeta(t)}` : taskMeta(t)}
+                    {t.source === '제작물' ? `제작물 · ${t.meta}` : t.meta}
                   </p>
                 </div>
               );
