@@ -57,8 +57,14 @@ export class AiService {
     const people = await this.run(user, (db) => listUsers(db));
     const masker = new PersonNameMasker([...people.map((person) => person.name), user.name]);
     const restore = masker.createStreamRestorer();
+    const eventId = body.eventId;
+    const current = eventId ? await this.run(user, (db) => getEvent(db, eventId)) : undefined;
+    const event = current && {
+      name: masker.redactText(current.name), startDate: current.startDate, endDate: current.endDate,
+      place: current.place ? masker.redactText(current.place) : null, status: current.status,
+    };
     const messages: ChatMsg[] = [
-      { role: 'system', content: systemPrompt({ today: new Date().toISOString().slice(0, 10), eventId: body.eventId }) },
+      { role: 'system', content: systemPrompt({ today: new Date().toISOString().slice(0, 10), eventId, event }) },
       ...body.messages.map((message) => ({ ...message, content: masker.redactText(message.content) })),
     ];
     const handlers = this.handlers(user, sources, send, masker);
