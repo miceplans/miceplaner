@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState } from 'react';
-import { ConfirmDialog, Input } from '@miceplans/ui';
+import { ConfirmDialog, Input, Select } from '@miceplans/ui';
 
 import type { ProductPart } from './event-parts';
 
@@ -21,6 +21,8 @@ export type CheckItem = {
   /** 만든 사람. 만든 사람만 수정·삭제·담당자 지정을 할 수 있다. */
   createdBy?: string;
   late?: boolean;
+  /** 칸반 업무 상태. 기존 저장 데이터는 완료 여부에 따라 진행/완료로 해석한다. */
+  workflowStatus?: '진행' | '검토 대기' | '완료' | '보류';
   /** 제작 파트. 없으면 공통 일정으로 모든 파트 화면에 나온다. */
   part?: ProductPart;
   children?: CheckItem[];
@@ -74,7 +76,13 @@ export function countLeaves(items: CheckItem[]): Progress {
 function normalize(item: CheckItem): CheckItem {
   if (!item.children?.length) return item;
   const children = item.children.map(normalize);
-  return { ...item, children, done: children.every((c) => c.done) };
+  const done = children.every((c) => c.done);
+  return { ...item, children, done, completedAt: done ? item.completedAt ?? Date.now() : undefined };
+}
+
+/** 저장 당시 상위 체크 상태가 어긋난 데이터도 하위 항목을 기준으로 바로잡는다. */
+export function normalizeTree(items: CheckItem[]): CheckItem[] {
+  return items.map(normalize);
 }
 
 function mapTree(items: CheckItem[], id: string, fn: (item: CheckItem) => CheckItem): CheckItem[] {
@@ -82,7 +90,13 @@ function mapTree(items: CheckItem[], id: string, fn: (item: CheckItem) => CheckI
 }
 
 function setAll(item: CheckItem, done: boolean): CheckItem {
-  return { ...item, done, completedAt: done ? Date.now() : undefined, children: item.children?.map((c) => setAll(c, done)) };
+  return {
+    ...item,
+    done,
+    workflowStatus: done ? '완료' : '진행',
+    completedAt: done ? Date.now() : undefined,
+    children: item.children?.map((c) => setAll(c, done)),
+  };
 }
 
 function findItem(items: CheckItem[], id: string): CheckItem | undefined {
@@ -122,6 +136,17 @@ export function renameItem(items: CheckItem[], id: string, title: string, me: st
   const target = findItem(items, id);
   if (!target || !canEditItem(target, me)) return items;
   return mapTree(items, id, (item) => ({ ...item, title }));
+}
+
+export function setWorkflowStatus(items: CheckItem[], id: string, status: NonNullable<CheckItem['workflowStatus']>, me: string): CheckItem[] {
+  const target = findItem(items, id);
+  if (!target || !canEditItem(target, me)) return items;
+  return mapTree(items, id, (item) => ({
+    ...item,
+    workflowStatus: status,
+    done: status === '완료',
+    completedAt: status === '완료' ? item.completedAt ?? Date.now() : undefined,
+  })).map(normalize);
 }
 
 function removeNode(items: CheckItem[], id: string): CheckItem[] {
@@ -317,6 +342,17 @@ function Row({ item, depth, showStatus, onChange }: RowProps) {
           </span>
         )}
         <span className="min-w-px flex-1" />
+        {depth > 0 && editable && (
+          <Select
+            aria-label={`${item.title} 상태`}
+            value={item.done ? '완료' : item.workflowStatus ?? '진행'}
+            onChange={(e) => onChange((items) => setWorkflowStatus(items, item.id, e.target.value as NonNullable<CheckItem['workflowStatus']>, me))}
+            size="sm"
+            className="w-[92px] shrink-0"
+          >
+            {(['진행', '검토 대기', '완료', '보류'] as const).map((status) => <option key={status} value={status}>{status}</option>)}
+          </Select>
+        )}
         {editable && <button
           type="button"
           aria-label={`${item.title} 하위 항목 추가`}
