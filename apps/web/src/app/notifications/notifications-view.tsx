@@ -1,13 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { DesktopNotificationToggle } from '../desktop-notification-toggle';
-import http from '../../lib/api/http';
 import { ApiError } from '../../lib/api';
+import { getNotificationsListQueryKey, useApproveClientApplication, useNotificationsList } from '../../lib/api/generated/endpoints';
+import type { NotificationsListParams } from '../../lib/api/generated/model';
 import type { NotificationDto } from '@miceplans/contracts';
 import { toast } from '@miceplans/ui';
 
 const A = '/assets/notifications';
+
+/** 알림 조회 파라미터. 쿼리 키(cache 갱신 포함)를 안정적으로 맞추려 한곳에 둔다. */
+const LIST_PARAMS: NotificationsListParams = { limit: 50 };
 
 type Item = { id: string; title: string; time: string; at: string; unread?: boolean; mention?: boolean; invite?: boolean };
 type Group = { label: string; chip?: string; items: Item[] };
@@ -35,31 +40,36 @@ const TABS = [
 type TabKey = (typeof TABS)[number]['key'];
 
 export function NotificationsView() {
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<TabKey>('all');
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const [apiItems, setApiItems] = useState<NotificationDto[]>([]);
+  // API 미설정(정적 목업)이면 조회 실패로 data가 비어 빈 알림 상태를 유지한다.
+  const notifications = useNotificationsList(LIST_PARAMS);
+  const apiItems = notifications.data ?? [];
   const [approving, setApproving] = useState<string | null>(null);
-
-  useEffect(() => {
-    void http<NotificationDto[]>('/notifications?limit=50').then(setApiItems).catch(() => {
-      // API 미설정인 정적 목업은 빈 알림 상태를 유지한다.
-    });
-  }, []);
+  const approveMutation = useApproveClientApplication();
 
   const applicationIdOf = (title: string) => title.match(/\[([0-9a-f-]{36})\]$/i)?.[1];
-  const approve = async (notification: NotificationDto) => {
+  const approve = (notification: NotificationDto) => {
     const applicationId = applicationIdOf(notification.title);
     if (!applicationId) return;
     setApproving(notification.id.toString());
-    try {
-      await http(`/auth/client-applications/${applicationId}/approve`, { method: 'POST' });
-      setApiItems((items) => items.map((item) => item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item));
-      toast.info('Client 신청을 승인했습니다.');
-    } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : '[500] 승인에 실패했습니다.');
-    } finally {
-      setApproving(null);
-    }
+    approveMutation.mutate(
+      { id: applicationId },
+      {
+        onSuccess: () => {
+          // 알림 목록 캐시에서 해당 알림만 읽음으로 바꾼다.
+          queryClient.setQueryData<NotificationDto[]>(getNotificationsListQueryKey(LIST_PARAMS), (items) =>
+            items?.map((item) => (item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item)),
+          );
+          toast.info('Client 신청을 승인했습니다.');
+        },
+        onError: (error) => {
+          toast.error(error instanceof ApiError ? error.message : '[500] 승인에 실패했습니다.');
+        },
+        onSettled: () => setApproving(null),
+      },
+    );
   };
 
   const apiGroups: Group[] = apiItems.length ? [{ label: '최근 알림', items: apiItems.map((item) => ({
