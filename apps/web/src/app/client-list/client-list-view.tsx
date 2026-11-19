@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { Input, StatusPill, type StatusKey } from '@miceplans/ui';
+import { useDirectoryClients, useEventsList } from '../../lib/api/generated/endpoints';
+import type { ClientDto, EventListItemDto } from '../../lib/api/generated/model';
 
 const A = '/assets/client-list';
 
@@ -14,10 +16,37 @@ type Client = {
   /** 최근 행사의 ID. 있으면 행사 상세 페이지로 연결한다. */
   eventId?: string;
   eventMeta: string;
-  status: StatusKey;
+  /** 연결된 행사가 없으면 상태를 표시하지 않는다. */
+  status: StatusKey | null;
 };
 
-const CLIENTS: Client[] = [];
+/** 고객사별 대표 행사: 진행중 행사 중 가장 이른 것, 없으면 가장 최근 행사. */
+function pickEvent(events: EventListItemDto[]): EventListItemDto | undefined {
+  const active = events.filter((e) => e.status === '진행중').sort((a, b) => a.startDate.localeCompare(b.startDate));
+  if (active[0]) return active[0];
+  return [...events].sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+}
+
+function toRows(clients: ClientDto[], events: EventListItemDto[]): Client[] {
+  const byClient = new Map<string, EventListItemDto[]>();
+  for (const e of events) byClient.set(e.clientId, [...(byClient.get(e.clientId) ?? []), e]);
+  return clients.map((c) => {
+    const list = byClient.get(c.id) ?? [];
+    const ev = pickEvent(list);
+    const range = ev ? (ev.startDate === ev.endDate ? ev.startDate : `${ev.startDate} ~ ${ev.endDate}`) : '';
+    const extra = list.length > 1 ? ` · 외 ${list.length - 1}건` : '';
+    return {
+      id: c.id,
+      name: c.name,
+      manager: ev?.pmName ?? '-',
+      phone: '',
+      event: ev?.name ?? '진행 행사 없음',
+      eventId: ev?.id,
+      eventMeta: ev ? [range, ev.place].filter(Boolean).join(' · ') + extra : '',
+      status: ev?.status ?? null,
+    };
+  });
+}
 
 function reorder<T>(list: T[], from: number, to: number): T[] {
   if (from === to || from < 0 || to < 0) return list;
@@ -29,17 +58,19 @@ function reorder<T>(list: T[], from: number, to: number): T[] {
 
 const ORDER_KEY = 'miceplans.client-list.order';
 
-function loadOrder(): Client[] {
+function loadOrder(): string[] {
   try {
     const raw = window.localStorage.getItem(ORDER_KEY);
-    if (!raw) return CLIENTS;
-    const ids = JSON.parse(raw) as string[];
-    const byId = new Map(CLIENTS.map((c) => [c.id, c]));
-    const ordered = ids.map((id) => byId.get(id)).filter((c): c is Client => Boolean(c));
-    return [...ordered, ...CLIENTS.filter((c) => !ids.includes(c.id))];
+    return raw ? (JSON.parse(raw) as string[]) : [];
   } catch {
-    return CLIENTS;
+    return [];
   }
+}
+
+function applyOrder(list: Client[], ids: string[]): Client[] {
+  const byId = new Map(list.map((c) => [c.id, c]));
+  const ordered = ids.map((id) => byId.get(id)).filter((c): c is Client => Boolean(c));
+  return [...ordered, ...list.filter((c) => !ids.includes(c.id))];
 }
 
 function saveOrder(list: Client[]) {
@@ -51,9 +82,18 @@ function saveOrder(list: Client[]) {
 }
 
 export function ClientListView() {
-  const [clients, setClients] = useState<Client[]>(CLIENTS);
+  const clientsQuery = useDirectoryClients();
+  const eventsQuery = useEventsList();
+  const base = useMemo(
+    () => toRows(clientsQuery.data ?? [], eventsQuery.data ?? []),
+    [clientsQuery.data, eventsQuery.data],
+  );
+  const [order, setOrder] = useState<string[]>([]);
   // 저장된 순서는 hydration 이후에 적용해 서버 렌더 결과와 맞춘다.
-  useEffect(() => { setClients(loadOrder()); }, []);
+  useEffect(() => { setOrder(loadOrder()); }, []);
+  const clients = useMemo(() => applyOrder(base, order), [base, order]);
+  const loading = clientsQuery.isPending;
+  const loadFailed = clientsQuery.isError || eventsQuery.isError;
   const [query, setQuery] = useState('');
   const [drag, setDrag] = useState<{ from: string; over: string } | null>(null);
   const q = query.trim().toLowerCase();
@@ -65,11 +105,9 @@ export function ClientListView() {
 
   const dropClient = (toId: string) => {
     if (!drag) return;
-    setClients((list) => {
-      const next = reorder(list, list.findIndex((client) => client.id === drag.from), list.findIndex((client) => client.id === toId));
-      saveOrder(next);
-      return next;
-    });
+    const next = reorder(clients, clients.findIndex((client) => client.id === drag.from), clients.findIndex((client) => client.id === toId));
+    saveOrder(next);
+    setOrder(next.map((c) => c.id));
     setDrag(null);
   };
 
@@ -107,6 +145,11 @@ export function ClientListView() {
               <span className="w-[480px] shrink-0">진행 행사</span>
               <span className="whitespace-nowrap">상태</span>
             </div>
+            {(loading || loadFailed || rows.length === 0) && (
+              <div className="flex h-[48px] w-full items-center px-[16px] text-sm text-fg-tertiary">
+                {loading ? '불러오는 중…' : loadFailed ? '고객사 목록을 불러오지 못했습니다.' : q ? '검색 결과가 없습니다.' : '등록된 고객사가 없습니다.'}
+              </div>
+            )}
             {rows.map((c, i) => {
               const dragging = drag?.from === c.id;
               const over = drag && drag.over === c.id && drag.from !== c.id;
@@ -144,7 +187,7 @@ export function ClientListView() {
                 </div>
                 {c.eventId ? (
                   <a
-                    href={`/events/${c.eventId}`}
+                    href={`/events/detail?id=${encodeURIComponent(c.eventId)}`}
                     aria-label={`${c.event} 상세 보기`}
                     className="flex h-full w-[480px] shrink-0 flex-col items-start justify-center gap-[2px] whitespace-nowrap no-underline outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand"
                   >
@@ -159,7 +202,7 @@ export function ClientListView() {
                 )}
                 <div className="flex h-full w-[100px] shrink-0 items-center">
                   <div className="relative h-[24px] w-[96px] shrink-0">
-                    <StatusPill status={c.status} />
+                    {c.status && <StatusPill status={c.status} />}
                   </div>
                 </div>
               </div>

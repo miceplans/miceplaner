@@ -1,4 +1,4 @@
-import type { AuthSessionDto, ChatBody, ChatEvent, ClientDto, CreateEventBody, DocPageDto, EventItemDto, EventListItemDto, EventMemberDto, FileDto, ListEventsQuery, ListItemsQuery, ProposalDto, UserDto } from '@miceplans/contracts';
+import type { AuthSessionDto, ChatBody, ChatEvent, ClientDto, CreateEventBody, DocPageDto, EventListItemDto, FileDto, ProposalDto } from '@miceplans/contracts';
 import type { PortalEventDto, PortalProgramDto } from '@miceplans/contracts/portal';
 
 /** 빌드 시점에 정해지는 공개 주소다. 비밀 값은 두지 않는다. */
@@ -99,53 +99,12 @@ export async function signIn(mode: 'login' | 'register', body: { email: string; 
   return session;
 }
 
-export type Me = { id: string; name: string; role: string };
-
-export async function getMe(): Promise<Me> {
-  return (await (await request('/auth/me', { method: 'GET' })).json()) as Me;
-}
-
 export async function listClients(): Promise<ClientDto[]> {
   return (await (await request('/clients', { method: 'GET' })).json()) as ClientDto[];
 }
 
 export async function createEvent(body: CreateEventBody): Promise<EventListItemDto> {
   return (await (await request('/events', { method: 'POST', body: JSON.stringify(body) })).json()) as EventListItemDto;
-}
-
-/** 행사 목록. 고객사 이름과 PM·AM 이름을 포함한 표 렌더링용 DTO를 돌려준다. */
-export async function listEvents(query: ListEventsQuery = {}): Promise<EventListItemDto[]> {
-  const params = new URLSearchParams();
-  if (query.year !== undefined) params.set('year', String(query.year));
-  if (query.clientId) params.set('clientId', query.clientId);
-  if (query.status) params.set('status', query.status);
-  const qs = params.toString();
-  return (await (await request(`/events${qs ? `?${qs}` : ''}`, { method: 'GET' })).json()) as EventListItemDto[];
-}
-
-export async function getEvent(id: string): Promise<EventListItemDto> {
-  return (await (await request(`/events/${id}`, { method: 'GET' })).json()) as EventListItemDto;
-}
-
-/** 행사의 Program·Task·Subtask 목록. Staff도 조회할 수 있다. */
-export async function listItems(eventId: string, query: ListItemsQuery = {}): Promise<EventItemDto[]> {
-  const params = new URLSearchParams(Object.entries(query).filter((e): e is [string, string] => typeof e[1] === 'string'));
-  const qs = params.toString();
-  return (await (await request(`/events/${eventId}/items${qs ? `?${qs}` : ''}`, { method: 'GET' })).json()) as EventItemDto[];
-}
-
-export async function listEventMembers(eventId: string): Promise<EventMemberDto[]> {
-  return (await (await request(`/events/${eventId}/members`, { method: 'GET' })).json()) as EventMemberDto[];
-}
-
-/** 멤버 초대·담당자 지정·PM 넘기기 후보 선택용 사용자 목록. */
-export async function listUsers(): Promise<UserDto[]> {
-  return (await (await request('/users', { method: 'GET' })).json()) as UserDto[];
-}
-
-/** 현재 PM이 기존 행사 멤버에게 PM 역할을 넘긴다. 본인은 일반 멤버가 된다. */
-export async function transferPm(eventId: string, userId: string): Promise<void> {
-  await request(`/events/${eventId}/transfer-pm`, { method: 'POST', body: JSON.stringify({ userId }) });
 }
 
 export async function listFiles(eventId: string): Promise<FileDto[]> {

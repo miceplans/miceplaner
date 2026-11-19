@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, toast } from '@miceplans/ui';
-import { listEventMembers, listUsers, transferPm } from '../../../lib/api';
+import { getEventsMembersQueryKey, useDirectoryUsers, useEventsMembers, useEventsTransferPm } from '../../../lib/api/generated/endpoints';
 
 type Candidate = { userId: string; name: string; role: string };
 
@@ -10,47 +11,42 @@ const ROLE_LABEL: Record<string, string> = { pm: 'PM', am: 'AM', member: '멤버
 
 /**
  * PM 넘기기. 부모(EventDetailView)가 실제 멤버 목록으로 본인의 PM 여부를 판정해 isPm으로
- * 넘겨 준다. 완료하면 onTransferred로 상위 데이터를 다시 불러오게 한다.
+ * 넘겨 준다. 완료하면 멤버 캐시를 무효화하고 onTransferred로 상위 데이터를 다시 불러오게 한다.
  */
 export function PmTransfer({ eventId, meId, isPm, onTransferred }: { eventId: string; meId: string | null; isPm: boolean; onTransferred: () => void }) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [target, setTarget] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!isPm) return;
-    void (async () => {
-      try {
-        const [members, users] = await Promise.all([listEventMembers(eventId), listUsers()]);
-        const nameOf = new Map(users.map((u) => [u.id, u.name]));
-        setCandidates(
-          members
-            .filter((m) => m.userId !== meId)
-            .map((m) => ({ userId: m.userId, role: m.role, name: nameOf.get(m.userId) ?? m.userId })),
-        );
-      } catch {
-        // 멤버 목록을 불러오지 못하면(예: 목업 행사) 후보를 비워 둔다.
-      }
-    })();
-  }, [eventId, isPm, meId]);
+  const members = useEventsMembers(eventId, { query: { enabled: isPm } });
+  const users = useDirectoryUsers({ query: { enabled: isPm } });
+  // 멤버 목록을 불러오지 못하면(예: 목업 행사) data가 비어 후보를 비워 둔다.
+  const candidates = useMemo<Candidate[]>(() => {
+    if (!members.data || !users.data) return [];
+    const nameOf = new Map(users.data.map((u) => [u.id, u.name]));
+    return members.data
+      .filter((m) => m.userId !== meId)
+      .map((m) => ({ userId: m.userId, role: m.role, name: nameOf.get(m.userId) ?? m.userId }));
+  }, [members.data, users.data, meId]);
+  const transfer = useEventsTransferPm({
+    mutation: {
+      onSuccess: async () => {
+        setOpen(false);
+        setTarget(null);
+        await queryClient.invalidateQueries({ queryKey: getEventsMembersQueryKey(eventId) });
+        onTransferred();
+        toast.info('PM을 넘겼습니다');
+      },
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : 'PM을 넘기지 못했다');
+      },
+    },
+  });
 
   if (!isPm) return null;
 
-  const submit = async () => {
+  const submit = () => {
     if (!target) return;
-    setBusy(true);
-    try {
-      await transferPm(eventId, target);
-      setOpen(false);
-      setTarget(null);
-      onTransferred();
-      toast.info('PM을 넘겼습니다');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'PM을 넘기지 못했다');
-    } finally {
-      setBusy(false);
-    }
+    transfer.mutate({ id: eventId, data: { userId: target } });
   };
 
   return (
@@ -93,11 +89,11 @@ export function PmTransfer({ eventId, meId, isPm, onTransferred }: { eventId: st
               </button>
               <button
                 type="button"
-                disabled={!target || busy}
-                onClick={() => void submit()}
+                disabled={!target || transfer.isPending}
+                onClick={submit}
                 className="h-[34px] rounded-md bg-brand px-[14px] text-sm font-semibold text-fg-inverse hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {busy ? '처리 중…' : '넘기기'}
+                {transfer.isPending ? '처리 중…' : '넘기기'}
               </button>
             </div>
           </div>

@@ -9,11 +9,11 @@ import type { RequestRow, Team } from './event-products';
 import { PART_FILTERS, type PartFilter } from './event-parts';
 import { CURRENT_USER, getAssignableNames, isEventMember } from './event-members';
 import { getToken } from '../../../lib/api';
-import { useGetMe } from '../../../lib/api/generated/endpoints';
+import { getEventsGetQueryKey, useEventsGet, useEventsMembers, useGetMe } from '../../../lib/api/generated/endpoints';
+import { useQueryClient } from '@tanstack/react-query';
 import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event-filter';
 import { PmTransfer } from './pm-transfer';
 import { TaskBoard } from './task-board-view';
-import { getEvent, listEventMembers } from '../../../lib/api';
 import type { EventListItemDto } from '@miceplans/contracts';
 import { setEventTab } from '../../ai-chat/event-context';
 
@@ -119,6 +119,10 @@ const BASE_MONDAY = (() => {
 })();
 const TODAY_INDEX = (new Date().getDay() + 6) % 7; // 월=0 … 일=6
 const dateOf = (abs: number) => new Date(BASE_MONDAY.getFullYear(), BASE_MONDAY.getMonth(), BASE_MONDAY.getDate() + abs);
+// dateOf의 역함수. 서머타임으로 하루가 23·25시간이 되어도 반올림으로 정확한 일수를 얻는다.
+const absOf = (d: Date) => Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - BASE_MONDAY.getTime()) / 86_400_000);
+const weekStartOf = (abs: number) => abs - (((abs % 7) + 7) % 7);
+const KO_DAY_NAMES = ['월', '화', '수', '목', '금', '토', '일'];
 
 const HOURS = ['9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM'];
 const HOUR_H = 48;
@@ -184,37 +188,21 @@ function toEventInfo(real: EventListItemDto): EventInfo {
 }
 
 export function EventDetailView() {
+  const queryClient = useQueryClient();
   const [eventId, setEventId] = useState('');
   useEffect(() => {
     setEventId(new URLSearchParams(window.location.search).get('id') ?? '');
   }, []);
-  const [real, setReal] = useState<EventListItemDto | null>(null);
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    if (!eventId) return;
-    let alive = true;
-    getEvent(eventId)
-      .then((row) => { if (alive) setReal(row); })
-      .catch(() => undefined); // 목업 id(e1~e5)처럼 API에 없는 행사는 기존 목업 데이터를 쓴다.
-    return () => { alive = false; };
-  }, [eventId, tick]);
+  // 목업 id(e1~e5)처럼 API에 없는 행사는 조회 실패로 data가 비어 기존 목업 데이터를 쓴다.
+  const eventQuery = useEventsGet(eventId, { query: { enabled: eventId !== '' } });
+  const real = eventQuery.data ?? null;
   // 실제 멤버십으로 인력 탭·PM 넘기기 노출을 결정한다. 목업 행사(API에 없는 id)는 기존 목업 판정을 쓴다.
   const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
   const meId = me.data?.id ?? null;
-  const [myRole, setMyRole] = useState<'pm' | 'am' | 'member' | null>(null);
-  const [roleResolved, setRoleResolved] = useState(false);
-  useEffect(() => {
-    if (!eventId || !meId) return;
-    let alive = true;
-    listEventMembers(eventId)
-      .then((members) => {
-        if (!alive) return;
-        setMyRole(members.find((m) => m.userId === meId)?.role ?? null);
-        setRoleResolved(true);
-      })
-      .catch(() => undefined); // 목업 행사 등 실데이터 판정이 불가능하면 roleResolved를 false로 두어 목업 판정을 쓰게 한다.
-    return () => { alive = false; };
-  }, [eventId, meId, tick]);
+  // 실데이터 판정이 불가능(목업 행사 등)하면 조회가 실패해 isSuccess=false로, 목업 판정을 쓰게 한다.
+  const members = useEventsMembers(eventId, { query: { enabled: eventId !== '' && meId !== null } });
+  const myRole = useMemo(() => members.data?.find((m) => m.userId === meId)?.role ?? null, [members.data, meId]);
+  const roleResolved = members.isSuccess;
   const event: EventInfo = useMemo(() => (real ? toEventInfo(real) : EVENTS[eventId] ?? FALLBACK_EVENT), [real, eventId]);
   const [isPublic, setIsPublic] = useState(true);
   const [client, setClient] = useState(event.client);
@@ -283,7 +271,8 @@ export function EventDetailView() {
   const [todos, setTodos] = useState(TODOS.map(() => false));
   const [calView, setCalView] = useState<'Day' | 'Week' | 'Month'>('Week');
   const [calEvents, setCalEvents] = useState(INITIAL_EVENTS);
-  const [weekOffset, setWeekOffset] = useState(0);
+  // 캘린더가 가리키는 날(BASE_MONDAY 기준 일수). Day/Week/Month 모두 이 날을 기준으로 표시 구간을 정한다.
+  const [anchor, setAnchor] = useState(TODAY_INDEX);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [peekId, setPeekId] = useState<string | null>(null);
@@ -310,13 +299,13 @@ export function EventDetailView() {
       drag.moved = true;
       setDraggingId(drag.id);
     }
-    const colW = grid.getBoundingClientRect().width / 7;
+    const colW = grid.getBoundingClientRect().width / visibleDays.length;
     const dayDelta = Math.round(dx / colW);
     const timeDelta = Math.round(dy / HOUR_H / SNAP) * SNAP;
     const { origin } = drag;
     const length = origin.end - origin.start;
     const start = Math.min(Math.max(origin.start + timeDelta, 0), DAY_SPAN - length);
-    const dayIndex = Math.min(Math.max(origin.day + dayDelta, weekOffset * 7), weekOffset * 7 + 6);
+    const dayIndex = Math.min(Math.max(origin.day + dayDelta, rangeStart), rangeEnd);
     setCalEvents((list) => list.map((x) => (x.id === drag.id ? { ...x, day: dayIndex, start, end: start + length } : x)));
   };
 
@@ -326,33 +315,100 @@ export function EventDetailView() {
   };
 
   const peekEvent = calEvents.find((x) => x.id === peekId) ?? null;
-  const weekStart = dateOf(weekOffset * 7);
-  const weekEnd = dateOf(weekOffset * 7 + 6);
-  const weekLabel =
-    weekStart.getMonth() === weekEnd.getMonth()
-      ? `${weekStart.getMonth() + 1}월 ${weekStart.getDate()}~${weekEnd.getDate()}`
-      : `${weekStart.getMonth() + 1}월 ${weekStart.getDate()}일~${weekEnd.getMonth() + 1}월 ${weekEnd.getDate()}일`;
+  const weekStartAbs = weekStartOf(anchor);
+  const visibleDays = calView === 'Day' ? [anchor] : Array.from({ length: 7 }, (_, i) => weekStartAbs + i);
+  const rangeStart = visibleDays[0]!;
+  const rangeEnd = visibleDays[visibleDays.length - 1]!;
+  const anchorDate = dateOf(anchor);
+  // 월 보기: 해당 월 1일이 속한 주의 월요일부터 말일이 속한 주의 일요일까지 표시한다.
+  const monthFirstAbs = absOf(new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1));
+  const monthLastAbs = absOf(new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 1, 0));
+  const monthGridStart = weekStartOf(monthFirstAbs);
+  const monthGridDays = Array.from({ length: weekStartOf(monthLastAbs) + 7 - monthGridStart }, (_, i) => monthGridStart + i);
+
+  const weekStart = dateOf(rangeStart);
+  const weekEnd = dateOf(rangeEnd);
+  const calLabel =
+    calView === 'Day'
+      ? `${anchorDate.getMonth() + 1}월 ${anchorDate.getDate()}일 (${KO_DAY_NAMES[((anchor % 7) + 7) % 7]})`
+      : calView === 'Month'
+        ? `${anchorDate.getFullYear()}년 ${anchorDate.getMonth() + 1}월`
+        : weekStart.getMonth() === weekEnd.getMonth()
+          ? `${weekStart.getMonth() + 1}월 ${weekStart.getDate()}~${weekEnd.getDate()}`
+          : `${weekStart.getMonth() + 1}월 ${weekStart.getDate()}일~${weekEnd.getMonth() + 1}월 ${weekEnd.getDate()}일`;
+  const unitLabel = calView === 'Day' ? '날' : calView === 'Month' ? '달' : '주';
+  const moveCalendar = (dir: -1 | 1) => {
+    if (calView === 'Day') setAnchor((a) => a + dir);
+    else if (calView === 'Week') setAnchor((a) => a + dir * 7);
+    else setAnchor(absOf(new Date(anchorDate.getFullYear(), anchorDate.getMonth() + dir, 1)));
+  };
 
   const scheduleCalendar = (
   <section className={`mt-[16px] flex w-full flex-col gap-[12px] p-[16px] ${CARD}`}>
     <div className="flex items-center gap-[12px] px-[8px] pt-[8px]">
-      <button type="button" aria-label="이전 주" onClick={() => setWeekOffset((w) => w - 1)} className="flex size-[24px] items-center justify-center rounded-md hover:bg-surface-chip"><img alt="" src={`${A}/cal-prev.svg`} className="size-[14px]" /></button>
-      <h3 className="m-0 text-lg font-semibold text-fg">{weekLabel}</h3>
-      <button type="button" aria-label="다음 주" onClick={() => setWeekOffset((w) => w + 1)} className="flex size-[24px] items-center justify-center rounded-md hover:bg-surface-chip"><img alt="" src={`${A}/cal-next.svg`} className="size-[14px]" /></button>
-      <button type="button" onClick={() => setWeekOffset(0)} className="h-[24px] rounded-md border border-solid border-border px-[8px] text-xs text-fg-secondary hover:bg-surface-sunken">오늘</button>
+      <button type="button" aria-label={`이전 ${unitLabel}`} onClick={() => moveCalendar(-1)} className="flex size-[24px] items-center justify-center rounded-md hover:bg-surface-chip"><img alt="" src={`${A}/cal-prev.svg`} className="size-[14px]" /></button>
+      <h3 className="m-0 text-lg font-semibold text-fg">{calLabel}</h3>
+      <button type="button" aria-label={`다음 ${unitLabel}`} onClick={() => moveCalendar(1)} className="flex size-[24px] items-center justify-center rounded-md hover:bg-surface-chip"><img alt="" src={`${A}/cal-next.svg`} className="size-[14px]" /></button>
+      <button type="button" onClick={() => setAnchor(TODAY_INDEX)} className="h-[24px] rounded-md border border-solid border-border px-[8px] text-xs text-fg-secondary hover:bg-surface-sunken">오늘</button>
       <span className="flex-1" />
       <SegmentControl options={CAL_VIEWS} value={calView} onChange={setCalView} size="sm" />
     </div>
 
+    {calView === 'Month' ? (
+      <div className="overflow-x-auto">
+        <div className="min-w-[760px]">
+          <div className="grid grid-cols-7">
+            {DAY_NAMES.map((name) => (
+              <span key={name} className="pb-[8px] text-center text-[9px] font-semibold text-fg-tertiary">{name}</span>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 border-0 border-l border-t border-solid border-border-soft">
+            {monthGridDays.map((abs, i) => {
+              const inMonth = abs >= monthFirstAbs && abs <= monthLastAbs;
+              const dayEvents = calEvents.filter((e) => e.day === abs).sort((a, b) => a.start - b.start);
+              return (
+                <button
+                  key={abs}
+                  type="button"
+                  aria-label={`${dateOf(abs).getMonth() + 1}월 ${dateOf(abs).getDate()}일 일정 보기`}
+                  onClick={() => { setAnchor(abs); setCalView('Day'); }}
+                  className={`flex h-[96px] min-w-0 flex-col items-stretch gap-[2px] overflow-hidden border-0 border-b border-r border-solid border-border-soft p-[4px] text-left ${
+                    abs === TODAY_INDEX ? 'bg-error-bg/60' : i % 7 >= 5 ? 'bg-surface-sunken' : 'bg-transparent'
+                  } hover:bg-surface-chip`}
+                >
+                  <span
+                    className={`self-start rounded-md px-[4px] text-xs font-semibold ${
+                      abs === TODAY_INDEX ? 'bg-error-brand text-fg-inverse' : inMonth ? 'text-fg-secondary' : 'text-fg-tertiary/60'
+                    }`}
+                  >
+                    {dateOf(abs).getDate()}
+                  </span>
+                  {dayEvents.slice(0, 3).map((e) => (
+                    <span
+                      key={e.id}
+                      style={{ backgroundColor: EVENTS[e.eventId]?.color, opacity: e.eventId === eventId ? 1 : OTHER_EVENT_OPACITY }}
+                      className="truncate rounded-sm px-[4px] text-[10px] font-semibold leading-[16px] text-fg-inverse"
+                    >
+                      {e.title}
+                    </span>
+                  ))}
+                  {dayEvents.length > 3 && <span className="px-[4px] text-[10px] text-fg-tertiary">+{dayEvents.length - 3}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    ) : (
     <div className="overflow-x-auto">
       <div className="min-w-[760px]">
-        <div className="grid grid-cols-[48px_repeat(7,minmax(0,1fr))]">
+        <div className="grid" style={{ gridTemplateColumns: `48px repeat(${visibleDays.length}, minmax(0, 1fr))` }}>
           <div />
-          {DAY_NAMES.map((name, di) => {
-            const abs = weekOffset * 7 + di;
+          {visibleDays.map((abs) => {
+            const name = DAY_NAMES[((abs % 7) + 7) % 7]!;
             const isToday = abs === TODAY_INDEX;
             return (
-              <div key={name} className="flex flex-col items-center gap-[2px] pb-[8px] text-center">
+              <div key={abs} className="flex flex-col items-center gap-[2px] pb-[8px] text-center">
                 {isToday ? (
                   <span className="flex flex-col items-center rounded-md bg-error-brand px-[8px] py-[2px] text-fg-inverse">
                     <span className="text-[9px] font-semibold">{name.slice(0, 3)}</span>
@@ -375,14 +431,14 @@ export function EventDetailView() {
               <span key={h} style={{ top: i * HOUR_H - 6 }} className="absolute right-[10px] text-[9px] text-fg-tertiary">{h}</span>
             ))}
           </div>
-          <div ref={gridRef} className="relative grid grid-cols-7" onPointerDown={(e) => { if (e.target === e.currentTarget) setSelectedId(null); }}>
-            {DAY_NAMES.map((name, di) => {
-              const abs = weekOffset * 7 + di;
+          <div ref={gridRef} className="relative grid" style={{ gridTemplateColumns: `repeat(${visibleDays.length}, minmax(0, 1fr))` }} onPointerDown={(e) => { if (e.target === e.currentTarget) setSelectedId(null); }}>
+            {visibleDays.map((abs) => {
+              const weekend = ((abs % 7) + 7) % 7 >= 5;
               return (
                 <div
-                  key={name}
+                  key={abs}
                   onPointerDown={() => setSelectedId(null)}
-                  className={`relative border-0 border-l border-solid border-border-soft ${abs === TODAY_INDEX ? 'bg-error-bg/60' : di >= 5 ? 'bg-surface-sunken' : ''}`}
+                  className={`relative border-0 border-l border-solid border-border-soft ${abs === TODAY_INDEX ? 'bg-error-bg/60' : weekend ? 'bg-surface-sunken' : ''}`}
                 >
                   {HOURS.map((h, i) => (
                     <div key={h} style={{ top: i * HOUR_H }} className="pointer-events-none absolute inset-x-0 border-0 border-t border-solid border-border-soft" />
@@ -393,9 +449,10 @@ export function EventDetailView() {
             })}
 
             {calEvents
-              .filter((e) => e.day >= weekOffset * 7 && e.day <= weekOffset * 7 + 6)
+              .filter((e) => e.day >= rangeStart && e.day <= rangeEnd)
               .map((e) => {
-                const di = e.day - weekOffset * 7;
+                const di = e.day - rangeStart;
+                const cols = visibleDays.length;
                 const dragging = draggingId === e.id;
                 const selected = selectedId === e.id;
                 return (
@@ -420,15 +477,15 @@ export function EventDetailView() {
                         if (x.id !== e.id) return x;
                         const len = x.end - x.start;
                         const start = Math.min(Math.max(x.start + step, 0), DAY_SPAN - len);
-                        const day = Math.min(Math.max(x.day + dayStep, weekOffset * 7), weekOffset * 7 + 6);
+                        const day = Math.min(Math.max(x.day + dayStep, rangeStart), rangeEnd);
                         return { ...x, day, start, end: start + len };
                       }));
                     }}
                     style={{
                       backgroundColor: EVENTS[e.eventId]?.color,
                       opacity: dragging ? 0.9 : e.eventId === eventId ? 1 : OTHER_EVENT_OPACITY,
-                      left: `calc(${(di / 7) * 100}% + 3px)`,
-                      width: `calc(${100 / 7}% - 6px)`,
+                      left: `calc(${(di / cols) * 100}% + 3px)`,
+                      width: `calc(${100 / cols}% - 6px)`,
                       top: e.start * HOUR_H + 2,
                       height: (e.end - e.start) * HOUR_H - 4,
                     }}
@@ -445,6 +502,7 @@ export function EventDetailView() {
         </div>
       </div>
     </div>
+    )}
   </section>
   );
 
@@ -538,14 +596,14 @@ export function EventDetailView() {
         {tab === '인력' && isMember && (
           <div className="mt-[16px] flex w-full flex-col gap-[12px]">
             <div className="flex justify-end">
-              <PmTransfer eventId={eventId} meId={meId} isPm={roleResolved && myRole === 'pm'} onTransferred={() => setTick((t) => t + 1)} />
+              <PmTransfer eventId={eventId} meId={meId} isPm={roleResolved && myRole === 'pm'} onTransferred={() => { void queryClient.invalidateQueries({ queryKey: getEventsGetQueryKey(eventId) }); }} />
             </div>
             <EventMembers event={event} eventId={eventId} />
           </div>
         )}
       </div>
 
-      <TaskBoard eventId={eventId} schedules={schedule} products={products} reloadKey={tick} />
+      <TaskBoard eventId={eventId} schedules={schedule} products={products} />
 
       <div className="flex items-stretch gap-[20px] px-[5px] max-lg:flex-col">
         <div
