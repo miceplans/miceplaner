@@ -64,7 +64,12 @@ export class AiService {
       place: current.place ? masker.redactText(current.place) : null, status: current.status,
     };
     const messages: ChatMsg[] = [
-      { role: 'system', content: systemPrompt({ today: new Date().toISOString().slice(0, 10), eventId, event, eventTab: eventId ? body.eventTab : undefined }) },
+      { role: 'system', content: systemPrompt({
+        today: new Date().toISOString().slice(0, 10), eventId, event,
+        eventTab: eventId ? body.eventTab : undefined,
+        eventItems: eventId && body.eventItems ? (masker.redact(body.eventItems) as unknown[]) : undefined,
+        me: { id: user.userId, token: masker.redactText(user.name) },
+      }) },
       ...body.messages.map((message) => ({ ...message, content: masker.redactText(message.content) })),
     ];
     const handlers = this.handlers(user, sources, send, masker);

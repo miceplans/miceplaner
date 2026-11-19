@@ -15,6 +15,15 @@ describe('systemPrompt', () => {
     expect(systemPrompt({ today: '2026-11-19', eventId: ID, eventTab: '할 일' })).toContain('"할 일"');
   });
 
+  it('현재 사용자 토큰과 화면 할 일 목록을 넣는다', () => {
+    const p = systemPrompt({
+      today: '2026-11-19', eventId: ID, me: { id: ID, token: '<PERSON_001>' },
+      eventItems: [{ level: 'task', title: '연사 섭외', assignee: '<PERSON_001>', status: '진행', date: null, part: null, parent: null }],
+    });
+    expect(p).toContain('현재 사용자는 <PERSON_001>');
+    expect(p).toContain('연사 섭외');
+  });
+
   it('행사 맥락이 없으면 행사 문구를 넣지 않는다', () => {
     expect(systemPrompt({ today: '2026-11-19' })).not.toContain('detail page');
   });

@@ -5,7 +5,7 @@ import type { ChatEvent, ProposalDto } from '@miceplans/contracts';
 import { Input, toast } from '@miceplans/ui';
 import { ApiError, streamChat } from '@/lib/api';
 import { useApproveProposal, useRejectProposal } from '@/lib/api/generated/endpoints';
-import { eventIdFrom, getEventTab } from './event-context';
+import { eventIdFrom, getEventItems, getEventTab } from './event-context';
 
 const A = '/assets/ai-chat';
 
@@ -50,7 +50,8 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
     try {
       const eventId = eventIdFrom(window.location.pathname, window.location.search);
       const eventTab = eventId ? getEventTab() : undefined;
-      await streamChat({ eventId, eventTab, messages: history.slice(-40) }, handle, abort.current.signal);
+      const eventItems = eventId ? getEventItems() : undefined;
+      await streamChat({ eventId, eventTab, eventItems, messages: history.slice(-40) }, handle, abort.current.signal);
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) toast.error(error instanceof ApiError ? error.message : '[500] 답변을 받지 못했습니다.');
     } finally {

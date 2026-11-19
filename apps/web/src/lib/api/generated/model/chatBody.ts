@@ -5,6 +5,7 @@
  * 행사 운영 업무 API
  * OpenAPI spec version: 0.1.0
  */
+import type { ChatBodyEventItemsItem } from './chatBodyEventItemsItem';
 import type { ChatBodyMessagesItem } from './chatBodyMessagesItem';
 
 export interface ChatBody {
@@ -15,6 +16,8 @@ export interface ChatBody {
      * @maxLength 40
      */
   eventTab?: string;
+  /** @maxItems 300 */
+  eventItems?: ChatBodyEventItemsItem[];
   /**
      * @minItems 1
      * @maxItems 40

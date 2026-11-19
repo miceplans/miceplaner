@@ -4081,6 +4081,61 @@
             "minLength": 1,
             "maxLength": 40
           },
+          "eventItems": {
+            "maxItems": 300,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "schedule",
+                    "task",
+                    "subtask"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "assignee": {
+                  "nullable": true,
+                  "type": "string",
+                  "maxLength": 50
+                },
+                "status": {
+                  "type": "string",
+                  "maxLength": 20
+                },
+                "date": {
+                  "nullable": true,
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "part": {
+                  "nullable": true,
+                  "type": "string",
+                  "maxLength": 20
+                },
+                "parent": {
+                  "nullable": true,
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "level",
+                "title",
+                "assignee",
+                "status",
+                "date",
+                "part",
+                "parent"
+              ],
+              "additionalProperties": false
+            }
+          },
           "messages": {
             "minItems": 1,
             "maxItems": 40,
