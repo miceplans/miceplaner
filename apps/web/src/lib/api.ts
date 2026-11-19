@@ -1,4 +1,5 @@
 import type { AuthSessionDto, ChatBody, ChatEvent, ClientDto, CreateEventBody, DocPageDto, EventListItemDto, FileDto, ProposalDto } from '@miceplans/contracts';
+import type { PortalEventDto, PortalProgramDto } from '@miceplans/contracts/portal';
 
 /** 빌드 시점에 정해지는 공개 주소다. 비밀 값은 두지 않는다. */
 export const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -129,4 +130,14 @@ export async function downloadFile(file: Pick<FileDto, 'id' | 'name'>): Promise<
   a.download = file.name;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/** Client 본인에게 지정된 행사 목록 (명세 F-07). */
+export async function listPortalEvents(): Promise<PortalEventDto[]> {
+  return (await (await request('/portal/events', { method: 'GET' })).json()) as PortalEventDto[];
+}
+
+/** 지정된 행사의 공개 Program 일정. Task·Subtask·담당자는 노출하지 않는다 (명세 F-07). */
+export async function listPortalPrograms(): Promise<PortalProgramDto[]> {
+  return (await (await request('/portal/programs', { method: 'GET' })).json()) as PortalProgramDto[];
 }
