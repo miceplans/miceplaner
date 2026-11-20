@@ -44,6 +44,7 @@ jobs:
               - 'packages/db/scripts/migrate.sh'
               - 'Dockerfile'
               - '.github/workflows/release.yml'
+              - '.github/actions/deploy-aws/**'
             api:
               - 'apps/api/**'
               - 'packages/ai/**'
@@ -57,6 +58,7 @@ jobs:
               - 'packages/storage/**'
               - 'pnpm-lock.yaml'
               - '.github/workflows/release.yml'
+              - '.github/actions/deploy-aws/**'
             worker:
               - 'apps/worker/**'
               - 'packages/config/**'
@@ -67,9 +69,9 @@ jobs:
               - 'packages/queue/**'
               - 'packages/storage/**'
               - 'Dockerfile'
-              - 'fly.worker.toml'
               - 'pnpm-lock.yaml'
               - '.github/workflows/release.yml'
+              - '.github/actions/deploy-aws/**'
             collab:
               - 'apps/collaboration/**'
               - 'packages/config/**'
@@ -80,9 +82,9 @@ jobs:
               - 'packages/knowledge/**'
               - 'packages/queue/**'
               - 'Dockerfile'
-              - 'fly.collab.toml'
               - 'pnpm-lock.yaml'
               - '.github/workflows/release.yml'
+              - '.github/actions/deploy-aws/**'
             realtime:
               - 'apps/realtime/**'
               - 'packages/config/**'
@@ -90,9 +92,9 @@ jobs:
               - 'packages/db/**'
               - 'packages/domain/**'
               - 'Dockerfile'
-              - 'fly.realtime.toml'
               - 'pnpm-lock.yaml'
               - '.github/workflows/release.yml'
+              - '.github/actions/deploy-aws/**'
 
   migrate:
     name: Apply unapplied SQL migrations
@@ -140,12 +142,15 @@ jobs:
       - run: npx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
 
   deploy-worker:
-    name: Deploy worker (Fly.io)
+    name: Deploy worker (AWS)
     needs: [changes, migrate]
     if: >-
       always() && !failure() && !cancelled() &&
       (needs.changes.outputs.worker == 'true' || inputs.force_all)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -161,41 +166,47 @@ jobs:
           docker run --rm --env DATABASE_URL miceplans-worker:${{ github.sha }}
           node_modules/.bin/tsx ../../packages/queue/src/migrate.ts
 
-      # v1.5의 전체 커밋 SHA. 토큰을 쓰는 배포에서 mutable ref를 실행하지 않는다.
-      - uses: superfly/flyctl-actions/setup-flyctl@98172f70657cb3e15db199af139be99bd3e61200
-      - run: flyctl deploy --remote-only -c fly.worker.toml
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - uses: ./.github/actions/deploy-aws
+        with:
+          service: worker
+          role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          instance-id: ${{ vars.AWS_INSTANCE_ID }}
 
   deploy-collab:
-    name: Deploy collab (Fly.io)
+    name: Deploy collab (AWS)
     needs: [changes, migrate]
     if: >-
       always() && !failure() && !cancelled() &&
       (needs.changes.outputs.collab == 'true' || inputs.force_all)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
-      # v1.5의 전체 커밋 SHA. 토큰을 쓰는 배포에서 mutable ref를 실행하지 않는다.
-      - uses: superfly/flyctl-actions/setup-flyctl@98172f70657cb3e15db199af139be99bd3e61200
-      - run: flyctl deploy --remote-only -c fly.collab.toml
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - uses: ./.github/actions/deploy-aws
+        with:
+          service: collab
+          role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          instance-id: ${{ vars.AWS_INSTANCE_ID }}
 
   deploy-realtime:
-    name: Deploy realtime (Fly.io)
+    name: Deploy realtime (AWS)
     needs: [changes, migrate]
     if: >-
       always() && !failure() && !cancelled() &&
       (needs.changes.outputs.realtime == 'true' || inputs.force_all)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
-      # v1.5의 전체 커밋 SHA. 토큰을 쓰는 배포에서 mutable ref를 실행하지 않는다.
-      - uses: superfly/flyctl-actions/setup-flyctl@98172f70657cb3e15db199af139be99bd3e61200
-      - run: flyctl deploy --remote-only -c fly.realtime.toml
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - uses: ./.github/actions/deploy-aws
+        with:
+          service: realtime
+          role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          instance-id: ${{ vars.AWS_INSTANCE_ID }}
 
   # 배포가 끝난 뒤 각 서비스가 실제로 응답하는지 확인한다. 이번 릴리스에서 배포하지 않은 서비스는 건너뛴다.
   health-check:

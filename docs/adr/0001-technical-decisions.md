@@ -21,7 +21,7 @@ MICEPLANNER는 행사 운영 데이터와 사내 지식을 다루며, 내부 직
 | UI | Tailwind CSS, Radix, TanStack Query, Zustand, React Hook Form, Zod | 웹과 포털의 공용 UI |
 | 업무 API | NestJS | REST와 OpenAPI |
 | 웹 API 클라이언트 | orval + TanStack Query | `apps/api`가 내보낸 `openapi.json`(`pnpm api:spec`)에서 fetch 클라이언트와 Query 훅을 생성한다. 토큰·401·오류 메시지는 `apps/web/src/lib/api/http.ts` 한곳에서 처리하고, SSE(`/ai/chat`)는 스트림이라 직접 구현한다. 생성 결과(`apps/web/src/lib/api/generated`)와 `openapi.json`은 커밋한다. |
-| 일반 실시간 | Socket.IO (`apps/realtime`, Fly.io 상시 서비스) | 행사·태스크·일정·알림 갱신. 서버리스 API가 아니라 별도 단일 프로세스가 연결·방 상태를 가진다. API는 내부 HTTP(`POST /internal/emit`, 공유 비밀)로 푸시만 보낸다. |
+| 일반 실시간 | Socket.IO (`apps/realtime`, AWS EC2 상시 서비스) | 행사·태스크·일정·알림 갱신. 서버리스 API가 아니라 별도 단일 프로세스가 연결·방 상태를 가진다. API는 내부 HTTP(`POST /internal/emit`, 공유 비밀)로 푸시만 보낸다. |
 | AI 스트리밍 | SSE | 토큰 단위 응답 |
 | 협업 편집 | TipTap, Yjs, Hocuspocus | 본문 동시 편집·커서·접속자 |
 | 주 저장소 | PostgreSQL, pgvector | RLS로 권한 강제 |
@@ -31,17 +31,19 @@ MICEPLANNER는 행사 운영 데이터와 사내 지식을 다루며, 내부 직
 | 검색 | PostgreSQL FTS, `pg_trgm`, pgvector | 애플리케이션에서 결과 병합 |
 | LLM | GLM | OpenAI 호환 어댑터 뒤에 배치 |
 | 내부 인증 | 이메일·비밀번호(scrypt) + 하이웍스 조직도 구성원 검증 | Google OIDC는 철회(2026-11-03). 하이웍스 OAuth는 신규 발급이 중단되어 쓰지 않는다. 메일 소유 확인이 없어 자유 가입 선점 위험을 감수한다. Client는 `client.` 포털에서 회사명·이름·이메일·비밀번호로 신청하고 Super Admin 승인 뒤 로그인한다. |
-| 관측 | Sentry와 OpenTelemetry | AI 호출 로그 별도 저장 |
+| 관측 | Sentry와 OpenTelemetry | AI 호출 로그 별도 저장. 런타임 상태는 `/health`로도 확인 |
 
 ### 배포
 
-일반 HTTP API는 Vercel Node Function으로 요청 시에만 실행한다. API 함수는 `tsup`으로 workspace 코드를 단일 ESM 번들로 만들고, Vercel 함수 진입점은 그 산출물만 불러온다. ESM 전용 `jose`와 동적 `require`를 사용하는 `pg`는 번들 밖에 두어 Node 런타임이 직접 해석한다. Vercel의 `Other` 프리셋이 요구하는 `public` 출력 디렉터리는 빌드 때 `index.html`을 만들어 비어 있지 않게 하며, 모든 HTTP 메서드와 중첩 경로는 Vercel `routes` 규칙으로 catch-all 함수 파일에 직접 보낸다. API 번들은 정적 산출물이 아니라 함수에만 포함한다. 이는 워크스페이스 TypeScript 소스의 확장자 없는 ESM import를 Vercel 런타임이 개별적으로 해석하는 문제를 피한다. Socket.IO·협업·worker처럼 지속 연결 또는 폴링이 필요한 프로세스는 Vercel 함수에 두지 않는다(API 모듈은 `RealtimeModule`로 소켓을 열지 않고 `RealtimeClient`로 푸시만 보낸다). 실시간 서버(`fly.realtime.toml`)·협업 서버·worker는 Fly.io 단일 머신으로 배포한다. 실시간 서버는 연결이 없으면 멈추고 요청·연결 시 깨우며, 둘 이상 운영하려면 Socket.IO 어댑터(Redis 등)가 필요하므로 그 전까지 단일 머신을 유지한다. 서버리스 함수는 응답 뒤 곧 멈추므로 API 핸들러가 응답 뒤 진행 중인 푸시를 끝까지 기다린다.
+일반 HTTP API는 Vercel Node Function으로 요청 시에만 실행한다. API 함수는 `tsup`으로 workspace 코드를 단일 ESM 번들로 만들고, Vercel 함수 진입점은 그 산출물만 불러온다. ESM 전용 `jose`와 동적 `require`를 사용하는 `pg`는 번들 밖에 두어 Node 런타임이 직접 해석한다. Vercel의 `Other` 프리셋이 요구하는 `public` 출력 디렉터리는 빌드 때 `index.html`을 만들어 비어 있지 않게 하며, 모든 HTTP 메서드와 중첩 경로는 Vercel `routes` 규칙으로 catch-all 함수 파일에 직접 보낸다. API 번들은 정적 산출물이 아니라 함수에만 포함한다. 이는 워크스페이스 TypeScript 소스의 확장자 없는 ESM import를 Vercel 런타임이 개별적으로 해석하는 문제를 피한다. Socket.IO·협업·worker처럼 지속 연결 또는 폴링이 필요한 프로세스는 Vercel 함수에 두지 않는다(API 모듈은 `RealtimeModule`로 소켓을 열지 않고 `RealtimeClient`로 푸시만 보낸다). 실시간 서버·협업 서버·worker는 AWS EC2 한 대(`infra/`의 CDK 스택 `MiceplansBackend`, t4g.micro)에서 Docker로 함께 실행한다. CloudFront가 HTTPS·WSS를 맡고(도메인·ALB 없음) 보안 그룹은 CloudFront 원본 접두사 목록만 허용한다. 비밀은 SSM Parameter Store `/miceplans/prod/*`에 두고, GitHub Actions(OIDC)가 ECR 이미지를 올린 뒤 SSM Run Command로 배포한다. 둘 이상 운영하려면 Socket.IO 어댑터(Redis 등)가 필요하므로 그 전까지 단일 머신을 유지한다. 서버리스 함수는 응답 뒤 곧 멈추므로 API 핸들러가 응답 뒤 진행 중인 푸시를 끝까지 기다린다.
 
 릴리스는 `.github/workflows/release.yml` 하나로 `DB 마이그레이션 → API(Vercel CLI)·worker·collab·realtime 배포 → health check` 순서를 보장한다. 마이그레이션이 실패·취소되면 앱은 배포하지 않고, Vercel Git 자동 배포는 `apps/api/vercel.json`의 `git.deploymentEnabled=false`로 꺼 마이그레이션보다 먼저 배포되지 않게 한다. 이전 코드와 새 스키마가 함께 동작하도록 마이그레이션은 추가만 하는 확장 단계로 먼저 적용하고, 삭제 같은 축소는 앱 배포 뒤 다음 릴리스에서 한다. 필요한 설정: 시크릿 `SUPABASE_MIGRATION_URL`·`FLY_API_TOKEN`·`VERCEL_TOKEN`·`VERCEL_ORG_ID`·`VERCEL_PROJECT_ID`, 변수 `API_HEALTH_URL`·`COLLAB_HEALTH_URL`·`REALTIME_HEALTH_URL`.
 
 공개 인증 엔드포인트(가입·로그인·Client 로그인·Client 신청)는 비밀번호 해싱·하이웍스 조회 전에 IP와 이메일 기준으로 요청 수를 제한한다. 별도 캐시 없이 PostgreSQL 고정 창 카운터(`rate_limits`, SECURITY DEFINER 함수 `hit_rate_limit`)를 서버리스 인스턴스가 공유하며, 키는 해시로만 저장한다. 기본 한도는 IP당 30회·이메일당 10회(10분), Client 신청은 IP당 5회(1시간)이고 초과하면 429다. IP는 Vercel이 덮어쓰는 `x-vercel-forwarded-for`·`x-real-ip`만 믿는다. 인프라 차원의 방어는 Vercel WAF를 추가로 둘 수 있다.
 
 예상 못한 서버 오류(500)는 일반 메시지와 요청 ID만 응답하고, 오류 이름·메시지·스택은 서버 로그에만 남긴다(Sentry 연동 시 같은 요청 ID로 연결). 협업 서버(`fly.collab.toml`)는 유휴 시 머신을 멈추고 요청 시 깨운다. 반면 worker(`fly.worker.toml`)는 pg-boss 큐를 계속 감시해야 하므로 auto-stop 없이 항상 켜진 가장 작은 공유 CPU 머신 하나(`shared-cpu-1x`)로 둔다. 유휴 시간의 VM 비용을 감수하는 대신 Redis 같은 별도 큐 인프라 없이 PostgreSQL 폴링으로 작업을 가져오며, 작업량이 적어지면 주기 실행으로의 전환을 명세 6절에서 검토한다.
+
+API의 `/health`는 PostgreSQL, pg-boss, 업로드 원본 저장소, 협업 서버를 모두 읽기 전용으로 점검하며, 하나라도 실패하면 503을 반환한다. worker는 같은 방식으로 PostgreSQL·pg-boss·저장소를 점검하는 HTTP `/health`를 열고 Fly HTTP check가 이를 30초마다 호출한다. health 응답에는 비밀·접속 문자열·원본 오류를 넣지 않는다. Sentry DSN과 OTLP exporter endpoint·인증은 아직 배포 비밀로 확정되지 않았으므로, 해당 값을 정하기 전에는 외부로 오류/trace를 전송하지 않으며 health check와 표준 오류 로그를 최소 운영 신호로 사용한다.
 
 ### 시스템 경계
 
@@ -104,7 +106,7 @@ apps/
   web/             internal web, static export
   portal/          Client portal, portal contracts and ui only
   api/             NestJS API, authorization, search, agent
-  realtime/        Socket.IO server (always-on, Fly.io)
+  realtime/        Socket.IO server (always-on, AWS EC2)
   collaboration/   Hocuspocus server
   worker/          pg-boss jobs
 packages/
