@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import 'reflect-metadata';
+import { flushRealtime } from '../src/realtime/realtime.client';
 import { createApiApp } from '../src/server';
 
 let appPromise: ReturnType<typeof createApiApp> | undefined;
@@ -10,5 +11,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   const app = await appPromise;
   if (req.url === '/api') req.url = '/';
   else if (req.url?.startsWith('/api/')) req.url = req.url.slice(4) || '/';
-  return app.getHttpAdapter().getInstance()(req, res);
+  // 응답 뒤 함수가 멈추기 전에 실시간 서비스로 보내는 푸시를 마친다.
+  await new Promise<void>((resolve) => {
+    res.once('close', resolve);
+    app.getHttpAdapter().getInstance()(req, res);
+  });
+  await flushRealtime();
 }
