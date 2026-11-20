@@ -1,6 +1,8 @@
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { hitRateLimit, withPublicContext } from '../src';
+import { hitRateLimit, withContext } from '../src';
+
+const withPublicContext = <T>(pool: pg.Pool, workspaceId: string, fn: (db: pg.PoolClient) => Promise<T>) => withContext(pool, { workspaceId, userId: '', role: 'client' }, fn);
 
 let app: pg.Pool;
 

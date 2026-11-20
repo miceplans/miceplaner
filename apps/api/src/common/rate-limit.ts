@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { CanActivate, ExecutionContext, HttpException, HttpStatus, Inject, Injectable, Logger, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { hitRateLimit, withPublicContext, type Pool } from '@miceplans/db';
+import { hitRateLimit, withContext, type Pool } from '@miceplans/db';
 import { config } from '../config';
 import { DB_POOL } from '../tokens';
 
@@ -49,7 +49,8 @@ export class RateLimitGuard implements CanActivate {
     if (email && rule.emailPerWindow) checks.push([`${rule.scope}:email:${digest(email)}`, rule.emailPerWindow]);
 
     try {
-      const results = await withPublicContext(this.pool, config.workspaceId, async (db) => {
+      // 로그인 전이라 신원이 없다. 최소 권한(client) 익명 컨텍스트로 카운터 함수만 실행한다.
+      const results = await withContext(this.pool, { workspaceId: config.workspaceId, userId: '', role: 'client' }, async (db) => {
         const out: boolean[] = [];
         for (const [key, limit] of checks) out.push(await hitRateLimit(db, key, rule.windowSeconds, limit));
         return out;
