@@ -15,6 +15,7 @@ import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event
 import { PmTransfer } from './pm-transfer';
 import { TaskBoard } from './task-board-view';
 import type { EventListItemDto } from '@miceplans/contracts';
+import { setEventItems, setEventTab } from '../../ai-chat/event-context';
 
 /** 하이웍스 소속 이름(`GET /auth/me`의 team). 영상팀·콘텐츠 제작팀도 이 팀의 소분류로 내려온다. */
 const DESIGN_TEAM = '디자인팀';
@@ -217,6 +218,11 @@ export function EventDetailView() {
   const [previewNoAccess, setPreviewNoAccess] = useState(false);
   // 실데이터에서 멤버십이 확인되면 그 결과를 쓰고, 목업 행사에서는 기존 목업 판정을 쓴다.
   const isMember = !previewNoAccess && (roleResolved ? myRole !== null : isEventMember(event, eventId, CURRENT_USER.name));
+  // AI 에이전트가 사용자가 보고 있는 탭을 맥락으로 쓰게 한다.
+  useEffect(() => {
+    setEventTab(tab);
+    return () => setEventTab(undefined);
+  }, [tab]);
   const visibleTabs = isMember ? tabs : tabs.filter((t) => !(MEMBER_TABS as readonly string[]).includes(t));
   const myTeam = me.data?.team;
   useEffect(() => {
@@ -235,6 +241,11 @@ export function EventDetailView() {
   const assignable = useMemo(() => getAssignableNames({ pm: event.pm, am: event.am, design: event.design }, eventId), [event.pm, event.am, event.design, eventId]);
   const [schedule, setSchedule] = useState(() => resolveOwners(INITIAL_SCHEDULE, assignable));
   const [products, setProducts] = useState<RequestRow[]>([]);
+  // AI 에이전트가 화면의 스케줄·할 일(브라우저에만 저장)을 볼 수 있게 한다.
+  useEffect(() => {
+    setEventItems(schedule);
+    return () => setEventItems(undefined);
+  }, [schedule]);
   const access = useMemo(() => ({ me: CURRENT_USER.name, members: assignable }), [assignable]);
   const [listsLoaded, setListsLoaded] = useState(false);
   const listsKey = `miceplans.event-lists.${eventId}`;

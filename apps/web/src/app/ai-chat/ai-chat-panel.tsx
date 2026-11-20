@@ -1,11 +1,11 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
 import type { ChatEvent, ProposalDto } from '@miceplans/contracts';
 import { Input, toast } from '@miceplans/ui';
 import { ApiError, streamChat } from '@/lib/api';
 import { useApproveProposal, useRejectProposal } from '@/lib/api/generated/endpoints';
+import { eventIdFrom, getEventItems, getEventTab } from './event-context';
 
 const A = '/assets/ai-chat';
 
@@ -17,9 +17,6 @@ type Turn = { role: 'user' | 'assistant'; content: string; sources?: Source[]; p
 const KIND_LABEL: Record<ProposalDto['kind'], string> = { task_drafts: 'Task 초안', notification: '알림', wiki_edit: '위키 수정' };
 const DECISION_LABEL: Record<ProposalDto['status'], string> = { pending: '승인 대기', approved: '승인됨', rejected: '반려됨' };
 
-/** 행사 상세(`/events/:id`)에서는 그 행사를 대화의 기본 맥락으로 보낸다. */
-const eventIdFrom = (pathname: string) => /^\/events\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(\/|$)/i.exec(pathname)?.[1];
-
 export function AiChatPanel({ onClose, className }: { onClose?: () => void; className?: string } = {}) {
   const [open, setOpen] = useState(true);
   const [draft, setDraft] = useState('');
@@ -29,7 +26,6 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
   const sending = useRef(false);
   const approve = useApproveProposal();
   const reject = useRejectProposal();
-  const pathname = usePathname();
 
   if (!open) return null;
 
@@ -52,7 +48,10 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
     setBusy(true);
     abort.current = new AbortController();
     try {
-      await streamChat({ eventId: eventIdFrom(pathname), messages: history.slice(-40) }, handle, abort.current.signal);
+      const eventId = eventIdFrom(window.location.pathname, window.location.search);
+      const eventTab = eventId ? getEventTab() : undefined;
+      const eventItems = eventId ? getEventItems() : undefined;
+      await streamChat({ eventId, eventTab, eventItems, messages: history.slice(-40) }, handle, abort.current.signal);
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) toast.error(error instanceof ApiError ? error.message : '[500] 답변을 받지 못했습니다.');
     } finally {
