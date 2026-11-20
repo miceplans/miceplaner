@@ -86,8 +86,9 @@ Event 아래에 Program, Task, Subtask가 한 계층으로 이어지며, 각 단
 - 내부 사용자는 인증되지 않은 상태에서 내부 기능에 접근할 수 없다.
 - 하이웍스 구성원에서 빠진 계정은 로그인할 수 없다(로그인마다 확인).
 - **알려진 위험(결정 2026-11-03):** 메일 소유를 확인하지 않는 자유 가입이라, 동료 이메일을 아는 구성원이 먼저 비밀번호를 정해 계정을 선점할 수 있다. 비밀번호 재설정·관리자 발급 흐름은 아직 없다. 필요해지면 관리자 임시 비밀번호 발급을 추가한다.
-- 권한이 회수되면 세션을 무효화하고 Socket.IO 방에서 제거하며, 열린 위키는 읽기 전용으로 전환하거나 연결을 종료한다.
-- Client 포털은 기본 접두사 `client`를 써 `client.<주 도메인>` 서브도메인으로 제공한다 (`CLIENT_PORTAL_PREFIX=client`). 정적 웹 배포는 이 호스트의 `/`·`/apply` 요청을 각각 `/client/dashboard`·`/client/apply` 정적 경로로 연결하고, API의 `CLIENT_PORTAL_ORIGIN`에는 해당 HTTPS origin을 등록한다. 신청자는 회사명·이름·이메일·비밀번호를 제출하고, Super Admin이 내부 알림에서 승인한 뒤 Client 계정이 활성화된다. Client 로그인은 포털 전용 이메일·비밀번호 로그인으로 처리하며 하이웍스 검증을 적용하지 않는다. 신청 이메일은 대기·활성 계정과 중복될 수 없다.
+- 가입·로그인·Client 신청은 IP·이메일 기준 요청 제한(초과 시 429)을 적용한다.
+- 권한이 회수되면 세션을 무효화하고 Socket.IO 방에서 제거하며(상시 실시간 서비스가 내부 푸시로 처리한다), 열린 위키는 읽기 전용으로 전환하거나 연결을 종료한다.
+- Client 포털은 기본 접두사 `client`를 써 `client.<주 도메인>` 서브도메인으로 제공한다 (`CLIENT_PORTAL_PREFIX=client`). 정적 웹 배포(`apps/web/vercel.json`)는 이 호스트(`client.*`)의 `/`·`/apply`·`/login` 요청을 각각 `/client/dashboard`·`/client/apply`·`/client/login` 정적 경로로 연결하고, `/client/events/<id>`는 정적 셸 `/client/events/_`로 연결해 행사 ID를 URL에서 읽게 한다. 포털 화면(대시보드·행사 목록·행사 상세·캘린더)은 로그인한 Client 세션으로 `GET /portal/events`·`GET /portal/programs`를 호출해 배정된 행사와 공개 Program만 보여 주며, 세션이 없으면 `/client/login`으로 보낸다. 포털 알림·준비 항목·담당자 화면은 전용 API가 생길 때까지 비어 있다(후속 작업). API의 `CLIENT_PORTAL_ORIGIN`에는 해당 HTTPS origin을 등록한다. 신청자는 회사명·이름·이메일·비밀번호를 제출하고, Super Admin이 내부 알림에서 승인한 뒤 Client 계정이 활성화된다. Client 로그인은 포털 전용 이메일·비밀번호 로그인으로 처리하며 하이웍스 검증을 적용하지 않는다. 신청 이메일은 대기·활성 계정과 중복될 수 없다.
 
 ### F-02 행사 관리
 
