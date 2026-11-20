@@ -9,6 +9,12 @@
     }
   },
   "routes": [
-    { "src": "/(.*)", "dest": "/api/[...path].ts" }
-  ]
+    {
+      "src": "/(.*)",
+      "dest": "/api/[...path].ts"
+    }
+  ],
+  "git": {
+    "deploymentEnabled": false
+  }
 }
