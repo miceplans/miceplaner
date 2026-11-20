@@ -10,7 +10,7 @@ const ctx = (key: string) => {
 
 new BackendStack(app, 'MiceplansBackend', {
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: 'ap-northeast-2' },
-  githubRepo: 'miceplans/miceplaner',
+  githubSubjectPrefix: 'repo:miceplans@297952556/miceplaner@1406826911',
   githubOidcProviderArn: ctx('githubOidcProviderArn'),
   cloudFrontPrefixListId: ctx('cloudFrontPrefixListId'),
   uploadBucketName: app.node.tryGetContext('uploadBucketName') || undefined,

@@ -7,8 +7,8 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
 export interface BackendProps extends StackProps {
-  /** 예: `miceplans/miceplaner`. 이 저장소의 main 브랜치 GitHub Actions만 배포 역할을 맡을 수 있다. */
-  githubRepo: string;
+  /** OIDC subject 접두사. 이 저장소는 불변 subject를 쓰므로 `repo:miceplans@<orgId>/miceplaner@<repoId>` 형식이다(`gh api repos/<repo>/actions/oidc/customization/sub`). main 브랜치 Actions만 배포 역할을 맡을 수 있다. */
+  githubSubjectPrefix: string;
   /** 계정에 이미 있는 GitHub Actions OIDC 공급자 ARN. */
   githubOidcProviderArn: string;
   /** `com.amazonaws.global.cloudfront.origin-facing` 관리형 접두사 목록 ID(리전별). */
@@ -154,7 +154,7 @@ EOF`,
       description: 'GitHub Actions (main) pushes ECR images and deploys via SSM',
       maxSessionDuration: Duration.hours(1),
       assumedBy: new iam.WebIdentityPrincipal(props.githubOidcProviderArn, {
-        StringEquals: { 'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com', 'token.actions.githubusercontent.com:sub': `repo:${props.githubRepo}:ref:refs/heads/main` },
+        StringEquals: { 'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com', 'token.actions.githubusercontent.com:sub': `${props.githubSubjectPrefix}:ref:refs/heads/main` },
       }),
     });
     repo.grantPullPush(deployRole);
