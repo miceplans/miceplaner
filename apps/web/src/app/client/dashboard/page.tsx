@@ -1,10 +1,12 @@
+'use client';
+
 import { ClientHeader, ClientStatusPill, type PrepStatus } from '@miceplans/ui';
+import { usePortalEvents, usePortalPrograms } from '../../../lib/api/generated/endpoints';
+import { ddayLabel, daysUntil, upcomingPrograms } from '../portal-data';
 
 const A = '/assets/client/dashboard';
 
 const PREP: { name: string; status: PrepStatus }[] = [];
-
-const SCHEDULES: { date: string; title: string; meta: string; dday: string; hot: boolean }[] = [];
 
 const STEPS: { label: string; state: 'done' | 'current' | 'todo'; n?: number }[] = [];
 
@@ -13,6 +15,17 @@ const CONTACTS: { name: string; role: string }[] = [];
 const MEMOS: { text: string; by: string; fresh: boolean }[] = [];
 
 export default function ClientDashboardPage() {
+  const events = usePortalEvents();
+  const programs = usePortalPrograms();
+  const eventName = new Map((events.data ?? []).map((e) => [e.eventId, e.name]));
+  // 오늘 이후 공개 Program 일정을 가까운 순으로 보여 준다.
+  const SCHEDULES = upcomingPrograms(programs.data ?? []).slice(0, 4).map(({ program, on }) => ({
+    date: on.slice(5).replace('-', '.'),
+    title: program.title,
+    meta: eventName.get(program.eventId) ?? '',
+    dday: ddayLabel(on),
+    hot: daysUntil(on) <= 3,
+  }));
   return (
     <div className="flex min-h-[860px] w-full min-w-[1440px] flex-col bg-surface-sunken">
       <ClientHeader active="dashboard" />
@@ -23,7 +36,7 @@ export default function ClientDashboardPage() {
               href="/client/events"
               className="flex h-[260px] w-[575px] shrink-0 flex-col items-end justify-between rounded-2xl bg-brand-pink px-[53.077px] py-[35.385px]"
             >
-              <p className="w-full text-3xl font-semibold text-fg-inverse">행사</p>
+              <p className="w-full text-3xl font-semibold text-fg-inverse">행사{events.isSuccess ? ` ${events.data.length}건` : ''}</p>
               <div className="flex items-center gap-[8px]">
                 <p className="whitespace-nowrap text-2xl font-semibold text-fg-inverse">바로가기</p>
                 <img alt="" src={`${A}/frame133.svg`} className="size-[31.096px]" />
@@ -49,7 +62,8 @@ export default function ClientDashboardPage() {
             </section>
 
             <section className="flex h-[260px] w-[371px] shrink-0 flex-col items-start justify-between rounded-2xl bg-surface p-[24px]">
-              <h2 className="whitespace-nowrap text-xl font-bold text-fg">전달받은 메모</h2>
+              <h2 className="whitespace-nowrap text-xl font-bold text-fg">다가오는 일정</h2>
+              {programs.isError ? <p className="text-sm text-error-delay">[오류] 일정을 불러오지 못했습니다.</p> : null}
               <ul className="flex w-full flex-col gap-[4px]">
                 {SCHEDULES.map((s, i) => (
                   <li key={i} className="flex h-[44px] w-full items-center gap-[12px]">

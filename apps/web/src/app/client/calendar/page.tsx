@@ -1,16 +1,17 @@
+'use client';
+
 import { ClientHeader } from '@miceplans/ui';
+import { usePortalEvents, usePortalPrograms } from '../../../lib/api/generated/endpoints';
 
 const A = '/assets/client/calendar-view';
 
 type Tone = 'gray' | 'red' | 'blue' | 'yellow';
 const TONE: Record<Tone, { bg: string; fg: string; dot: string }> = {
-  gray: { bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: 'dot4' },
+  gray: { bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: '/assets/shared/dot-gray.svg' },
   red: { bg: 'bg-error-bg', fg: 'text-error-delay', dot: 'dot5' },
   blue: { bg: 'bg-info-bg', fg: 'text-brand-blue', dot: 'dot6' },
   yellow: { bg: 'bg-notice-bg', fg: 'text-notice', dot: 'dot7' },
 };
-
-const CHIPS: Record<number, readonly (readonly [string, Tone])[]> = {};
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const LEGEND = [
@@ -35,7 +36,19 @@ const cells: (number | null)[] = [
 while (cells.length % 7) cells.push(null);
 const weeks = Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
 
+const pad = (n: number) => String(n).padStart(2, '0');
+const MONTH_PREFIX = `${YEAR}-${pad(MONTH)}-`;
+
 export default function ClientCalendarPage() {
+  const events = usePortalEvents();
+  const programs = usePortalPrograms();
+  // 이번 달에 걸친 행사(시작일 칸)와 공개 Program(마감일, 없으면 시작일 칸)을 일 단위 칩으로 만든다.
+  const CHIPS: Record<number, (readonly [string, Tone])[]> = {};
+  const add = (iso: string | null, label: string, tone: Tone) => {
+    if (iso?.startsWith(MONTH_PREFIX)) (CHIPS[Number(iso.slice(8, 10))] ??= []).push([label, tone]);
+  };
+  for (const e of events.data ?? []) add(e.startDate, e.name, 'blue');
+  for (const p of programs.data ?? []) add(p.dueOn ?? p.startsOn, p.title, 'yellow');
   return (
     <div className="flex min-h-[900px] w-full min-w-[1440px] flex-col bg-surface-sunken">
       <ClientHeader active="dashboard" />
@@ -43,11 +56,11 @@ export default function ClientCalendarPage() {
         <div className="flex h-[52px] w-full shrink-0 items-center px-[24px]">
           <div className="flex h-full items-start gap-[2px]">
             <a href="/client/events" className="flex h-full items-center gap-[7px] px-[12px]">
-              <img alt="" src={`${A}/tab-icon.svg`} className="size-[15px]" />
+              <img alt="" src="/assets/shared/tab-table.svg" className="size-[15px]" />
               <span className="whitespace-nowrap text-base text-fg-secondary">행사 뷰</span>
             </a>
             <a href="/client/calendar" className="flex h-full items-center gap-[7px] px-[12px]">
-              <img alt="" src={`${A}/tab-icon1.svg`} className="size-[15px]" />
+              <img alt="" src="/assets/shared/tab-calendar-active.svg" className="size-[15px]" />
               <span className="whitespace-nowrap text-base font-medium text-brand">캘린더 뷰</span>
             </a>
           </div>
@@ -108,7 +121,7 @@ export default function ClientCalendarPage() {
                       const t = TONE[tone];
                       return (
                         <div key={label} className={`flex h-[20px] shrink-0 items-center gap-[4px] rounded-xs px-[6px] ${t.bg}`}>
-                          <img alt="" src={`${A}/${t.dot}.svg`} className="size-[5px] shrink-0" />
+                          <img alt="" src={t.dot.startsWith('/') ? t.dot : `${A}/${t.dot}.svg`} className="size-[5px] shrink-0" />
                           <p className={`whitespace-nowrap text-2xs font-medium ${t.fg}`}>{label}</p>
                         </div>
                       );

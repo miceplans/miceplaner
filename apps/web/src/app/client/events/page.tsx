@@ -1,7 +1,12 @@
+'use client';
+
 import { ClientHeader } from '@miceplans/ui';
-import { EVENTS } from './data';
+import { usePortalEvents } from '../../../lib/api/generated/endpoints';
+import { ddayLabel, eventDayParts, sortEvents } from '../portal-data';
 
 export default function ClientEventsPage() {
+  const events = usePortalEvents();
+  const rows = sortEvents(events.data ?? []);
   return (
     <div className="flex min-h-[900px] w-full min-w-[1440px] flex-col bg-surface-sunken">
       <ClientHeader active="dashboard" />
@@ -11,24 +16,26 @@ export default function ClientEventsPage() {
             <h1 className="text-2xl font-bold text-fg">행사 일정</h1>
             <p className="text-md text-fg-secondary">공유된 행사만 표시됩니다</p>
           </div>
-          <ul className="flex h-[300px] w-full flex-col items-start rounded-xl border border-solid border-border bg-surface py-[6px]">
-            {EVENTS.map((e) => (
-              <li key={e.id} className="w-full">
+          {events.isError ? <p className="text-base text-error-delay">[오류] 행사를 불러오지 못했습니다.</p> : null}
+          {events.isSuccess && rows.length === 0 ? <p className="text-base text-fg-secondary">공유된 행사가 없습니다.</p> : null}
+          <ul className="flex min-h-[300px] w-full flex-col items-start rounded-xl border border-solid border-border bg-surface py-[6px]">
+            {rows.map((e) => (
+              <li key={e.eventId} className="w-full">
                 <a
-                  href={`/client/events/${e.id}`}
+                  href={`/client/events/${e.eventId}`}
                   className="flex h-[72px] w-full items-center gap-[16px] border-b border-solid border-border px-[20px]"
                 >
                   <div className="flex h-full w-[48px] shrink-0 flex-col items-center whitespace-nowrap">
-                    <p className="text-lg font-bold leading-[1.1] text-fg">{e.day}</p>
-                    <p className="text-2xs text-fg-secondary">{e.month}</p>
+                    <p className="text-lg font-bold leading-[1.1] text-fg">{eventDayParts(e).day}</p>
+                    <p className="text-2xs text-fg-secondary">{eventDayParts(e).month}</p>
                   </div>
                   <div className="flex h-full shrink-0 flex-col items-start gap-[3px] whitespace-nowrap leading-[normal]">
                     <p className="text-lg font-medium text-fg">{e.name}</p>
-                    <p className="text-base text-fg-secondary">{e.meta}</p>
+                    <p className="text-base text-fg-secondary">{e.startDate} ~ {e.endDate} · {e.place}</p>
                   </div>
                   <div className="h-px min-w-px flex-1" />
                   <span className="flex h-[24px] shrink-0 items-center justify-center rounded-xl bg-surface-chip px-[9px] text-xs font-medium text-fg-secondary">
-                    {e.dday}
+                    {ddayLabel(e.startDate)}
                   </span>
                   <img alt="" src="/assets/client/calendar/row-chevron.svg" className="size-[16px] shrink-0" />
                 </a>
