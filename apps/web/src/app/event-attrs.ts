@@ -14,13 +14,15 @@ export const EMPTY_ATTR = '—';
 /** 다른 인스턴스에 변경을 알리는 창 내 이벤트. */
 const CHANGE_EVENT = 'miceplans:event-attrs:change';
 
-/** 기본 속성. 예산 컬럼은 처음부터 제공된다. */
-const DEFAULT_COLUMNS: EventAttrColumn[] = [{ id: 'budget', label: '예산', type: 'number' }];
+/** 기본 속성은 없다. 예산은 행사 표의 고정 컬럼이다. */
+const DEFAULT_COLUMNS: EventAttrColumn[] = [];
+/** 예전 기본 속성이던 예산 컬럼. 저장값에서 걸러낸다. */
+const LEGACY_BUDGET_ID = 'budget';
 
 function readColumns(): EventAttrColumn[] {
   try {
     const raw = window.localStorage.getItem(COLUMNS_KEY);
-    if (raw) return JSON.parse(raw) as EventAttrColumn[];
+    if (raw) return (JSON.parse(raw) as EventAttrColumn[]).filter((c) => c.id !== LEGACY_BUDGET_ID);
   } catch {
     /* 저장값이 깨져 있으면 기본값으로 돌아간다. */
   }

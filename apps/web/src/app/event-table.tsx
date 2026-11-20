@@ -11,16 +11,17 @@ const TODAY = new Date(new Date().setHours(0, 0, 0, 0));
 
 export type EventRow = { id: string; name: string; dot?: string; color?: string | null; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; status: StatusKey; place: string; budget?: string };
 
-type ColKey = 'period' | 'client' | 'pm' | 'am' | 'design' | 'status' | 'place';
+type ColKey = 'period' | 'client' | 'pm' | 'am' | 'design' | 'status' | 'budget' | 'place';
 
 const COL_DEFS: Record<ColKey, { label: string; icon: string; w: string }> = {
-  period: { label: '기간', icon: '7db78', w: 'w-[140px]' },
-  client: { label: '고객사', icon: 'fe6d8', w: 'w-[130px]' },
-  pm: { label: 'PM', icon: '15302', w: 'w-[65px]' },
-  am: { label: 'AM', icon: '15302', w: 'w-[65px]' },
-  design: { label: '디자인', icon: '15302', w: 'w-[85px]' },
-  status: { label: '상태', icon: 'f8a2c', w: 'w-[110px]' },
-  place: { label: '장소', icon: '7bb84', w: 'min-w-px flex-1' },
+  period: { label: '기간', icon: '/assets/shared/col-period.svg', w: 'w-[140px]' },
+  client: { label: '고객사', icon: '/assets/shared/col-client.svg', w: 'w-[130px]' },
+  pm: { label: 'PM', icon: '/assets/shared/col-person.svg', w: 'w-[65px]' },
+  am: { label: 'AM', icon: '/assets/shared/col-person.svg', w: 'w-[65px]' },
+  design: { label: '디자인', icon: '/assets/shared/col-person.svg', w: 'w-[85px]' },
+  status: { label: '상태', icon: '/assets/shared/col-status.svg', w: 'w-[110px]' },
+  budget: { label: '예산', icon: '/assets/shared/col-place.svg', w: 'w-[110px]' },
+  place: { label: '장소', icon: '/assets/shared/col-place.svg', w: 'min-w-px flex-1' },
 };
 
 const STATUSES: StatusKey[] = ['진행중', '성공', '확인중', '만료', '제출', '보류중'];
@@ -58,13 +59,15 @@ function dDayBadge(startDate: string): { label: string; className: string } | nu
   return { label: `D-${diff}`, className: 'bg-brand-tint text-brand' };
 }
 
-const EMPTY_FORM = { name: '', start: '', end: '', client: '', pm: '', am: '', design: '', status: '진행중' as StatusKey, place: '' };
+const formatWon = (digits: string | undefined) => (digits ? `${Number(digits).toLocaleString('ko-KR')}원` : '');
+
+const EMPTY_FORM = { name: '', start: '', end: '', client: '', pm: '', am: '', design: '', status: '진행중' as StatusKey, place: '', budget: '' };
 
 export function EventTable({ initial, adding: controlledAdding, onAddingChange }: { initial: EventRow[]; adding?: boolean; onAddingChange?: (open: boolean) => void }) {
   const [rows, setRows] = useState(initial);
   // 부모가 나중에 불러온 데이터를 넘길 수 있어 prop이 바뀌면 행을 맞춘다.
   useEffect(() => { setRows(initial); }, [initial]);
-  const [cols, setCols] = useState<ColKey[]>(['period', 'client', 'pm', 'am', 'design', 'status', 'place']);
+  const [cols, setCols] = useState<ColKey[]>(['period', 'client', 'pm', 'am', 'design', 'status', 'budget', 'place']);
   const [rowDrag, setRowDrag] = useState<{ from: number; over: number } | null>(null);
   const [colDrag, setColDrag] = useState<{ from: ColKey; over: ColKey } | null>(null);
   const [uncontrolledAdding, setUncontrolledAdding] = useState(false);
@@ -84,7 +87,7 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
 
   const cell = (e: EventRow, key: ColKey) => {
     if (key === 'status') return <StatusPill status={e.status} />;
-    const value = key === 'period' ? formatPeriod(e.startDate, e.endDate) : e[key];
+    const value = key === 'period' ? formatPeriod(e.startDate, e.endDate) : key === 'budget' ? formatWon(e.budget) : e[key];
     return <span className={`whitespace-nowrap ${key === 'period' ? 'text-fg-secondary' : 'text-fg'}`}>{value}</span>;
   };
 
@@ -117,6 +120,7 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
         design: form.design,
         status: form.status,
         place: form.place,
+        budget: form.budget,
       },
     ]);
     setForm(EMPTY_FORM);
@@ -139,15 +143,16 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
               <option key={s}>{s}</option>
             ))}
           </Select>
-          <Input placeholder="장소" value={form.place} onChange={(e) => setForm({ ...form, place: e.target.value })} className="col-span-2" />
+          <Input placeholder="예산(원)" inputMode="numeric" value={form.budget ? Number(form.budget).toLocaleString('ko-KR') : ''} onChange={(e) => setForm({ ...form, budget: e.target.value.replace(/\D/g, '').slice(0, 15) })} />
+          <Input placeholder="장소" value={form.place} onChange={(e) => setForm({ ...form, place: e.target.value })} />
           <div className="col-span-2 flex items-center justify-end gap-[8px]">
-            <a href="/import/upload" className="mr-auto flex h-[32px] items-center rounded-[6px] border border-solid border-border bg-surface px-[12px] text-sm text-fg no-underline hover:bg-surface-sunken">
+            <a href="/import/upload" className="mr-auto flex h-[32px] items-center rounded-md border border-solid border-border bg-surface px-[8px] text-sm text-fg no-underline hover:bg-surface-sunken">
               Excel로 가져오기
             </a>
-            <button type="button" onClick={() => { setAdding(false); setForm(EMPTY_FORM); }} className="h-[32px] rounded-[6px] px-[12px] text-sm text-fg-secondary hover:bg-surface">
+            <button type="button" onClick={() => { setAdding(false); setForm(EMPTY_FORM); }} className="h-[32px] rounded-md px-[8px] text-sm text-fg-secondary hover:bg-surface">
               취소
             </button>
-            <button type="submit" className="h-[32px] rounded-[6px] bg-fg px-[14px] text-sm font-medium text-surface">
+            <button type="submit" className="h-[32px] rounded-md bg-fg px-[8px] text-sm font-medium text-surface">
               행사 추가
             </button>
           </div>
@@ -175,14 +180,14 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
               onDragEnd={() => setColDrag(null)}
               className={`flex h-full cursor-grab items-center gap-[6px] px-[16px] ${col.w} ${colDrag?.from === key ? 'opacity-40' : ''} ${isOver ? 'bg-surface-sunken shadow-[inset_2px_0_0_0_currentColor]' : ''}`}
             >
-              <img alt="" src={`${A}/${col.icon}.svg`} className="size-[13px]" />
+              <img alt="" src={col.icon} className="size-[13px]" />
               <span className="whitespace-nowrap">{col.label}</span>
             </div>
           );
         })}
         {attrs.columns.map((col) => (
           <div key={col.id} className="flex h-full w-[110px] items-center px-[16px]">
-            <span className="mr-[5px] text-[11px] text-fg-tertiary">{attrType(col.type).mark}</span>
+            <span className="mr-[5px] text-2xs text-fg-tertiary">{attrType(col.type).mark}</span>
             <span className="whitespace-nowrap">{col.label}</span>
           </div>
         ))}
@@ -284,17 +289,17 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
                 <div role="radiogroup" aria-label="속성 유형" className="grid grid-cols-2 gap-[8px]">
                   {ATTR_TYPES.map((item) => {
                     const selected = item.value === attrTypeValue;
-                    return <button key={item.value} type="button" role="radio" aria-checked={selected} onClick={() => setAttrTypeValue(item.value)} className={`flex h-[42px] items-center gap-[8px] rounded-md border px-[10px] text-sm font-medium ${selected ? 'border-brand bg-brand-tint text-brand' : 'border-border text-fg hover:bg-surface-subtle'}`}><span className="w-[18px] text-center text-xs">{item.mark}</span>{item.label}</button>;
+                    return <button key={item.value} type="button" role="radio" aria-checked={selected} onClick={() => setAttrTypeValue(item.value)} className={`flex h-[42px] items-center gap-[8px] rounded-md border px-[8px] text-sm font-medium ${selected ? 'border-brand bg-brand-tint text-brand' : 'border-border text-fg hover:bg-surface-subtle'}`}><span className="w-[18px] text-center text-xs">{item.mark}</span>{item.label}</button>;
                   })}
                 </div>
               </fieldset>
               <p className="m-0 text-xs leading-[18px] text-fg-tertiary">추가한 속성은 모든 행사 표에 표시됩니다.</p>
             </div>
             <div className="flex justify-end gap-[8px] border-t border-solid border-border px-[20px] py-[14px]">
-              <button type="button" onClick={closeAttrDialog} className="h-[34px] rounded-md px-[13px] text-sm font-medium text-fg-secondary hover:bg-surface-subtle">
+              <button type="button" onClick={closeAttrDialog} className="h-[34px] rounded-md px-[8px] text-sm font-medium text-fg-secondary hover:bg-surface-subtle">
                 취소
               </button>
-              <button type="submit" className="h-[34px] rounded-md bg-brand px-[14px] text-sm font-semibold text-fg-inverse hover:opacity-90">
+              <button type="submit" className="h-[34px] rounded-md bg-brand px-[8px] text-sm font-semibold text-fg-inverse hover:opacity-90">
                 추가
               </button>
             </div>

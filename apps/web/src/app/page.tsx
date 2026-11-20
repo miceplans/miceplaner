@@ -31,6 +31,7 @@ function toRow(event: EventListItemDto): EventRow {
     design: '',
     status: event.status,
     place: event.place,
+    budget: event.budget === null ? '' : String(event.budget),
   };
 }
 
