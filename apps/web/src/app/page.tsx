@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { EventTable } from './event-table';
+import { useMemo, useState } from 'react';
+import { EventTable, type EventRow } from './event-table';
 import { NoticeList } from './notice-list';
-import { ViewTabs, type StatusKey, type ViewTab } from '@miceplans/ui';
+import { ViewTabs, type ViewTab } from '@miceplans/ui';
 import { AppShell } from '@miceplans/ui/sidebar';
 import { ScheduleViewCalendar } from './schedule-calendar/schedule-view-calendar';
+import { getToken } from '../lib/api';
+import { useEventsList, useGetMe } from '../lib/api/generated/endpoints';
+import type { EventListItemDto } from '@miceplans/contracts';
 
 const TABS: ViewTab[] = [
   { label: '전체 행사', icon: '10b86', activeIcon: '753c4', href: '/' },
@@ -13,10 +16,40 @@ const TABS: ViewTab[] = [
   { label: '내 행사', icon: '10b86' },
 ];
 
-const EVENTS: { id: string; name: string; dot: string; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; status: StatusKey; place: string; budget?: string }[] = [];
+/** API 행사를 표 행으로 바꾼다. 아직 데이터 모델에 없는 값(디자인 담당)은 비워 둔다. */
+function toRow(event: EventListItemDto): EventRow {
+  return {
+    id: event.id,
+    name: event.name,
+    color: event.color,
+    startDate: event.startDate,
+    endDate: event.endDate,
+    priority: event.priority,
+    client: event.clientName ?? '',
+    pm: event.pmName ?? '',
+    am: event.amName ?? '',
+    design: '',
+    status: event.status,
+    place: event.place,
+  };
+}
 
 export default function HomePage() {
   const [tab, setTab] = useState(0);
+  const events = useEventsList();
+  const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
+  const rows = useMemo(() => (events.data ?? []).map(toRow), [events.data]);
+  // PM·AM 이름은 다중이면 ', '로 묶여 오므로 포함 여부로 본다. 로그인 정보가 없으면 비워 둔다.
+  const meName = me.data?.name ?? null;
+  const shown = useMemo(
+    () =>
+      tab === 2
+        ? meName
+          ? rows.filter((row) => [row.pm, row.am].some((names) => names.split(',').map((s) => s.trim()).includes(meName)))
+          : []
+        : rows,
+    [tab, meName, rows],
+  );
   return (
     <AppShell active="events">
       <div className="flex min-h-screen flex-col leading-[normal]">
@@ -31,7 +64,7 @@ export default function HomePage() {
           <NoticeList />
         ) : (
           <div className="flex w-full flex-col gap-[24px]">
-            <EventTable key={tab} initial={EVENTS} />
+            <EventTable key={tab} initial={shown} />
             <ScheduleViewCalendar gridGap={19} padX={20} />
           </div>
         )}

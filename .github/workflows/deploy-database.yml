@@ -1,0 +1,52 @@
+name: Deploy Supabase migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/db/migrations/**'
+      - 'packages/db/drizzle/**'
+      - 'packages/db/drizzle.config.ts'
+      - 'packages/db/scripts/migrate.sh'
+      - 'packages/db/package.json'
+      - 'packages/queue/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/deploy-database.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Apply committed migrations
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_MIGRATION_URL }}
+        run: pnpm --filter @miceplans/db migrate
+
+      - name: Create pg-boss schema
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_MIGRATION_URL }}
+        run: pnpm --filter @miceplans/queue migrate

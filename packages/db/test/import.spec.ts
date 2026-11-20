@@ -46,18 +46,20 @@ describe('import_jobs RLS', () => {
 });
 
 describe('행사 생성 정책', () => {
-  it('낮은 권한은 본인을 생성 주체로 넣어 행사를 만들 수 있다', async () => {
-    const eventId = await withContext(app, asA, (db) => insertEvent(db, { clientId: CO, name: '가져온 행사', startDate: '2025-03-06', endDate: '2025-03-08', place: '코엑스', status: '진행중', createdBy: U.a }));
+  it('가져오기 권한으로 행사를 만들 수 있다', async () => {
+    const eventId = await withContext(app, asA, (db) => insertEvent(db, { clientId: CO, name: '가져온 행사', startDate: '2025-03-06', endDate: '2025-03-08', place: '코엑스', status: '진행중' }));
     const { rows } = await admin.query(`SELECT created_by FROM events WHERE id = $1`, [eventId]);
     expect(rows[0]).toMatchObject({ created_by: U.a });
   });
-  it('다른 사람 명의로는 만들 수 없고 Client는 만들 수 없다', async () => {
-    await expect(withContext(app, asA, (db) => insertEvent(db, { clientId: CO, name: 'x', startDate: '2025-03-06', endDate: '2025-03-08', place: '', status: '진행중', createdBy: U.b }))).rejects.toThrow(/row-level security/);
-    await expect(withContext(app, asClient, (db) => insertEvent(db, { clientId: CO, name: 'x', startDate: '2025-03-06', endDate: '2025-03-08', place: '', status: '진행중', createdBy: U.client }))).rejects.toThrow(/row-level security/);
+  it('생성자는 실행 주체로 고정되고 Client는 만들 수 없다', async () => {
+    // create_event_with_pm은 created_by를 받지 않고 컨텍스트 실행 주체로 고정한다.
+    const { rows } = await admin.query(`SELECT created_by FROM events WHERE id = $1`, [await withContext(app, asA, (db) => insertEvent(db, { clientId: CO, name: '주체 고정', startDate: '2025-03-06', endDate: '2025-03-08', place: '', status: '진행중' }))]);
+    expect(rows[0]).toMatchObject({ created_by: U.a });
+    await expect(withContext(app, asClient, (db) => insertEvent(db, { clientId: CO, name: 'x', startDate: '2025-03-06', endDate: '2025-03-08', place: '', status: '진행중' }))).rejects.toThrow(/\uc9c1\uc6d0\ub9cc/);
   });
-  it('새 행사의 만든 사람을 PM 멤버로 넣을 수 있고 Client는 못 넣는다', async () => {
-    const eventId = await withContext(app, asA, (db) => insertEvent(db, { clientId: CO, name: 'PM 테스트', startDate: '2025-03-06', endDate: '2025-03-08', place: '', status: '진행중', createdBy: U.a }));
-    await withContext(app, asA, (db) => addEventCreatorAsPm(db, eventId, U.a));
+  it('새 행사의 만든 사람이 PM으로 들어가 있고 Client는 못 넣는다', async () => {
+    const eventId = await withContext(app, asA, (db) => insertEvent(db, { clientId: CO, name: 'PM 테스트', startDate: '2025-03-06', endDate: '2025-03-08', place: '', status: '진행중' }));
+    // create_event_with_pm이 생성자를 이미 PM으로 넣었다.
     const { rows } = await admin.query(`SELECT role FROM event_members WHERE event_id = $1 AND user_id = $2`, [eventId, U.a]);
     expect(rows[0]).toMatchObject({ role: 'pm' });
     const denied = await withContext(app, asClient, (db) => addEventCreatorAsPm(db, eventId, U.client));

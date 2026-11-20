@@ -1,4 +1,5 @@
-import type { ChatBody, ChatEvent } from '@miceplans/contracts';
+import type { AuthSessionDto, ChatBody, ChatEvent, ClientDto, CreateEventBody, DocPageDto, EventListItemDto, FileDto, ProposalDto } from '@miceplans/contracts';
+import type { PortalEventDto, PortalProgramDto } from '@miceplans/contracts/portal';
 
 /** 빌드 시점에 정해지는 공개 주소다. 비밀 값은 두지 않는다. */
 export const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -77,3 +78,66 @@ export async function streamChat(body: ChatBody, onEvent: (e: ChatEvent) => void
   }
 }
 
+export async function decideProposal(id: string, action: 'approve' | 'reject'): Promise<ProposalDto> {
+  return (await (await request(`/ai/proposals/${id}/${action}`, { method: 'POST', body: '{}' })).json()) as ProposalDto;
+}
+
+export async function getDocPage(docId: string): Promise<DocPageDto> {
+  return (await (await request(`/docs/${docId}`, { method: 'GET' })).json()) as DocPageDto;
+}
+
+/** 이메일·비밀번호로 로그인하거나 가입한다. 성공하면 세션 토큰을 저장한다. 실패 사유는 서버 메시지를 그대로 쓴다. */
+export async function signIn(mode: 'login' | 'register', body: { email: string; password: string }): Promise<AuthSessionDto> {
+  if (!apiBase) throw new ApiError(0, 'API 주소(NEXT_PUBLIC_API_URL)가 설정되지 않았다');
+  const res = await fetch(`${apiBase}/auth/${mode}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) {
+    const detail = (await res.json().catch(() => null)) as { message?: unknown } | null;
+    throw new ApiError(res.status, typeof detail?.message === 'string' ? detail.message : `요청에 실패했다 (${res.status})`);
+  }
+  const session = (await res.json()) as AuthSessionDto;
+  setToken(session.accessToken);
+  return session;
+}
+
+export async function listClients(): Promise<ClientDto[]> {
+  return (await (await request('/clients', { method: 'GET' })).json()) as ClientDto[];
+}
+
+export async function createEvent(body: CreateEventBody): Promise<EventListItemDto> {
+  return (await (await request('/events', { method: 'POST', body: JSON.stringify(body) })).json()) as EventListItemDto;
+}
+
+export async function listFiles(eventId: string): Promise<FileDto[]> {
+  return (await (await request(`/events/${eventId}/files`, { method: 'GET' })).json()) as FileDto[];
+}
+
+export async function uploadFile(eventId: string, file: File): Promise<FileDto> {
+  const form = new FormData();
+  form.append('file', file);
+  return (await (await request(`/events/${eventId}/files`, { method: 'POST', body: form })).json()) as FileDto;
+}
+
+export async function deleteFile(id: string): Promise<void> {
+  await request(`/files/${id}`, { method: 'DELETE' });
+}
+
+/** 토큰이 헤더에 있어야 해서 링크 대신 받아서 저장한다. */
+export async function downloadFile(file: Pick<FileDto, 'id' | 'name'>): Promise<void> {
+  const blob = await (await request(`/files/${file.id}/download`, { method: 'GET' })).blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file.name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Client 본인에게 지정된 행사 목록 (명세 F-07). */
+export async function listPortalEvents(): Promise<PortalEventDto[]> {
+  return (await (await request('/portal/events', { method: 'GET' })).json()) as PortalEventDto[];
+}
+
+/** 지정된 행사의 공개 Program 일정. Task·Subtask·담당자는 노출하지 않는다 (명세 F-07). */
+export async function listPortalPrograms(): Promise<PortalProgramDto[]> {
+  return (await (await request('/portal/programs', { method: 'GET' })).json()) as PortalProgramDto[];
+}

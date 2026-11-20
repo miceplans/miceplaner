@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    # postgresql-16 패키지는 ubuntu-24.04 기본 저장소에 있다(26.04에선 제외됨).
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm lint
+
+      # 정적 export(prerender) 회귀를 잡는다.
+      - run: pnpm build
+
+      # packages/db·apps/api 테스트는 실제 PostgreSQL 16 임시 클러스터를 띄운다.
+      - name: PostgreSQL 16 설치
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16
+          echo "PG_BIN=/usr/lib/postgresql/16/bin" >> "$GITHUB_ENV"
+
+      - run: pnpm test

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { clientDto, userDto } from '@miceplans/contracts';
-import { listClients, listUsers, withContext } from '@miceplans/db';
+import { createClient, listClients, listUsers, withContext } from '@miceplans/db';
 import type { Pool } from '@miceplans/db';
 import { AuthUser, requireInternal } from '../common/auth';
 import { mapDbError } from '../common/http';
@@ -21,5 +21,11 @@ export class DirectoryService {
     requireInternal(user);
     const rows = await withContext(this.pool, user, (db) => listClients(db)).catch((error) => mapDbError(error));
     return rows.map((r) => clientDto.parse(r));
+  }
+
+  async createClient(user: AuthUser, name: string) {
+    requireInternal(user);
+    const row = await withContext(this.pool, user, (db) => createClient(db, name)).catch((error) => mapDbError(error));
+    return clientDto.parse(row);
   }
 }

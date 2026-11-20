@@ -12,9 +12,9 @@ const A = '/assets/event-detail';
 
 export type Team = 'planning' | 'design';
 
-type RequestStatus = 'pending' | 'reject' | 'success' | 'draft';
+export type RequestStatus = 'pending' | 'reject' | 'success' | 'draft';
 
-type RequestRow = {
+export type RequestRow = {
   id: string;
   name: string;
   part: ProductPart;
@@ -266,9 +266,15 @@ function MoreMenu() {
 }
 
 /** 디자인 요청: 기획팀은 항목을 추가·편집하고, 디자인팀은 요청을 승인·반려한다. */
-export function DesignRequestTable({ team, part = '전체', eventName = '행사', eventId = 'default' }: { team: Team; part?: PartFilter; eventName?: string; eventId?: string }) {
+export function DesignRequestTable({ team, part = '전체', eventName = '행사', eventId = 'default', rows: controlledRows, onRowsChange }: { team: Team; part?: PartFilter; eventName?: string; eventId?: string; rows?: RequestRow[]; onRowsChange?: (rows: RequestRow[]) => void }) {
   const cp = useCustomProps(`${eventId}:design-request`);
-  const [rows, setRows] = useState(INITIAL_ROWS[team]);
+  const [ownRows, setOwnRows] = useState(INITIAL_ROWS[team]);
+  const rows = controlledRows ?? ownRows;
+  const setRows = (next: RequestRow[] | ((rows: RequestRow[]) => RequestRow[])) => {
+    const value = typeof next === 'function' ? next(rows) : next;
+    if (onRowsChange) onRowsChange(value);
+    else setOwnRows(value);
+  };
   const planning = team === 'planning';
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);

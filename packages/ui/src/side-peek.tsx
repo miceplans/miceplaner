@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, type DragEvent, type PointerEvent, type ReactNode } from 'react';
-import { Input, Select } from './field';
-
+import { Input } from './field';
+import { Select } from './select';
 const A = '/assets/schedule';
 
 const PROPS = [] as readonly { icon: string; label: string; value: string }[];

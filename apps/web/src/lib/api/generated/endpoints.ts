@@ -35,6 +35,7 @@ import type {
   ClientApplicationDto,
   ClientDto,
   CreateClientApplicationBody,
+  CreateClientBody,
   CreateDocBody,
   CreateEventBody,
   CreateItemBody,
@@ -43,6 +44,7 @@ import type {
   EventDto,
   EventItemDto,
   EventItemsListParams,
+  EventListItemDto,
   EventMemberDto,
   EventsListParams,
   FileDto,
@@ -72,6 +74,7 @@ import type {
   SearchHitDto,
   SetClientVisibleBody,
   SetDocVisibilityBody,
+  TransferPmBody,
   UpdateEventBody,
   UpdateItemBody,
   UploadEventFileBody,
@@ -817,9 +820,9 @@ export const getEventsListUrl = (params?: EventsListParams,) => {
 /**
  * @summary 행사 목록 (Staff도 전체 조회, 명세 2.2)
  */
-export const eventsList = async (params?: EventsListParams, options?: Parameters<typeof http>[1]): Promise<EventDto[]> => {
+export const eventsList = async (params?: EventsListParams, options?: Parameters<typeof http>[1]): Promise<EventListItemDto[]> => {
 
-  return http<EventDto[]>(getEventsListUrl(params),
+  return http<EventListItemDto[]>(getEventsListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -916,9 +919,9 @@ export const getEventsCreateUrl = () => {
 }
 
 /**
- * @summary 행사 생성 (고객사·PM·AM·예산 지정, 감사 로그 대상)
+ * @summary 행사 생성 (내부 직원, 생성자는 자동 PM, 감사 로그 대상)
  */
-export const eventsCreate = async (createEventBody: CreateEventBody, options?: Parameters<typeof http>[1]): Promise<EventDto> => {
+export const eventsCreate = async (createEventBody: CreateEventBody, options?: Parameters<typeof http>[1]): Promise<EventListItemDto> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -934,7 +937,7 @@ export const eventsCreate = async (createEventBody: CreateEventBody, options?: P
     }
     return headers;
   };
-return http<EventDto>(getEventsCreateUrl(),
+return http<EventListItemDto>(getEventsCreateUrl(),
   {
     ...options,
     method: 'POST',
@@ -981,7 +984,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type EventsCreateMutationError = unknown
     export type EventsCreateMutationVariables = {data: CreateEventBody}
 
-    /** @summary 행사 생성 (고객사·PM·AM·예산 지정, 감사 로그 대상) */
+    /** @summary 행사 생성 (내부 직원, 생성자는 자동 PM, 감사 로그 대상) */
 export const useEventsCreate = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventsCreate>>, TError,EventsCreateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient): UseMutationResult<
@@ -1004,9 +1007,9 @@ export const getEventsGetUrl = (id: string,) => {
 /**
  * @summary 행사 상세
  */
-export const eventsGet = async (id: string, options?: Parameters<typeof http>[1]): Promise<EventDto> => {
+export const eventsGet = async (id: string, options?: Parameters<typeof http>[1]): Promise<EventListItemDto> => {
 
-  return http<EventDto>(getEventsGetUrl(id),
+  return http<EventListItemDto>(getEventsGetUrl(id),
   {
     ...options,
     method: 'GET'
@@ -1602,6 +1605,93 @@ export const useEventsRemoveMember = <TError = unknown,
         TContext
       > => {
       return useMutation(getEventsRemoveMemberMutationOptions(options), queryClient);
+    }
+
+export const getEventsTransferPmUrl = (id: string,) => {
+
+
+
+
+  return `/events/${id}/transfer-pm`
+}
+
+/**
+ * @summary PM 넘기기 (현재 PM은 일반 멤버가 됨, 감사 로그 대상)
+ */
+export const eventsTransferPm = async (id: string,
+    transferPmBody: TransferPmBody, options?: Parameters<typeof http>[1]): Promise<EventMemberDto[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<EventMemberDto[]>(getEventsTransferPmUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(transferPmBody)
+  }
+);}
+
+
+
+
+
+export const getEventsTransferPmMutationKey = () => ['eventsTransferPm'] as const;
+
+export const getEventsTransferPmMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventsTransferPm>>, TError,EventsTransferPmMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof eventsTransferPm>>, TError,EventsTransferPmMutationVariables, TContext> => {
+
+const mutationKey = getEventsTransferPmMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof eventsTransferPm>>, EventsTransferPmMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  eventsTransferPm(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EventsTransferPmMutationResult = NonNullable<Awaited<ReturnType<typeof eventsTransferPm>>>
+    export type EventsTransferPmMutationBody = TransferPmBody
+    export type EventsTransferPmMutationError = unknown
+    export type EventsTransferPmMutationVariables = {id: string;data: TransferPmBody}
+
+    /** @summary PM 넘기기 (현재 PM은 일반 멤버가 됨, 감사 로그 대상) */
+export const useEventsTransferPm = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventsTransferPm>>, TError,EventsTransferPmMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof eventsTransferPm>>,
+        TError,
+        EventsTransferPmMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEventsTransferPmMutationOptions(options), queryClient);
     }
 
 export const getEventsClientsUrl = (id: string,) => {
@@ -5639,6 +5729,92 @@ export function useDirectoryClients<TData = Awaited<ReturnType<typeof directoryC
 
 
 
+
+export const getDirectoryCreateClientUrl = () => {
+
+
+
+
+  return `/clients`
+}
+
+/**
+ * @summary 고객사 생성 (행사 생성 화면의 + 고객사 입력. 낮은 권한 이상, 명세 F-02)
+ */
+export const directoryCreateClient = async (createClientBody: CreateClientBody, options?: Parameters<typeof http>[1]): Promise<ClientDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ClientDto>(getDirectoryCreateClientUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createClientBody)
+  }
+);}
+
+
+
+
+
+export const getDirectoryCreateClientMutationKey = () => ['directoryCreateClient'] as const;
+
+export const getDirectoryCreateClientMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof directoryCreateClient>>, TError,DirectoryCreateClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof directoryCreateClient>>, TError,DirectoryCreateClientMutationVariables, TContext> => {
+
+const mutationKey = getDirectoryCreateClientMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof directoryCreateClient>>, DirectoryCreateClientMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  directoryCreateClient(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DirectoryCreateClientMutationResult = NonNullable<Awaited<ReturnType<typeof directoryCreateClient>>>
+    export type DirectoryCreateClientMutationBody = CreateClientBody
+    export type DirectoryCreateClientMutationError = unknown
+    export type DirectoryCreateClientMutationVariables = {data: CreateClientBody}
+
+    /** @summary 고객사 생성 (행사 생성 화면의 + 고객사 입력. 낮은 권한 이상, 명세 F-02) */
+export const useDirectoryCreateClient = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof directoryCreateClient>>, TError,DirectoryCreateClientMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof directoryCreateClient>>,
+        TError,
+        DirectoryCreateClientMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDirectoryCreateClientMutationOptions(options), queryClient);
+    }
 
 export const getImportExcelUploadUrl = () => {
 

@@ -14,4 +14,6 @@ export interface UserDto {
   email: string;
   jobTitle: string;
   role: UserDtoRole;
+  team?: string;
+  subTeam?: string;
 }

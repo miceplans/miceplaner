@@ -21,17 +21,23 @@ export const eventDto = z.object({
 });
 export type EventDto = z.infer<typeof eventDto>;
 
+/** 목록·상세 화면은 고객사 이름과 PM·AM 이름을 함께 보여 준다 (표 렌더링용 조인 결과). */
+export const eventListItemDto = eventDto.extend({
+  clientName: z.string().nullable(),
+  pmName: z.string().nullable(),
+  amName: z.string().nullable(),
+});
+export type EventListItemDto = z.infer<typeof eventListItemDto>;
+
 const dateRange = (v: { startDate?: string; endDate?: string }) => !v.startDate || !v.endDate || v.endDate >= v.startDate;
 
 /** 예산(원). 비우면 미정이다. */
 const budget = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 
-/** 내부 직원이 행사 생성 화면에서 만든다. 생성 권한 확정(명세 6절) 전까지 가져오기와 같은 범위(내부 직원)로 연다. */
+/** 내부 직원이 생성하고, 생성자는 해당 행사의 PM이 된다 (명세 F-02, 2026-11-17 결정). */
 export const createEventBody = z
   .object({
     clientId: uuid,
-    pmId: uuid,
-    amId: uuid.nullable().default(null),
     budget: budget.nullable().default(null),
     name: z.string().trim().min(1).max(200),
     startDate: isoDate,
@@ -41,8 +47,7 @@ export const createEventBody = z
     priority: z.boolean().default(false),
     color: z.string().max(32).nullable().default(null),
   })
-  .refine(dateRange, { message: '종료일은 시작일 이후여야 한다', path: ['endDate'] })
-  .refine((v) => v.amId === null || v.amId !== v.pmId, { message: 'PM과 AM은 다른 사람이어야 한다', path: ['amId'] });
+  .refine(dateRange, { message: '종료일은 시작일 이후여야 한다', path: ['endDate'] });
 export type CreateEventBody = z.infer<typeof createEventBody>;
 
 /** 일반 필드는 마지막 저장 우선이라 version을 받지 않는다. */
@@ -76,4 +81,8 @@ export const addEventMemberBody = z.object({ userId: uuid, role: eventMemberRole
 export type AddEventMemberBody = z.infer<typeof addEventMemberBody>;
 export const changeEventMemberRoleBody = z.object({ role: eventMemberRole });
 export type ChangeEventMemberRoleBody = z.infer<typeof changeEventMemberRoleBody>;
+
+/** 현재 PM이 행사 멤버에게 PM 역할을 넘길 때의 대상이다. */
+export const transferPmBody = z.object({ userId: uuid });
+export type TransferPmBody = z.infer<typeof transferPmBody>;
 export { expectedVersion };

@@ -14,7 +14,7 @@ import { DesktopNotifications } from './desktop-notifications';
 /** 로그인한 경우에만 내 정보를 조회해 사이드바 프로필에 전달한다. */
 function SidebarUser({ children }: { children: ReactNode }) {
   const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
-  return <SidebarUserProvider value={me.data ? { name: me.data.name, jobTitle: me.data.jobTitle } : null}>{children}</SidebarUserProvider>;
+  return <SidebarUserProvider value={me.data ? { name: me.data.name, email: me.data.email, jobTitle: me.data.jobTitle, team: me.data.team, subTeam: me.data.subTeam } : null}>{children}</SidebarUserProvider>;
 }
 
 export function Providers({ children }: { children: ReactNode }) {

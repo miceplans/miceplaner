@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type DragEvent, type FormEvent } from 'react';
+import { useEffect, useState, type DragEvent, type FormEvent } from 'react';
 import { Checkbox, DatePicker, Dialog, Input, Select, StatusPill, type StatusKey } from '@miceplans/ui';
 import { EMPTY_ATTR, type EventAttrType, useEventAttrs } from './event-attrs';
 
@@ -9,7 +9,7 @@ const A = '/assets/schedule';
 // 오늘 기준 D-day 계산에 사용한다.
 const TODAY = new Date(new Date().setHours(0, 0, 0, 0));
 
-export type EventRow = { id: string; name: string; dot: string; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; status: StatusKey; place: string; budget?: string };
+export type EventRow = { id: string; name: string; dot?: string; color?: string | null; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; status: StatusKey; place: string; budget?: string };
 
 type ColKey = 'period' | 'client' | 'pm' | 'am' | 'design' | 'status' | 'place';
 
@@ -62,6 +62,8 @@ const EMPTY_FORM = { name: '', start: '', end: '', client: '', pm: '', am: '', d
 
 export function EventTable({ initial, adding: controlledAdding, onAddingChange }: { initial: EventRow[]; adding?: boolean; onAddingChange?: (open: boolean) => void }) {
   const [rows, setRows] = useState(initial);
+  // 부모가 나중에 불러온 데이터를 넘길 수 있어 prop이 바뀌면 행을 맞춘다.
+  useEffect(() => { setRows(initial); }, [initial]);
   const [cols, setCols] = useState<ColKey[]>(['period', 'client', 'pm', 'am', 'design', 'status', 'place']);
   const [rowDrag, setRowDrag] = useState<{ from: number; over: number } | null>(null);
   const [colDrag, setColDrag] = useState<{ from: ColKey; over: ColKey } | null>(null);
@@ -198,7 +200,7 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
         return (
           <a
             key={e.id}
-            href={`/events/${e.id}`}
+            href={`/events/detail?id=${encodeURIComponent(e.id)}`}
             aria-label={`${e.name} 상세 보기`}
             onDragOver={(ev) => { allow(ev); if (rowDrag && rowDrag.over !== i) setRowDrag({ ...rowDrag, over: i }); }}
             onDrop={() => onRowDrop(i)}
@@ -228,7 +230,11 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
                 ) : null}
               </div>
               <div className="flex h-full w-[200px] items-center gap-[4px] px-[16px] font-medium text-fg">
-                <img alt="" src={`${A}/${e.dot}.svg`} className="size-[13px] shrink-0" />
+                {e.dot ? (
+                  <img alt="" src={`${A}/${e.dot}.svg`} className="size-[13px] shrink-0" />
+                ) : (
+                  <span aria-hidden style={{ backgroundColor: e.color ?? '#c8c8c8' }} className="size-[8px] shrink-0 rounded-full" />
+                )}
                 <span className="whitespace-nowrap">{e.name}</span>
               </div>
               {cols.map((key) => (

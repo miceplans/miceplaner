@@ -118,14 +118,18 @@ export async function markImportJobFailed(client: PoolClient, id: string, error:
 
 // ── 행사·고객사·위키 생성 ────────────────────────────────────────────────────
 
-/** 가져오기로 만드는 행사다. events_insert 정책이 is_internal과 created_by를 검사한다. */
+/**
+ * 가져오기로 만드는 행사다. 생성 화면과 같은 create_event_with_pm(0015) 경로를 쓴다:
+ * 앱 역할의 events 직접 INSERT는 죽었고, 함수가 생성자 PM 등록과 감사 로그까지 한 트랜잭션에 처리한다.
+ * 생성자는 컨텍스트의 실행 주체(app_user_id)다.
+ */
 export async function insertEvent(
   client: PoolClient,
-  event: { clientId: string; name: string; startDate: string; endDate: string; place: string; status: EventStatus; createdBy: string; budget?: number | null },
+  event: { clientId: string; name: string; startDate: string; endDate: string; place: string; status: EventStatus; budget?: number | null },
 ): Promise<string> {
   const { rows } = await client.query<{ id: string }>(
-    `INSERT INTO events (client_id, name, start_date, end_date, place, status, created_by, budget) VALUES ($1, $2, $3::date, $4::date, $5, $6, $7, $8) RETURNING id`,
-    [event.clientId, event.name, event.startDate, event.endDate, event.place, event.status, event.createdBy, event.budget ?? null],
+    `SELECT create_event_with_pm($1, $2, $3::date, $4::date, $5, $6, false, null, $7) AS id`,
+    [event.clientId, event.name, event.startDate, event.endDate, event.place, event.status, event.budget ?? null],
   );
   return rows[0]!.id;
 }

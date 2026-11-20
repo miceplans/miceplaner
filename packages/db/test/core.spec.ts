@@ -22,7 +22,7 @@ let hiddenProgram: string;
 
 beforeAll(async () => {
   admin = new pg.Pool({ connectionString: process.env.TEST_PG_ADMIN_URL });
-  for (const [name, uid] of Object.entries(U)) await admin.query(`INSERT INTO users (id, name, email, annual_leave_days) VALUES ($1, $2, $2 || '@x.test', 3)`, [uid, name]);
+  for (const [name, uid] of Object.entries(U)) await admin.query(`INSERT INTO users (id, name, email, annual_leave_days, role) VALUES ($1, $2, $2 || '@x.test', 3, $3)`, [uid, name, name === 'client' ? 'client' : 'staff']);
   await admin.query(`INSERT INTO clients (id, name) VALUES ($1, '고객사')`, [CLIENT_CO]);
   for (const e of [EVENT, OTHER_EVENT]) await admin.query(`INSERT INTO events (id, client_id, name, start_date, end_date) VALUES ($1, $2, $3, '2026-03-13', '2026-03-16')`, [e, CLIENT_CO, `event-${e.slice(-3)}`]);
   await admin.query(`INSERT INTO event_members VALUES ($1,$2,'pm'), ($1,$3,'am'), ($1,$4,'member')`, [EVENT, U.pm, U.am, U.member]);

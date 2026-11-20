@@ -16,3 +16,7 @@ API 서버의 `WEB_ORIGIN`에는 `tauri://localhost,http://tauri.localhost`를 �
 - 알림은 앱의 알림 화면에서 사용자가 **데스크톱 알림 켜기**를 눌렀을 때만 운영체제 권한을 요청한다. 동의 뒤에만 30초마다 새 미확인 알림을 확인해 표시한다.
 - 자료 파일 영역은 브라우저/WebView가 전달한 `File` 하나를 기존 업로드 API로 전송한다. 파일 시스템 플러그인이나 임의 경로 접근 권한은 사용하지 않는다.
 - Tauri capability는 기본 창 권한과 `notification:default`만 허용한다.
+
+## 한 번에 두 OS 설치 파일 받기
+
+`pnpm desktop:installers [ref]`는 GitHub Actions에서 Windows(.msi/.exe)와 macOS(.dmg)를 동시에 빌드하고 결과를 `release/`에 내려받는다. `gh` 로그인과 `DESKTOP_API_URL` 변수가 필요하며, ref는 원격에 push되어 있어야 한다.

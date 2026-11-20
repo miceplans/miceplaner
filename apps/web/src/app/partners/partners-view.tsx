@@ -181,14 +181,14 @@ export function PartnersView() {
             const cell = (key: EditableKey, width: string, text: string) => {
               const on = cellEdit?.id === p.id && cellEdit.key === key;
               if (on) {
-                const done = () => {
-                  const v = cellEdit.value.trim();
+                const done = (next?: string) => {
+                  const v = (next ?? cellEdit.value).trim();
                   setCellEdit(null);
                   if (key === 'name' && !v) return;
                   setPartners(partners.map((x) => (x.id === p.id ? { ...x, [key]: v } : x)));
                 };
                 const keys = {
-                  onBlur: done,
+                  onBlur: () => done(),
                   onKeyDown: (e: React.KeyboardEvent) => {
                     if (e.key === 'Enter' && key !== 'memo') done();
                     if (e.key === 'Escape') setCellEdit(null);
@@ -198,8 +198,13 @@ export function PartnersView() {
                   <Select
                     autoFocus
                     value={cellEdit.value}
-                    onChange={(e) => setCellEdit({ ...cellEdit, value: e.target.value })}
-                    {...keys}
+                    onChange={(e) => done(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setCellEdit(null);
+                      }
+                    }}
                     variant="chip"
                     size="sm"
                     className={`${width} shrink-0`}

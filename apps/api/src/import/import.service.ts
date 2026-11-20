@@ -3,7 +3,7 @@ import {
   importJobDto, MAX_FILE_BYTES, MAX_IMPORT_ROWS, type ImportJobDto, type ImportTargetField, type ParseImportBody, type PreviewImportBody,
 } from '@miceplans/contracts';
 import {
-  addEventCreatorAsPm, addEventMember, auditEventImport, claimImportJobExecution, createDocPage, getImportJob, getImportJobFile,
+  addEventMember, auditEventImport, claimImportJobExecution, createDocPage, getImportJob, getImportJobFile,
   insertClient, insertEvent, insertImportJob, listClients, listUsers, markImportJobDone, markImportJobParsed, markImportJobPreviewed,
   withContext, type ImportJobRow, type ImportResult, type Pool, type PoolClient,
 } from '@miceplans/db';
@@ -201,6 +201,7 @@ export class ImportService {
           clientsByName.set(key, clientId);
           pushIssue(warnings, warningsTruncated, { row: rowNo, message: `고객사 '${mapped.client}'을(를) 새로 만듦` });
         }
+        // create_event_with_pm이 생성자(실행 주체)를 PM으로 등록하고 감사 로그까지 함께 처리한다.
         const eventId = await insertEvent(db, {
           clientId,
           name: mapped.name,
@@ -208,10 +209,7 @@ export class ImportService {
           endDate: mapped.endDate,
           place: mapped.place,
           status: mapped.status,
-          createdBy: user.userId,
         });
-        // 첫 멤버(실행 주체를 PM으로)를 넣어야 위키를 만들고 PM을 추가할 수 있다.
-        await addEventCreatorAsPm(db, eventId, user.userId);
         if (mapped.pm) {
           const pmId = usersByName.get(mapped.pm.toLowerCase());
           if (pmId && pmId !== user.userId) {
