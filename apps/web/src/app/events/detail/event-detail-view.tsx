@@ -227,8 +227,13 @@ export function EventDetailView() {
   const myTeam = me.data?.team;
   useEffect(() => {
     const next: Team = myTeam === DESIGN_TEAM ? 'design' : 'planning';
-    setTeam(next);
-    setTab(DEFAULT_TAB[next]);
+    // GET /auth/me는 첫 렌더 뒤에 도착한다. 같은 팀 값이 다시 들어올 때까지 매번
+    // 기본 탭(기획팀: 제작물)으로 돌리면 사용자가 고른 탭이 사라진다.
+    setTeam((current) => {
+      if (current === next) return current;
+      setTab(DEFAULT_TAB[next]);
+      return next;
+    });
   }, [myTeam]);
   // 멤버 탭을 보고 있을 때 권한이 사라지면(미리보기 토글 등) 기본 탭으로 돌아간다.
   useEffect(() => {
