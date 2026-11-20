@@ -10,7 +10,7 @@ import { AuthUser, requireInternal } from '../common/auth';
 import { assertFound, mapDbError, versionConflictError } from '../common/http';
 import { CollabClient } from '../knowledge/collab.client';
 import { JobQueue } from '../knowledge/job-queue';
-import { REALTIME, type Realtime } from '../realtime/realtime.gateway';
+import { REALTIME, type Realtime } from '../realtime/realtime.client';
 import { DB_POOL } from '../tokens';
 
 type Applied = { itemIds: string[]; notifiedUserId?: string; /** 커밋 뒤에만 실행하는 부수 효과. */ afterCommit?: () => Promise<void> };

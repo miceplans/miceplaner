@@ -1,0 +1,63 @@
+name: Deploy service to AWS host
+description: Build an arm64 image, push it to ECR and roll it out on the EC2 host through SSM Run Command.
+inputs:
+  service:
+    description: realtime | collab | worker
+    required: true
+  role-arn:
+    required: true
+  instance-id:
+    required: true
+  repository:
+    description: ECR repository name
+    default: miceplans
+  region:
+    default: ap-northeast-2
+runs:
+  using: composite
+  steps:
+    - uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.role-arn }}
+        aws-region: ${{ inputs.region }}
+    - id: ecr
+      uses: aws-actions/amazon-ecr-login@v2
+    - uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64
+    - uses: docker/setup-buildx-action@v3
+    - id: image
+      shell: bash
+      run: echo "uri=${{ steps.ecr.outputs.registry }}/${{ inputs.repository }}:${{ inputs.service }}-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+    - uses: docker/build-push-action@v6
+      with:
+        context: .
+        target: ${{ inputs.service }}
+        platforms: linux/arm64
+        push: true
+        tags: ${{ steps.image.outputs.uri }}
+        cache-from: type=gha,scope=${{ inputs.service }}
+        cache-to: type=gha,scope=${{ inputs.service }},mode=max
+        provenance: false
+    - name: Roll out through SSM
+      shell: bash
+      env:
+        INSTANCE_ID: ${{ inputs.instance-id }}
+        REGION: ${{ inputs.region }}
+        SERVICE: ${{ inputs.service }}
+        IMAGE: ${{ steps.image.outputs.uri }}
+      run: |
+        command_id="$(aws ssm send-command --region "$REGION" --instance-ids "$INSTANCE_ID" \
+          --document-name AWS-RunShellScript --timeout-seconds 600 \
+          --parameters "commands=[\"/opt/miceplans/deploy.sh $SERVICE $IMAGE\"]" \
+          --query 'Command.CommandId' --output text)"
+        # 인스턴스가 명령을 받을 때까지 잠시 걸릴 수 있다.
+        for _ in $(seq 1 60); do
+          status="$(aws ssm get-command-invocation --region "$REGION" --command-id "$command_id" --instance-id "$INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)"
+          case "$status" in
+            Success) echo "deployed $SERVICE"; exit 0 ;;
+            Failed|Cancelled|TimedOut) aws ssm get-command-invocation --region "$REGION" --command-id "$command_id" --instance-id "$INSTANCE_ID" --query '[StandardOutputContent,StandardErrorContent]' --output text; exit 1 ;;
+          esac
+          sleep 10
+        done
+        echo "::error::timed out waiting for SSM command"; exit 1

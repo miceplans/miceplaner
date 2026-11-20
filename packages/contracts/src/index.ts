@@ -11,3 +11,4 @@ export * from './agent-tools';
 export * from './ai';
 export * from './files';
 export * from './import';
+export * from './realtime';

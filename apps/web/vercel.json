@@ -1,4 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm build"
+  "buildCommand": "pnpm build",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/dashboard" },
+    { "source": "/apply", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/apply" },
+    { "source": "/login", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/login" }
+  ]
 }

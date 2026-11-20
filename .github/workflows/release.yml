@@ -1,0 +1,242 @@
+name: Release
+
+# main 푸시마다 하나의 릴리스 흐름으로 실행한다.
+#   DB 마이그레이션 성공 → API(Vercel)·worker·collab·realtime 배포 → health check
+# 마이그레이션이 실패하거나 취소되면 앱은 배포하지 않는다. 이전 코드가 새 스키마와 계속 호환되도록
+# 마이그레이션은 확장 단계(추가만)로 먼저 적용하고, 컬럼 삭제 같은 축소는 앱 배포가 끝난 다음 릴리스에서 한다.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: '변경 감지와 무관하게 모든 구성요소를 배포한다'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# 마이그레이션은 순서가 있고 스키마에 동시에 둘이 적용되면 안 된다. 릴리스는 항상 순차 실행하고 진행 중인 릴리스는 취소하지 않는다.
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    name: Detect changed components
+    runs-on: ubuntu-latest
+    outputs:
+      migrate: ${{ steps.filter.outputs.migrate }}
+      api: ${{ steps.filter.outputs.api }}
+      worker: ${{ steps.filter.outputs.worker }}
+      collab: ${{ steps.filter.outputs.collab }}
+      realtime: ${{ steps.filter.outputs.realtime }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            migrate:
+              - 'packages/db/migrations/**'
+              - 'packages/db/scripts/migrate.sh'
+              - 'Dockerfile'
+              - '.github/workflows/release.yml'
+              - '.github/actions/deploy-aws/**'
+            api:
+              - 'apps/api/**'
+              - 'packages/ai/**'
+              - 'packages/config/**'
+              - 'packages/contracts/**'
+              - 'packages/db/**'
+              - 'packages/domain/**'
+              - 'packages/editor-schema/**'
+              - 'packages/knowledge/**'
+              - 'packages/queue/**'
+              - 'packages/storage/**'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/release.yml'
+              - '.github/actions/deploy-aws/**'
+            worker:
+              - 'apps/worker/**'
+              - 'packages/config/**'
+              - 'packages/contracts/**'
+              - 'packages/db/**'
+              - 'packages/domain/**'
+              - 'packages/knowledge/**'
+              - 'packages/queue/**'
+              - 'packages/storage/**'
+              - 'Dockerfile'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/release.yml'
+              - '.github/actions/deploy-aws/**'
+            collab:
+              - 'apps/collaboration/**'
+              - 'packages/config/**'
+              - 'packages/contracts/**'
+              - 'packages/db/**'
+              - 'packages/domain/**'
+              - 'packages/editor-schema/**'
+              - 'packages/knowledge/**'
+              - 'packages/queue/**'
+              - 'Dockerfile'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/release.yml'
+              - '.github/actions/deploy-aws/**'
+            realtime:
+              - 'apps/realtime/**'
+              - 'packages/config/**'
+              - 'packages/contracts/**'
+              - 'packages/db/**'
+              - 'packages/domain/**'
+              - 'Dockerfile'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/release.yml'
+              - '.github/actions/deploy-aws/**'
+
+  migrate:
+    name: Apply unapplied SQL migrations
+    needs: changes
+    if: needs.changes.outputs.migrate == 'true' || inputs.force_all
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 문서화된 수동 마이그레이션과 같은 이미지·스크립트를 쓴다.
+      # 시크릿은 스키마 소유자 연결 문자열이어야 하며 애플리케이션 역할의 DATABASE_URL이면 안 된다.
+      - name: Build migration image
+        run: docker build --target migrate --tag miceplans-migrate:${{ github.sha }} .
+
+      - name: Apply unapplied migrations
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_MIGRATION_URL }}
+        run: docker run --rm --env DATABASE_URL miceplans-migrate:${{ github.sha }}
+
+  # 배포 job은 migrate가 실행됐다면 성공해야 시작한다(변경이 없어 건너뛴 경우는 허용).
+  # always()를 쓰므로 !failure() && !cancelled()로 migrate의 실패·취소를 명시적으로 막는다.
+  deploy-api:
+    name: Deploy API (Vercel)
+    needs: [changes, migrate]
+    if: >-
+      always() && !failure() && !cancelled() &&
+      (needs.changes.outputs.api == 'true' || inputs.force_all)
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Vercel Git 연동 자동 배포는 apps/api/vercel.json의 git.deploymentEnabled=false로 꺼 두었다.
+      # 마이그레이션이 끝난 뒤 이 job만 운영에 배포한다.
+      - run: npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - run: npx vercel@latest build --prod --token="$VERCEL_TOKEN"
+      - run: npx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+
+  deploy-worker:
+    name: Deploy worker (AWS)
+    needs: [changes, migrate]
+    if: >-
+      always() && !failure() && !cancelled() &&
+      (needs.changes.outputs.worker == 'true' || inputs.force_all)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # pg-boss DDL은 앱 역할이 아닌 스키마 소유자 역할로만 한다. createQueue는 멱등적이라
+      # worker를 다시 배포할 때도 큐 정의와 권한을 안전하게 맞춘다.
+      - name: Build worker image for queue migration
+        run: docker build --target worker --tag miceplans-worker:${{ github.sha }} .
+
+      - name: Prepare pg-boss schema and queues
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_MIGRATION_URL }}
+        run: >-
+          docker run --rm --env DATABASE_URL miceplans-worker:${{ github.sha }}
+          node_modules/.bin/tsx ../../packages/queue/src/migrate.ts
+
+      - uses: ./.github/actions/deploy-aws
+        with:
+          service: worker
+          role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          instance-id: ${{ vars.AWS_INSTANCE_ID }}
+
+  deploy-collab:
+    name: Deploy collab (AWS)
+    needs: [changes, migrate]
+    if: >-
+      always() && !failure() && !cancelled() &&
+      (needs.changes.outputs.collab == 'true' || inputs.force_all)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/deploy-aws
+        with:
+          service: collab
+          role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          instance-id: ${{ vars.AWS_INSTANCE_ID }}
+
+  deploy-realtime:
+    name: Deploy realtime (AWS)
+    needs: [changes, migrate]
+    if: >-
+      always() && !failure() && !cancelled() &&
+      (needs.changes.outputs.realtime == 'true' || inputs.force_all)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/deploy-aws
+        with:
+          service: realtime
+          role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          instance-id: ${{ vars.AWS_INSTANCE_ID }}
+
+  # 배포가 끝난 뒤 각 서비스가 실제로 응답하는지 확인한다. 이번 릴리스에서 배포하지 않은 서비스는 건너뛴다.
+  health-check:
+    name: Health check
+    needs: [deploy-api, deploy-worker, deploy-collab, deploy-realtime]
+    if: always() && !failure() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deployed services
+        env:
+          API_URL: ${{ vars.API_HEALTH_URL }}
+          COLLAB_URL: ${{ vars.COLLAB_HEALTH_URL }}
+          REALTIME_URL: ${{ vars.REALTIME_HEALTH_URL }}
+          API_DEPLOYED: ${{ needs.deploy-api.result }}
+          COLLAB_DEPLOYED: ${{ needs.deploy-collab.result }}
+          REALTIME_DEPLOYED: ${{ needs.deploy-realtime.result }}
+        run: |
+          check() {
+            name="$1"; url="$2"; deployed="$3"
+            [ "$deployed" = "success" ] || { echo "skip  $name (not deployed in this release)"; return 0; }
+            [ -n "$url" ] || { echo "::error::$name health URL variable is not configured"; return 1; }
+            # 머신 기동·함수 콜드 스타트를 고려해 몇 번 재시도한다.
+            for attempt in 1 2 3 4 5 6; do
+              if curl --fail --silent --show-error --max-time 20 "$url" >/dev/null; then echo "ok    $name"; return 0; fi
+              sleep 10
+            done
+            echo "::error::$name health check failed: $url"; return 1
+          }
+          status=0
+          check api "$API_URL" "$API_DEPLOYED" || status=1
+          check collab "$COLLAB_URL" "$COLLAB_DEPLOYED" || status=1
+          check realtime "$REALTIME_URL" "$REALTIME_DEPLOYED" || status=1
+          exit $status

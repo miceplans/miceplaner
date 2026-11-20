@@ -10,3 +10,4 @@ export * from './knowledge-repository';
 export * from './file-repository';
 export * from './import-repository';
 export * from './client-application-repository';
+export * from './rate-limit-repository';

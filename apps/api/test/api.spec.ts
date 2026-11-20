@@ -383,11 +383,11 @@ describe('행사 문서 열람 범위 (F-09)', () => {
 });
 
 describe('서버 오류 응답', () => {
-  it('예상 못한 오류는 500에 오류 이름·메시지를 담아 낸다', async () => {
-    const res = await api().get('/__test_boom').expect(500);
-    expect(res.body.statusCode).toBe(500);
-    expect(res.body.message).toContain('[500]');
-    expect(res.body.message).toContain('Error: 테스트용 폭발');
+  it('예상 못한 오류는 500에 일반 메시지와 요청 ID만 담고 내부 내용은 숨긴다', async () => {
+    const res = await api().get('/__test_boom').set('x-request-id', 'req-123').expect(500);
+    expect(res.body).toEqual({ statusCode: 500, message: '[500] 서버 오류가 발생했습니다.', requestId: 'req-123' });
+    expect(JSON.stringify(res.body)).not.toContain('테스트용 폭발');
+    expect(res.headers['x-request-id']).toBe('req-123');
   });
   it('HttpException 응답 형태는 그대로다', async () => {
     const res = await api().get(`/events/${id(999)}`).set(as('pm')).expect(404);

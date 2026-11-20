@@ -39,7 +39,7 @@ export const config = {
   get workspaceId(): string {
     return process.env.WORKSPACE_ID ?? 'miceplans';
   },
-  /** CORS·Socket.IO·Swagger UI의 허용 출처(쉼표 구분). 운영에서는 비우면 CORS를 열지 않고, 개발에서는 웹 개발 서버(localhost:3100)만 허용한다. */
+  /** CORS·Swagger UI의 허용 출처(쉼표 구분). 운영에서는 비우면 CORS를 열지 않고, 개발에서는 웹 개발 서버(localhost:3100)만 허용한다. */
   get webOrigin(): string {
     const internal = process.env.WEB_ORIGIN ?? (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3100,http://127.0.0.1:3100');
     const client = process.env.CLIENT_PORTAL_ORIGIN ?? '';
@@ -54,6 +54,11 @@ export const config = {
     const { COLLAB_INTERNAL_URL: url, COLLAB_INTERNAL_SECRET: secret } = process.env;
     return url && secret ? { url: url.replace(/\/$/, ''), secret } : null;
   },
+  /** 상시 Socket.IO 서비스(apps/realtime)의 내부 주소와 공유 비밀. API는 서버리스라 소켓을 갖지 않고 이 서비스에 푸시만 보낸다. 없으면 실시간 푸시는 꺼진다. */
+  get realtime(): { url: string; secret: string } | null {
+    const { REALTIME_INTERNAL_URL: url, REALTIME_INTERNAL_SECRET: secret } = process.env;
+    return url && secret ? { url: url.replace(/\/$/, ''), secret } : null;
+  },
   /**
    * LLM 엔드포인트(GLM Coding Plan). 주소·모델은 비밀이 아니라 코드 기본값을 두고, 모델 평가 중에는 LLM_MODEL로만 바꾼다.
    * 키(LLM_API_KEY)만 서버 런타임 환경 변수로 받으며 없으면 AI 질의는 503이다.
@@ -62,6 +67,22 @@ export const config = {
     const { LLM_BASE_URL, LLM_API_KEY: apiKey, LLM_MODEL } = process.env;
     if (!apiKey) return null;
     return { baseUrl: LLM_BASE_URL || DEFAULT_LLM_BASE_URL, apiKey, model: LLM_MODEL || DEFAULT_LLM_MODEL };
+  },
+  /** 공개 인증 엔드포인트 요청 제한. 끄는 것은 테스트용이며 운영에서는 항상 켠다. */
+  get rateLimitEnabled(): boolean {
+    return process.env.RATE_LIMIT_DISABLED !== 'true';
+  },
+  /** 공개 인증 엔드포인트의 IP당 10분 한도(가입·로그인). */
+  get authIpLimit(): number {
+    return Number(process.env.AUTH_RATE_LIMIT_IP ?? 30);
+  },
+  /** 공개 인증 엔드포인트의 이메일당 10분 한도(가입·로그인). 대입 공격에 쓰는 가장 엄격한 한도다. */
+  get authEmailLimit(): number {
+    return Number(process.env.AUTH_RATE_LIMIT_EMAIL ?? 10);
+  },
+  /** Client 신청의 IP당 1시간 한도. */
+  get clientApplicationIpLimit(): number {
+    return Number(process.env.CLIENT_APPLICATION_RATE_LIMIT_IP ?? 5);
   },
   /** 사용자당 분당 AI 질의 한도. LLM 비용을 제한한다. */
   get aiRequestsPerMinute(): number {

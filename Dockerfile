@@ -91,6 +91,39 @@ WORKDIR /app/apps/collaboration
 EXPOSE 3300
 CMD ["node_modules/.bin/tsx", "src/main.ts"]
 
+# Socket.IO 실시간 서버. 연결·방 상태를 한 프로세스가 가지므로 단일 머신으로 운영한다.
+# 빌드: docker build --target realtime -t miceplans-realtime .
+FROM base AS realtime-deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/realtime/package.json apps/realtime/
+COPY packages/config/package.json packages/config/
+COPY packages/contracts/package.json packages/contracts/
+COPY packages/db/package.json packages/db/
+COPY packages/domain/package.json packages/domain/
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prod --filter @miceplans/realtime...
+
+FROM base AS realtime
+ENV NODE_ENV=production REALTIME_PORT=3400
+COPY --from=realtime-deps /app/node_modules ./node_modules
+COPY --from=realtime-deps /app/apps/realtime/node_modules ./apps/realtime/node_modules
+COPY --from=realtime-deps /app/packages ./packages
+COPY package.json pnpm-workspace.yaml ./
+COPY packages/config packages/config
+COPY packages/db/src packages/db/src
+COPY packages/db/tsconfig.json packages/db/
+COPY packages/domain/src packages/domain/src
+COPY packages/domain/tsconfig.json packages/domain/
+COPY packages/contracts/src packages/contracts/src
+COPY packages/contracts/tsconfig.json packages/contracts/
+COPY apps/realtime/package.json apps/realtime/
+COPY apps/realtime/src apps/realtime/src
+COPY apps/realtime/tsconfig.json apps/realtime/
+USER node
+WORKDIR /app/apps/realtime
+EXPOSE 3400
+CMD ["node_modules/.bin/tsx", "src/main.ts"]
+
 # 파일 변환·임베딩 worker(pg-boss). 작업이 없을 때도 큐를 폴링하므로 단일 task로 운영한다.
 # 빌드: docker build --target worker -t miceplans-worker .
 # 배포 때 한 번: 마이그레이션 소유자 DATABASE_URL로 `node_modules/.bin/tsx ../../packages/queue/src/migrate.ts` (pgboss 스키마·큐 생성)
