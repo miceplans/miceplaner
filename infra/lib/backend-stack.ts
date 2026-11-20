@@ -4,17 +4,17 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
 export interface BackendProps extends StackProps {
-  /** 예: `miceplans/miceplaner`. 이 저장소의 main 브랜치 GitHub Actions만 배포 역할을 맡을 수 있다. */
-  githubRepo: string;
+  /** OIDC subject 접두사. 이 저장소는 불변 subject를 쓰므로 `repo:miceplans@<orgId>/miceplaner@<repoId>` 형식이다(`gh api repos/<repo>/actions/oidc/customization/sub`). main 브랜치 Actions만 배포 역할을 맡을 수 있다. */
+  githubSubjectPrefix: string;
   /** 계정에 이미 있는 GitHub Actions OIDC 공급자 ARN. */
   githubOidcProviderArn: string;
   /** `com.amazonaws.global.cloudfront.origin-facing` 관리형 접두사 목록 ID(리전별). */
   cloudFrontPrefixListId: string;
-  /** worker가 읽고 쓰는 업로드 원본 S3 버킷. 없으면 S3 권한을 주지 않는다. */
-  uploadBucketName?: string;
   instanceType?: string;
 }
 
@@ -58,10 +58,16 @@ export class BackendStack extends Stack {
     });
     repo.grantPull(role);
     role.addToPolicy(new iam.PolicyStatement({ actions: ['ssm:GetParametersByPath', 'ssm:GetParameters', 'ssm:GetParameter'], resources: [`arn:${this.partition}:ssm:${this.region}:${this.account}:parameter${PARAM_PATH}*`] }));
-    if (props.uploadBucketName) {
-      role.addToPolicy(new iam.PolicyStatement({ actions: ['s3:ListBucket'], resources: [`arn:${this.partition}:s3:::${props.uploadBucketName}`] }));
-      role.addToPolicy(new iam.PolicyStatement({ actions: ['s3:GetObject', 's3:PutObject'], resources: [`arn:${this.partition}:s3:::${props.uploadBucketName}/*`] }));
-    }
+    // worker가 읽고 쓰는 업로드 원본 저장소. 비공개·암호화·TLS 전용이며 스택을 지워도 데이터는 남긴다.
+    const uploads = new s3.Bucket(this, 'Uploads', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
+    uploads.grantReadWrite(role);
+    new ssm.StringParameter(this, 'S3BucketParam', { parameterName: `${PARAM_PATH}/S3_BUCKET`, stringValue: uploads.bucketName });
+    new ssm.StringParameter(this, 'S3RegionParam', { parameterName: `${PARAM_PATH}/S3_REGION`, stringValue: this.region });
 
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
@@ -154,7 +160,7 @@ EOF`,
       description: 'GitHub Actions (main) pushes ECR images and deploys via SSM',
       maxSessionDuration: Duration.hours(1),
       assumedBy: new iam.WebIdentityPrincipal(props.githubOidcProviderArn, {
-        StringEquals: { 'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com', 'token.actions.githubusercontent.com:sub': `repo:${props.githubRepo}:ref:refs/heads/main` },
+        StringEquals: { 'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com', 'token.actions.githubusercontent.com:sub': `${props.githubSubjectPrefix}:ref:refs/heads/main` },
       }),
     });
     repo.grantPullPush(deployRole);
@@ -170,6 +176,7 @@ EOF`,
     new CfnOutput(this, 'DeployRoleArn', { value: deployRole.roleArn });
     new CfnOutput(this, 'RealtimeUrl', { value: `https://${realtimeCdn.distributionDomainName}` });
     new CfnOutput(this, 'CollabUrl', { value: `https://${collabCdn.distributionDomainName}` });
+    new CfnOutput(this, 'UploadsBucket', { value: uploads.bucketName });
     new CfnOutput(this, 'ParameterPath', { value: PARAM_PATH });
   }
 }
