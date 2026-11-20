@@ -13,5 +13,4 @@ new BackendStack(app, 'MiceplansBackend', {
   githubSubjectPrefix: 'repo:miceplans@297952556/miceplaner@1406826911',
   githubOidcProviderArn: ctx('githubOidcProviderArn'),
   cloudFrontPrefixListId: ctx('cloudFrontPrefixListId'),
-  uploadBucketName: app.node.tryGetContext('uploadBucketName') || undefined,
 });
