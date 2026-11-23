@@ -9,7 +9,7 @@
 
 배포 빌드는 `NEXT_PUBLIC_API_URL`을 HTTPS URL로 요구한다. 협업 서버를 쓸 때는 `NEXT_PUBLIC_COLLAB_URL`도 WSS URL로 설정한다. 두 주소의 origin만 Tauri CSP의 `connect-src`에 포함된다.
 
-API 서버의 `WEB_ORIGIN`에는 `tauri://localhost,http://tauri.localhost`를 포함해야 한다. Windows CI에서는 GitHub Repository Variables `DESKTOP_API_URL`(필수)과 `DESKTOP_COLLAB_URL`(선택)을 사용한다.
+API 서버의 `WEB_ORIGIN`에는 `tauri://localhost,http://tauri.localhost`를 포함해야 한다. Windows·macOS CI에서는 GitHub Repository Variables `DESKTOP_API_URL`(필수)과 `DESKTOP_COLLAB_URL`(선택)을 사용한다.
 
 ## 네이티브 통합
 
