@@ -25,6 +25,17 @@ describe('fetchWithRetry', () => {
     expect(f).toHaveBeenCalledTimes(3);
   });
 
+  it('재시도 대기 중 signal이 끊기면 기다리지 않고 바로 중단한다', async () => {
+    const f = vi.fn().mockImplementation(async () => res(529));
+    const abort = new AbortController();
+    const started = Date.now();
+    const pending = fetchWithRetry(f as unknown as typeof fetch, 'http://x', { signal: abort.signal }, { baseDelayMs: 60_000 });
+    setTimeout(() => abort.abort(new Error('마감')), 20);
+    await expect(pending).rejects.toThrow('마감');
+    expect(Date.now() - started).toBeLessThan(5_000);
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
   it('일반 오류(400)는 재시도하지 않는다', async () => {
     const f = vi.fn().mockResolvedValue(res(400));
     await fetchWithRetry(f as unknown as typeof fetch, 'http://x', {}, { baseDelayMs: 1 });

@@ -24,6 +24,9 @@ export const clientIp = (req: RequestLike): string =>
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex').slice(0, 32);
 
+/** 카운터 키. 값(IP·이메일·사용자 ID)은 해시로만 남겨 원문을 저장하지 않는다. */
+export const rateLimitKey = (scope: string, kind: 'ip' | 'email' | 'user', value: string) => `${scope}:${kind}:${digest(value)}`;
+
 /**
  * 비밀번호 해싱(scrypt)·하이웍스 조회 전에 IP와 이메일 기준으로 요청 수를 제한한다 (계정 대입, API 소진, 비용형 DoS 방어).
  * 카운터는 PostgreSQL에 두어 서버리스 인스턴스 사이에서 공유한다. 이메일·IP 원문은 저장하지 않는다.
@@ -45,8 +48,8 @@ export class RateLimitGuard implements CanActivate {
     const body = req.body as { email?: unknown } | undefined;
     const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
 
-    const checks: Array<[string, number]> = [[`${rule.scope}:ip:${digest(clientIp(req))}`, rule.ipPerWindow]];
-    if (email && rule.emailPerWindow) checks.push([`${rule.scope}:email:${digest(email)}`, rule.emailPerWindow]);
+    const checks: Array<[string, number]> = [[rateLimitKey(rule.scope, 'ip', clientIp(req)), rule.ipPerWindow]];
+    if (email && rule.emailPerWindow) checks.push([rateLimitKey(rule.scope, 'email', email), rule.emailPerWindow]);
 
     try {
       // 로그인 전이라 신원이 없다. 최소 권한(client) 익명 컨텍스트로 카운터 함수만 실행한다.
