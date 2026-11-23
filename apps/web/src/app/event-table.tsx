@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type DragEvent, type FormEvent } from 'react';
+import Link from 'next/link';
 import { Checkbox, DatePicker, Dialog, Input, Select, StatusPill, type StatusKey } from '@miceplans/ui';
 import { EMPTY_ATTR, type EventAttrType, useEventAttrs } from './event-attrs';
 
@@ -198,7 +199,7 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
         const over = rowDrag && rowDrag.over === i && rowDrag.from !== i;
         const dDay = e.priority ? dDayBadge(e.startDate) : null;
         return (
-          <a
+          <Link
             key={e.id}
             href={`/events/detail?id=${encodeURIComponent(e.id)}`}
             aria-label={`${e.name} 상세 보기`}
@@ -253,7 +254,7 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
               ))}
               <div className="h-full w-[36px] shrink-0" />
             </div>
-          </a>
+          </Link>
         );
       })}
       {attrAdding ? (
