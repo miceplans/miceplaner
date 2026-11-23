@@ -40,6 +40,13 @@ config.app.security.csp = [
   "worker-src 'self' blob:",
 ].join('; ');
 
+// 업데이트 패키지(.app.tar.gz, .sig)는 서명 개인키가 있을 때만 만든다.
+// 키가 없는 로컬 빌드도 설치 파일은 만들 수 있게 하고, 릴리스 CI는 키를 반드시 넣는다.
+config.bundle.createUpdaterArtifacts = Boolean(process.env.TAURI_SIGNING_PRIVATE_KEY);
+if (!config.bundle.createUpdaterArtifacts) {
+  console.warn('TAURI_SIGNING_PRIVATE_KEY가 없어 자동 업데이트용 파일을 만들지 않는다.');
+}
+
 writeFileSync(releaseConfigPath, `${JSON.stringify(config, null, 2)}\n`);
 
 const tauri = process.platform === 'win32' ? 'tauri.cmd' : 'tauri';

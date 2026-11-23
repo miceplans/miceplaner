@@ -2,9 +2,8 @@ name: Build macOS desktop app
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - 'desktop-v*'
+  # 태그 릴리스는 desktop-release.yml이 이 워크플로를 호출해 GitHub Release까지 만든다.
+  workflow_call:
 
 permissions:
   contents: read
@@ -18,8 +17,10 @@ jobs:
       matrix:
         include:
           - arch: arm64
+            updater_arch: aarch64
             rust_target: aarch64-apple-darwin
           - arch: x64
+            updater_arch: x86_64
             rust_target: x86_64-apple-darwin
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +46,9 @@ jobs:
           # Repository Variables: DESKTOP_API_URL (required), DESKTOP_COLLAB_URL (optional).
           NEXT_PUBLIC_API_URL: ${{ vars.DESKTOP_API_URL }}
           NEXT_PUBLIC_COLLAB_URL: ${{ vars.DESKTOP_COLLAB_URL }}
+          # Repository Secrets: 자동 업데이트 패키지 서명 키. 없으면 업데이트 파일 없이 설치 파일만 만든다.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm --filter @miceplans/desktop build -- --target ${{ matrix.rust_target }}
 
       - name: Upload installers
@@ -54,3 +58,20 @@ jobs:
           if-no-files-found: error
           path: |
             apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg/*.dmg
+
+      # 두 아키텍처의 업데이트 묶음 이름이 같으므로 Release 자산 이름이 겹치지 않게 아키텍처를 붙인다.
+      - name: Collect updater bundle
+        if: ${{ hashFiles(format('apps/desktop/src-tauri/target/{0}/release/bundle/macos/*.app.tar.gz.sig', matrix.rust_target)) != '' }}
+        run: |
+          mkdir -p updater
+          bundle_dir="apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/macos"
+          cp "$bundle_dir/MICEPLANNER.app.tar.gz" "updater/MICEPLANNER_${{ matrix.updater_arch }}.app.tar.gz"
+          cp "$bundle_dir/MICEPLANNER.app.tar.gz.sig" "updater/MICEPLANNER_${{ matrix.updater_arch }}.app.tar.gz.sig"
+
+      - name: Upload updater bundle
+        if: ${{ hashFiles('updater/*') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: MICEPLANNER-updater-macos-${{ matrix.arch }}
+          if-no-files-found: error
+          path: updater/*
