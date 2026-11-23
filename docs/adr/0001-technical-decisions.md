@@ -37,6 +37,8 @@ MICEPLANNER는 행사 운영 데이터와 사내 지식을 다루며, 내부 직
 
 일반 HTTP API는 Vercel Node Function으로 요청 시에만 실행한다. API 함수는 `tsup`으로 workspace 코드를 단일 ESM 번들로 만들고, Vercel 함수 진입점은 그 산출물만 불러온다. ESM 전용 `jose`와 동적 `require`를 사용하는 `pg`는 번들 밖에 두어 Node 런타임이 직접 해석한다. Vercel의 `Other` 프리셋이 요구하는 `public` 출력 디렉터리는 빌드 때 `index.html`을 만들어 비어 있지 않게 하며, 모든 HTTP 메서드와 중첩 경로는 Vercel `routes` 규칙으로 catch-all 함수 파일에 직접 보낸다. API 번들은 정적 산출물이 아니라 함수에만 포함한다. 이는 워크스페이스 TypeScript 소스의 확장자 없는 ESM import를 Vercel 런타임이 개별적으로 해석하는 문제를 피한다. Socket.IO·협업·worker처럼 지속 연결 또는 폴링이 필요한 프로세스는 Vercel 함수에 두지 않는다.
 
+Vercel 함수 리전은 Supabase DB(`ap-northeast-2`)와 같은 서울(`icn1`)로 고정한다. API·web 각 `vercel.json`의 `regions`로 지정하며, 기본값(`iad1`)을 쓰면 요청당 여러 번의 DB 왕복이 대륙 간 지연으로 누적된다.
+
 공유 데이터베이스는 기존 Supabase PostgreSQL을 사용한다. 서버리스 API는 Supabase Transaction Pooler에 연결하고 warm 함수 인스턴스당 DB 연결 수를 1개로 제한한다. 마이그레이션은 함수가 아닌 배포 전 전용 연결로 실행한다.
 
 DB 스키마 변경은 Drizzle Kit custom SQL migration으로 커밋하고, `main` 병합 시 GitHub Actions가 `SUPABASE_MIGRATION_URL`(마이그레이션 소유자 직접 연결)로 적용한다. 운영 DB에 대한 Drizzle `push` 자동 실행은 RLS·권한 함수·감사 트리거를 예기치 않게 변경할 수 있어 사용하지 않는다.
