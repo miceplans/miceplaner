@@ -1,4 +1,5 @@
 export * from './context';
+export * from './connection';
 export * from './pool';
 export * from './sql';
 export * from './doc-repository';
