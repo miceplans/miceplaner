@@ -12,3 +12,4 @@ export * from './file-repository';
 export * from './import-repository';
 export * from './client-application-repository';
 export * from './rate-limit-repository';
+export * from './schedule-note-repository';

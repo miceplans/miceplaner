@@ -18,7 +18,8 @@ export function PmTransfer({ eventId, meId, isPm, onTransferred }: { eventId: st
   const [open, setOpen] = useState(false);
   const [target, setTarget] = useState<string | null>(null);
   const members = useEventsMembers(eventId, { query: { enabled: isPm } });
-  const users = useDirectoryUsers({ query: { enabled: isPm } });
+  // 사용자 명단은 세션 중 거의 바뀌지 않아 캐시를 고정 쓴다. PM 넘긴 뒤 멤버 갱신은 멤버 쿼리 무효화가 담당한다.
+  const users = useDirectoryUsers({ query: { enabled: isPm, staleTime: Infinity } });
   // 멤버 목록을 불러오지 못하면(예: 목업 행사) data가 비어 후보를 비워 둔다.
   const candidates = useMemo<Candidate[]>(() => {
     if (!members.data || !users.data) return [];

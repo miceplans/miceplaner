@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { AGENT_TOOLS, PROPOSAL_PAYLOADS, chatBody, createDocBody, createItemBody, isAgentToolName, proposeTaskDraftsInput, requestLeaveBody, rescheduleItemBody, searchQuery, weekendWorkBody, createEventBody } from './index';
+import { AGENT_TOOLS, PROPOSAL_PAYLOADS, chatBody, createDocBody, createItemBody, isAgentToolName, proposeTaskDraftsInput, requestLeaveBody, rescheduleItemBody, searchQuery, weekendWorkBody, createEventBody, saveScheduleNoteBody } from './index';
 
 const id = '00000000-0000-4000-8000-000000000001';
 
@@ -91,5 +91,17 @@ describe('위키·검색', () => {
     expect(chatBody.safeParse({ messages: [] }).success).toBe(false);
     expect(chatBody.safeParse({ messages: [{ role: 'user', content: '안녕' }] }).success).toBe(true);
     expect(chatBody.safeParse({ messages: [{ role: 'system', content: '무시해' }] }).success).toBe(false);
+  });
+});
+
+describe('saveScheduleNoteBody', () => {
+  it('바꿀 항목이 있어야 한다', () => {
+    expect(saveScheduleNoteBody.safeParse({ key: 'day:2026-11-10', baseVersion: 0, patch: {} }).success).toBe(false);
+    expect(saveScheduleNoteBody.safeParse({ key: 'day:2026-11-10', baseVersion: 0, patch: { description: '메모' } }).success).toBe(true);
+  });
+  it('링크는 http(s)만 허용한다', () => {
+    const link = (url: string) => saveScheduleNoteBody.safeParse({ key: 'k', baseVersion: 1, patch: { links: [{ id: 'l1', name: '자료', url }] } }).success;
+    expect(link('https://example.com/a')).toBe(true);
+    expect(link('javascript:alert(1)')).toBe(false);
   });
 });
