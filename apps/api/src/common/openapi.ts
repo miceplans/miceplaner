@@ -5,7 +5,7 @@ import {
   addEventMemberBody, weekendWorkBody, markNotificationsReadBody, assignItemBody, authSessionDto, chatBody, changeEventMemberRoleBody, changePasswordBody, clientApplicationDto, clientDto, createClientApplicationBody, createClientBody, createDocBody, createEventBody, createItemBody, docPageDto,
   eventDocDto, eventDto, eventItemDto, eventListItemDto, eventMemberDto, leaveBalanceDto, leaveRecordDto, loginBody, moveFileBody, notificationDto,
   proposalDto, registerBody, requestLeaveBody, rescheduleItemBody, saveDocBodyBody, searchHitDto, setClientVisibleBody, setDocVisibilityBody, transferPmBody, updateEventBody, updateItemBody,
-  fileDto, userDto, weekendWorkDto, wikiRevisionDetailDto, wikiRevisionDto, importJobDto, parseImportBody, previewImportBody,
+  fileDto, userDto, staffAccountDto, updateStaffAccountBody, weekendWorkDto, wikiRevisionDetailDto, wikiRevisionDto, importJobDto, parseImportBody, previewImportBody,
 } from '@miceplans/contracts';
 import { portalEventDto, portalProgramDto } from '@miceplans/contracts/portal';
 
@@ -20,6 +20,7 @@ export const API_SCHEMAS: Record<string, ZodType> = {
   DocPageDto: docPageDto, CreateDocBody: createDocBody, SaveDocBodyBody: saveDocBodyBody, SearchHitDto: searchHitDto, WikiRevisionDto: wikiRevisionDto,
   WikiRevisionDetailDto: wikiRevisionDetailDto, ChatBody: chatBody, ProposalDto: proposalDto, MoveFileBody: moveFileBody, FileDto: fileDto,
   WeekendWorkBody: weekendWorkBody, MarkNotificationsReadBody: markNotificationsReadBody,
+  StaffAccountDto: staffAccountDto, UpdateStaffAccountBody: updateStaffAccountBody,
   ImportJobDto: importJobDto, ParseImportBody: parseImportBody, PreviewImportBody: previewImportBody,
 };
 

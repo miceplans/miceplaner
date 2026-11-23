@@ -47,6 +47,8 @@ DB 연결은 항상 서버 인증서를 검증하는 TLS를 쓴다. Supabase 풀
 
 API의 `/health`는 PostgreSQL, pg-boss, 업로드 원본 저장소, 협업 서버를 모두 읽기 전용으로 점검하며, 하나라도 실패하면 503을 반환한다. worker는 같은 방식으로 PostgreSQL·pg-boss·저장소를 점검하는 HTTP `/health`를 연다. EC2 compose에는 아직 주기 health check가 없고 `restart: always`로 프로세스 종료만 복구하며, 릴리스 워크플로가 배포 직후 collab·realtime의 health URL을 확인한다. health 응답에는 비밀·접속 문자열·원본 오류를 넣지 않는다. Sentry DSN과 OTLP exporter endpoint·인증은 아직 배포 비밀로 확정되지 않았으므로, 해당 값을 정하기 전에는 외부로 오류/trace를 전송하지 않으며 health check와 표준 오류 로그를 최소 운영 신호로 사용한다.
 
+Vercel 함수 리전은 Supabase DB(`ap-northeast-2`)와 같은 서울(`icn1`)로 고정한다. API·web 각 `vercel.json`의 `regions`로 지정하며, 기본값(`iad1`)을 쓰면 요청당 여러 번의 DB 왕복이 대륙 간 지연으로 누적된다.
+
 공유 데이터베이스는 기존 Supabase PostgreSQL을 사용한다. 서버리스 API는 Supabase Transaction Pooler에 연결하고 warm 함수 인스턴스당 DB 연결 수를 1개로 제한한다. 마이그레이션은 함수가 아닌 배포 전 전용 연결로 실행한다.
 
 DB 스키마 변경은 Drizzle Kit custom SQL migration으로 커밋하고, `main` 병합 시 GitHub Actions가 `SUPABASE_MIGRATION_URL`(마이그레이션 소유자 직접 연결)로 적용한다. 운영 DB에 대한 Drizzle `push` 자동 실행은 RLS·권한 함수·감사 트리거를 예기치 않게 변경할 수 있어 사용하지 않는다.

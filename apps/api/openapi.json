@@ -2232,6 +2232,73 @@
         ]
       }
     },
+    "/staff-accounts": {
+      "get": {
+        "operationId": "staffAccountsList",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StaffAccountDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "직원 계정 목록 (Super Admin)",
+        "tags": [
+          "directory"
+        ]
+      }
+    },
+    "/staff-accounts/{id}": {
+      "patch": {
+        "operationId": "staffAccountsUpdate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStaffAccountBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffAccountDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "직원 관리자 역할·재직 상태 변경 (Super Admin)",
+        "tags": [
+          "directory"
+        ]
+      }
+    },
     "/clients": {
       "get": {
         "operationId": "directoryClients",
@@ -4364,6 +4431,77 @@
         "required": [
           "ids"
         ],
+        "additionalProperties": false
+      },
+      "StaffAccountDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "jobTitle": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "super_admin",
+              "staff"
+            ]
+          },
+          "employmentStatus": {
+            "type": "string",
+            "enum": [
+              "active",
+              "departed"
+            ]
+          },
+          "joinedAt": {
+            "type": "string"
+          },
+          "departedAt": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "jobTitle",
+          "role",
+          "employmentStatus",
+          "joinedAt",
+          "departedAt"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateStaffAccountBody": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "super_admin",
+              "staff"
+            ]
+          },
+          "employmentStatus": {
+            "type": "string",
+            "enum": [
+              "active",
+              "departed"
+            ]
+          }
+        },
         "additionalProperties": false
       },
       "ImportJobDto": {

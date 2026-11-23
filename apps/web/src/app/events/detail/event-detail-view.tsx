@@ -9,7 +9,7 @@ import type { RequestRow, Team } from './event-products';
 import { PART_FILTERS, type PartFilter } from './event-parts';
 import { CURRENT_USER, getAssignableNames, isEventMember } from './event-members';
 import { getToken } from '../../../lib/api';
-import { getEventsGetQueryKey, useEventsGet, useEventsMembers, useGetMe } from '../../../lib/api/generated/endpoints';
+import { getEventsGetQueryKey, getEventsListQueryKey, useEventsGet, useEventsMembers, useGetMe } from '../../../lib/api/generated/endpoints';
 import { useQueryClient } from '@tanstack/react-query';
 import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event-filter';
 import { PmTransfer } from './pm-transfer';
@@ -194,7 +194,14 @@ export function EventDetailView() {
     setEventId(new URLSearchParams(window.location.search).get('id') ?? '');
   }, []);
   // 목업 id(e1~e5)처럼 API에 없는 행사는 조회 실패로 data가 비어 기존 목업 데이터를 쓴다.
-  const eventQuery = useEventsGet(eventId, { query: { enabled: eventId !== '' } });
+  // 메인 목록에서 들어오면 목록 캐시의 같은 행사로 바로 그리고, 목록의 신선도(staleTime)를 그대로 따라 중복 요청을 피한다.
+  const eventQuery = useEventsGet(eventId, {
+    query: {
+      enabled: eventId !== '',
+      initialData: () => queryClient.getQueryData<EventListItemDto[]>(getEventsListQueryKey())?.find((e) => e.id === eventId),
+      initialDataUpdatedAt: () => queryClient.getQueryState(getEventsListQueryKey())?.dataUpdatedAt,
+    },
+  });
   const real = eventQuery.data ?? null;
   // 실제 멤버십으로 인력 탭·PM 넘기기 노출을 결정한다. 목업 행사(API에 없는 id)는 기존 목업 판정을 쓴다.
   const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });

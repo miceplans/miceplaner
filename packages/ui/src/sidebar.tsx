@@ -12,12 +12,13 @@ export type SidebarKey =
   | 'leave'
   | 'clients'
   | 'partners'
+  | 'staff'
   | 'notifications';
 
 const A = '/assets/sidebar';
 
 /** 사이드바 하단에 표시할 로그인 사용자. 앱이 Provider로 주입하며, 없으면 프로필 영역을 숨긴다. */
-export type SidebarUser = { name: string; email?: string; jobTitle?: string; team?: string; subTeam?: string };
+export type SidebarUser = { name: string; email?: string; jobTitle?: string; team?: string; subTeam?: string; role?: string };
 const SidebarUserContext = createContext<SidebarUser | null>(null);
 export const SidebarUserProvider = SidebarUserContext.Provider;
 
@@ -31,13 +32,14 @@ const NAV_ORDER_KEY = 'miceplans.sidebar.navOrder';
 /** 비어 있는 전역 내비게이션을 막기 위한 최소 표시 메뉴 수. */
 const MIN_VISIBLE = 1;
 
-const NAV: { key: SidebarKey; label: string; icon: string; size: number; href: string; badge?: number }[] = [
+const NAV: { key: SidebarKey; label: string; icon: string; size: number; href: string; badge?: number; adminOnly?: boolean }[] = [
   { key: 'events', label: '행사', icon: 'events', size: 16, href: '/' },
   { key: 'years', label: '년도 별 보기', icon: 'schedules', size: 16, href: '/events-by-year-2' },
   { key: 'tasks', label: '할 일', icon: 'tasks', size: 16, href: '/task-board' },
   { key: 'leave', label: '연차', icon: 'leave', size: 16, href: '/leave' },
   { key: 'clients', label: '고객사', icon: 'clients', size: 17, href: '/client-list' },
   { key: 'partners', label: '협력사', icon: 'partners', size: 17, href: '/partners' },
+  { key: 'staff', label: '직원 관리', icon: 'clients', size: 17, href: '/staff', adminOnly: true },
   { key: 'notifications', label: '알림', icon: 'notifications', size: 16, href: '/notifications' },
 ];
 
@@ -90,8 +92,10 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
     setNavOrder(readNavOrder());
   }, []);
 
-  const visibleNav = navOrder.map((key) => NAV.find((n) => n.key === key)).filter((n): n is (typeof NAV)[number] => Boolean(n));
-  const availableNav = NAV.filter((n) => !navOrder.includes(n.key));
+  const user = useContext(SidebarUserContext);
+  const allowedNav = NAV.filter((n) => !n.adminOnly || user?.role === 'super_admin');
+  const visibleNav = navOrder.map((key) => allowedNav.find((n) => n.key === key)).filter((n): n is (typeof NAV)[number] => Boolean(n));
+  const availableNav = allowedNav.filter((n) => !navOrder.includes(n.key));
 
   const saveNavOrder = (next: SidebarKey[]) => {
     setNavOrder(next);
@@ -163,8 +167,6 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
       // localStorage를 쓸 수 없는 환경에서는 세션 동안만 반영한다.
     }
   };
-
-  const user = useContext(SidebarUserContext);
 
   return (
     <aside className={`flex h-full w-[240px] shrink-0 flex-col overflow-hidden bg-surface-sidebar leading-[normal] max-md:h-auto max-md:w-full max-md:border-b max-md:border-border ${className}`} data-name="Sidebar">

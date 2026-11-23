@@ -132,6 +132,23 @@ describe('인증 (F-01)', () => {
     await api().get('/events').set(as('client')).expect(403);
     await api().get('/leave?year=2026').set(as('client')).expect(403);
   });
+  it('Super Admin만 직원 권한과 재직 상태를 바꾸고 변경 즉시 세션에 반영한다', async () => {
+    await api().get('/staff-accounts').set(as('staff')).expect(403);
+    const list = await api().get('/staff-accounts').set(as('admin')).expect(200);
+    expect(list.body).toEqual(expect.arrayContaining([expect.objectContaining({ id: U.target, role: 'staff', employmentStatus: 'active' })]));
+
+    await api().patch(`/staff-accounts/${U.target}`).set(as('admin')).send({ role: 'super_admin' }).expect(200)
+      .expect(({ body }) => expect(body.role).toBe('super_admin'));
+    await api().get('/staff-accounts').set(as('target')).expect(200);
+
+    await api().patch(`/staff-accounts/${U.target}`).set(as('admin')).send({ employmentStatus: 'departed', role: 'staff' }).expect(200);
+    await api().get('/auth/me').set(as('target')).expect(401);
+    await api().patch(`/staff-accounts/${U.target}`).set(as('admin')).send({ employmentStatus: 'active' }).expect(200);
+    await api().get('/auth/me').set(as('target')).expect(200);
+
+    const audit = await admin.query(`SELECT action FROM audit_log WHERE action = 'staff.account.change' AND detail->>'userId' = $1`, [U.target]);
+    expect(audit.rows.length).toBeGreaterThanOrEqual(3);
+  });
 });
 
 describe('행사 관리 (F-02)', () => {

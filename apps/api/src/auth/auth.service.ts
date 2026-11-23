@@ -61,6 +61,7 @@ export class AuthService {
       throw new UnauthorizedException(INVALID);
     }
     if (found.user.role === 'client') throw new ForbiddenException('[403] 내부 사용자 계정이 아닙니다.');
+    if (found.user.employmentStatus !== 'active') throw new ForbiddenException('[403] 퇴사 처리된 계정입니다.');
     // 퇴사 등으로 하이웍스 구성원에서 빠진 계정은 로그인할 수 없다.
     if (!(await this.hiworks.findMember(found.user.email))) throw new ForbiddenException('[403] 하이웍스 구성원이 아닙니다.');
     return this.session(found.user);
