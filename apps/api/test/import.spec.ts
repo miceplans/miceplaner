@@ -3,6 +3,7 @@ import { SignJWT } from 'jose';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import ExcelJS from 'exceljs';
+import { FILE_TOO_LARGE_MESSAGE, MAX_FILE_BYTES } from '@miceplans/contracts';
 import { connectTestAdmin, type TestAdmin } from '@miceplans/db/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -122,6 +123,11 @@ describe('Excel 일괄 가져오기', () => {
     const buf = await sampleXlsx();
     await api().post('/import/excel').attach('file', buf, { filename: 'events.xlsx' }).expect(401);
     await api().post('/import/excel').set(as('client')).attach('file', buf, { filename: 'events.xlsx' }).expect(403);
+  });
+
+  it('상한(4MB)을 넘는 파일은 한국어 413 문구로 거부한다', async () => {
+    const res = await api().post('/import/excel').set(as('importer')).attach('file', Buffer.alloc(MAX_FILE_BYTES + 1, 97), { filename: 'big.xlsx' }).expect(413);
+    expect(res.body.message).toBe(FILE_TOO_LARGE_MESSAGE);
   });
 
   it('필수 항목을 매핑하지 않아도 미리보기를 만들고 행별 실패 사유를 남긴다', async () => {

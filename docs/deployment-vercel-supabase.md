@@ -75,7 +75,7 @@ Vercel 함수는 무상태 요청 처리에는 적합하지만, 이 저장소의
 
 - Socket.IO 및 Hocuspocus 장기 연결: 현재 Vercel 공식 한도 문서는 함수가 WebSocket 서버 역할을 지원하지 않는다고 명시한다. 실시간 기능을 출시할 때는 별도 지속 실행 서비스 또는 검증된 Vercel WebSocket 베타를 사용한다.
 - `apps/worker`의 pg-boss 소비: 폴링하는 지속 worker라 Vercel에 상주시킬 수 없다. 파일 변환·임베딩을 운영할 때만 작은 별도 worker를 둔다.
-- 파일 업로드와 다운로드: Vercel 함수 요청·응답은 4.5MB 제한이 있어 현재 명세의 20MB 파일을 통과시킬 수 없다. 업로드 기능 출시 전, Supabase Storage(S3 호환) multipart/direct upload로 전환하고 API는 권한 검증과 메타데이터 기록만 처리한다.
+- 파일 업로드와 다운로드: Vercel 함수 요청·응답은 4.5MB 제한이 있어 업로드 상한을 4MB(`MAX_FILE_BYTES`)로 낮췄다. 4MB 이하 원본은 API를 거쳐 올리고 내려받는다. 더 큰 파일이 필요해지면 Supabase Storage(S3 호환) multipart/direct upload로 전환하고 API는 권한 검증과 메타데이터 기록만 처리하는 방식을 검토한다(명세 6절).
 
 현재 웹은 정적 UI가 중심이고 Socket.IO 클라이언트를 연결하지 않으므로, 이 구성으로 웹·인증·일반 HTTP API를 가장 작은 운영 단위로 먼저 올릴 수 있다.
 

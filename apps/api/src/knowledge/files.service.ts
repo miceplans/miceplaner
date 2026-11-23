@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ForbiddenException, Inject, Injectable, PayloadTooLargeException, ServiceUnavailableException } from '@nestjs/common';
-import { fileDto, MAX_FILE_BYTES, type ListFilesQuery, type MoveFileBody } from '@miceplans/contracts';
+import { FILE_TOO_LARGE_MESSAGE, fileDto, MAX_FILE_BYTES, MAX_FILE_MB, type ListFilesQuery, type MoveFileBody } from '@miceplans/contracts';
 import { canEditWiki } from '@miceplans/domain';
 import { eventRole, getFile, getItem, insertFile, listFiles, moveFile, softDeleteFile, withContext, type Pool, type PoolClient } from '@miceplans/db';
 import { SUPPORTED_EXTENSIONS } from '@miceplans/knowledge/parse';
@@ -40,7 +40,7 @@ export class FilesService {
   async upload(user: AuthUser, eventId: string, file: Upload | undefined, itemId: string | null) {
     requireInternal(user);
     if (!file) throw new BadRequestException('[400] file 필드로 파일을 보내야 합니다.');
-    if (file.size > MAX_FILE_BYTES) throw new PayloadTooLargeException(`[413] 파일은 ${MAX_FILE_BYTES / 1024 / 1024}MB를 넘을 수 없습니다.`);
+    if (file.size > MAX_FILE_BYTES) throw new PayloadTooLargeException(FILE_TOO_LARGE_MESSAGE);
     const name = cleanFileName(file.originalname);
     const ext = name.split('.').pop()?.toLowerCase() ?? '';
     if (!name.includes('.') || !(SUPPORTED_EXTENSIONS as readonly string[]).includes(ext)) throw new BadRequestException(`[415] 지원하는 형식: ${SUPPORTED_EXTENSIONS.join(', ')}`);
@@ -91,6 +91,9 @@ export class FilesService {
     requireInternal(user);
     const file = assertFound(await this.run(user, (db) => getFile(db, id)), '파일');
     const bytes = assertFound(await this.requireStore().get(file.storageKey), '원본 파일');
+    // 저장소는 gzip이지만 여기서 풀린 원본을 그대로 응답한다. 업로드 상한(4MB) 안의 원본은 Vercel 응답 상한(4.5MB)을 넘지 않는다.
+    // 상한을 낮추기 전에 올린 큰 원본은 Vercel이 응답을 끊어 알 수 없는 오류가 되므로 먼저 이유를 알려 준다.
+    if (bytes.length > MAX_FILE_BYTES) throw new PayloadTooLargeException(`[413] ${MAX_FILE_MB}MB를 넘는 원본(상한 변경 전 업로드)은 지금은 내려받을 수 없습니다.`);
     return { name: file.name, mime: file.mime || 'application/octet-stream', bytes };
   }
 

@@ -1,11 +1,11 @@
 import { Controller, Delete, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
-import { listFilesQuery, MAX_FILE_BYTES, moveFileBody, uploadFileFields, type ListFilesQuery, type MoveFileBody, type UploadFileFields } from '@miceplans/contracts';
+import { listFilesQuery, moveFileBody, uploadFileFields, type ListFilesQuery, type MoveFileBody, type UploadFileFields } from '@miceplans/contracts';
 import { Auth, type AuthUser } from '../common/auth';
 import { Returns } from '../common/openapi';
 import { ZodBody, ZodMultipartFields, ZodQuery } from '../common/zod';
 import { FilesService, type Upload } from './files.service';
+import { SingleFileUpload } from './upload.interceptor';
 
 /** express Response 중 쓰는 부분만. */
 type Out = { setHeader: (name: string, value: string) => void; end: (body: Buffer) => void };
@@ -16,12 +16,12 @@ export class FilesController {
   constructor(@Inject(FilesService) private readonly files: FilesService) {}
 
   @Post('events/:eventId/files')
-  @ApiOperation({ operationId: 'uploadEventFile', summary: '파일 업로드 (PM·AM). 원본은 저장소에 두고 worker가 변환·색인한다' })
+  @ApiOperation({ operationId: 'uploadEventFile', summary: '파일 업로드 (PM·AM, 최대 4MB). 원본은 저장소에 두고 worker가 변환·색인한다' })
   @ApiConsumes('multipart/form-data')
   @ApiCreatedResponse({ schema: { $ref: '#/components/schemas/FileDto' } })
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' }, itemId: { type: 'string', format: 'uuid', nullable: true } } } })
-  // multer가 상한을 넘으면 413으로 끊는다. 파일은 메모리에 올라오므로 상한을 작게 유지한다.
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_BYTES, files: 1 } }))
+  // 상한(4MB)을 넘으면 multer가 413으로 끊는다. 파일은 메모리에 올라오므로 상한을 작게 유지한다.
+  @UseInterceptors(SingleFileUpload())
   upload(
     @Auth() user: AuthUser,
     @Param('eventId', ParseUUIDPipe) eventId: string,

@@ -1,6 +1,6 @@
 {
   "name": "@miceplans/contracts", "version": "0.0.0", "private": true, "type": "module",
-  "exports": { ".": "./src/index.ts", "./portal": "./src/portal.ts" },
+  "exports": { ".": "./src/index.ts", "./portal": "./src/portal.ts", "./limits": "./src/limits.ts" },
   "scripts": { "typecheck": "tsc -p tsconfig.json", "test": "vitest run", "lint": "eslint src" },
   "dependencies": { "@miceplans/domain": "workspace:*", "zod": "^4.6.7" },
   "devDependencies": { "@miceplans/config": "workspace:*", "typescript": "^5.6.0" }
