@@ -47,4 +47,4 @@ Intel Mac은 배포하지 않는다.
 - 개인키와 비밀번호는 Repository Secrets `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`에 둔다. **키를 잃으면 이미 설치된 앱에 업데이트를 보낼 수 없으므로** 따로 백업한다.
 - 키가 없는 로컬 빌드는 설치 파일만 만들고 업데이트 파일은 만들지 않는다.
 
-OS 코드 서명(macOS 공증, Windows 코드 서명)은 아직 하지 않는다. macOS에서 처음 열 때 차단되면 Finder에서 앱을 우클릭한 뒤 **열기**를 누른다. Windows SmartScreen 경고가 뜨면 **추가 정보 → 실행**을 누른다.
+OS 코드 서명(macOS 공증, Windows 코드 서명)은 아직 하지 않는다. macOS는 `bundle.macOS.signingIdentity: "-"`로 앱 번들 전체를 ad-hoc 서명한다. 번들 서명이 없으면 내려받은 앱이 "손상되었습니다"로 차단되기 때문이다. 처음 열 때 "확인되지 않은 개발자" 경고가 나오면 **시스템 설정 → 개인정보 보호 및 보안**에서 **그래도 열기**를 누른다. Windows SmartScreen 경고가 뜨면 **추가 정보 → 실행**을 누른다.

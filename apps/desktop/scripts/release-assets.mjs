@@ -66,7 +66,7 @@ const notes = [
   '',
   '이미 설치되어 있으면 앱을 실행할 때 업데이트 안내가 나옵니다. `latest.json`과 `updater-*` 파일은 자동 업데이트용이라 받지 않아도 됩니다.',
   '',
-  '처음 열 때 경고가 나오면 Mac은 앱을 우클릭한 뒤 **열기**, Windows는 **추가 정보 → 실행**을 누르세요.',
+  'Mac에서 처음 열 때 "확인되지 않은 개발자" 경고가 나오면 **시스템 설정 → 개인정보 보호 및 보안**에서 **그래도 열기**를 누르세요. Windows는 **추가 정보 → 실행**을 누르세요.',
   '',
 ].join('\n');
 writeFileSync(join(dirname(outDir), 'release-notes.md'), notes);
