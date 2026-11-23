@@ -88,7 +88,10 @@ GitHub 저장소의 **Settings → Secrets and variables → Actions**에 아래
 
 ```text
 SUPABASE_MIGRATION_URL=<Supabase 직접 연결의 마이그레이션 소유자 URL>
+SUPABASE_CA_CERT=<Supabase Root 2021 CA PEM (DATABASE_CA_CERT와 같은 값)>
 ```
+
+`SUPABASE_CA_CERT`는 worker 배포 job의 pg-boss 준비 단계에서 운영 worker 이미지에 `DATABASE_CA_CERT`로 전달한다. 운영 이미지는 CA나 `sslmode` 없이 평문으로 접속하지 않으므로 이 값이 없으면 그 단계가 실패한다.
 
 이는 API용 Transaction Pooler URL이나 `miceplans_app` URL이 아니라, DDL·역할 생성 권한이 있는 직접 연결이다. `Release`의 마이그레이션 job은 GitHub Actions의 `production` Environment를 사용하므로, 여기에 배포 보호 규칙을 설정하면 운영 스키마 변경마다 승인 단계를 둘 수 있다. 시크릿을 Environment secret으로 두면 마이그레이션 job만 읽을 수 있지만, worker 배포 job의 pg-boss 준비도 같은 시크릿을 쓰므로 현재는 repository secret으로 둔다.
 
