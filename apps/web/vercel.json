@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "pnpm build",
-  "regions": ["icn1"]
+  "regions": ["icn1"],
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/dashboard" },
+    { "source": "/apply", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/apply" },
+    { "source": "/login", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/login" }
+  ]
 }

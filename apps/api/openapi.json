@@ -1157,7 +1157,7 @@
             }
           }
         },
-        "summary": "파일 업로드 (PM·AM). 원본은 저장소에 두고 worker가 변환·색인한다",
+        "summary": "파일 업로드 (PM·AM, 최대 4MB). 원본은 저장소에 두고 worker가 변환·색인한다",
         "tags": [
           "files"
         ]
@@ -2386,7 +2386,7 @@
             }
           }
         },
-        "summary": "Excel 업로드와 시트 목록 파싱 (낮은 권한 이상). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다",
+        "summary": "Excel 업로드와 시트 목록 파싱 (낮은 권한 이상, 최대 4MB). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다",
         "tags": [
           "import"
         ]
@@ -4142,6 +4142,66 @@
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "eventTab": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "eventItems": {
+            "maxItems": 300,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "schedule",
+                    "task",
+                    "subtask"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "assignee": {
+                  "nullable": true,
+                  "type": "string",
+                  "maxLength": 50
+                },
+                "status": {
+                  "type": "string",
+                  "maxLength": 20
+                },
+                "date": {
+                  "nullable": true,
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "part": {
+                  "nullable": true,
+                  "type": "string",
+                  "maxLength": 20
+                },
+                "parent": {
+                  "nullable": true,
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "level",
+                "title",
+                "assignee",
+                "status",
+                "date",
+                "part",
+                "parent"
+              ],
+              "additionalProperties": false
+            }
           },
           "messages": {
             "minItems": 1,

@@ -39,7 +39,7 @@ export const config = {
   get workspaceId(): string {
     return process.env.WORKSPACE_ID ?? 'miceplans';
   },
-  /** CORS·Socket.IO·Swagger UI의 허용 출처(쉼표 구분). 운영에서는 비우면 CORS를 열지 않고, 개발에서는 웹 개발 서버(localhost:3100)만 허용한다. */
+  /** CORS·Swagger UI의 허용 출처(쉼표 구분). 운영에서는 비우면 CORS를 열지 않고, 개발에서는 웹 개발 서버(localhost:3100)만 허용한다. */
   get webOrigin(): string {
     const internal = process.env.WEB_ORIGIN ?? (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3100,http://127.0.0.1:3100');
     const client = process.env.CLIENT_PORTAL_ORIGIN ?? '';
@@ -54,6 +54,11 @@ export const config = {
     const { COLLAB_INTERNAL_URL: url, COLLAB_INTERNAL_SECRET: secret } = process.env;
     return url && secret ? { url: url.replace(/\/$/, ''), secret } : null;
   },
+  /** 상시 Socket.IO 서비스(apps/realtime)의 내부 주소와 공유 비밀. API는 서버리스라 소켓을 갖지 않고 이 서비스에 푸시만 보낸다. 없으면 실시간 푸시는 꺼진다. */
+  get realtime(): { url: string; secret: string } | null {
+    const { REALTIME_INTERNAL_URL: url, REALTIME_INTERNAL_SECRET: secret } = process.env;
+    return url && secret ? { url: url.replace(/\/$/, ''), secret } : null;
+  },
   /**
    * LLM 엔드포인트(GLM Coding Plan). 주소·모델은 비밀이 아니라 코드 기본값을 두고, 모델 평가 중에는 LLM_MODEL로만 바꾼다.
    * 키(LLM_API_KEY)만 서버 런타임 환경 변수로 받으며 없으면 AI 질의는 503이다.
@@ -63,9 +68,40 @@ export const config = {
     if (!apiKey) return null;
     return { baseUrl: LLM_BASE_URL || DEFAULT_LLM_BASE_URL, apiKey, model: LLM_MODEL || DEFAULT_LLM_MODEL };
   },
-  /** 사용자당 분당 AI 질의 한도. LLM 비용을 제한한다. */
+  /** 공개 인증 엔드포인트 요청 제한. 끄는 것은 테스트용이며 운영에서는 항상 켠다. */
+  get rateLimitEnabled(): boolean {
+    return process.env.RATE_LIMIT_DISABLED !== 'true';
+  },
+  /** 공개 인증 엔드포인트의 IP당 10분 한도(가입·로그인). */
+  get authIpLimit(): number {
+    return Number(process.env.AUTH_RATE_LIMIT_IP ?? 30);
+  },
+  /** 공개 인증 엔드포인트의 이메일당 10분 한도(가입·로그인). 대입 공격에 쓰는 가장 엄격한 한도다. */
+  get authEmailLimit(): number {
+    return Number(process.env.AUTH_RATE_LIMIT_EMAIL ?? 10);
+  },
+  /** Client 신청의 IP당 1시간 한도. */
+  get clientApplicationIpLimit(): number {
+    return Number(process.env.CLIENT_APPLICATION_RATE_LIMIT_IP ?? 5);
+  },
+  /** 사용자당 분당 AI 질의 한도. LLM 비용을 제한한다. 카운터는 PostgreSQL(hit_rate_limit)에 두어 서버리스 인스턴스 사이에서 공유한다. */
   get aiRequestsPerMinute(): number {
-    return Number(process.env.AI_REQUESTS_PER_MINUTE ?? 20);
+    const configured = Number(process.env.AI_REQUESTS_PER_MINUTE);
+    return Number.isInteger(configured) && configured > 0 ? configured : 20;
+  },
+  /**
+   * AI 질의 SSE 전체 마감(ms). Vercel 함수 최대 실행 시간(60초)에 잘리기 전에 LLM 호출을 중단하고 error 이벤트로 끝낸다.
+   * 호출 로그 저장 시간을 남기도록 기본값은 50초다.
+   */
+  get aiChatDeadlineMs(): number {
+    const configured = Number(process.env.AI_CHAT_DEADLINE_MS);
+    return Number.isFinite(configured) && configured > 0 ? configured : 50_000;
+  },
+  /** Swagger UI(`/docs`)·OpenAPI JSON(`/docs-json`) 노출 여부. ENABLE_API_DOCS가 있으면 그 값을 따르고, 없으면 운영(NODE_ENV=production 또는 Vercel)에서는 끈다. */
+  get apiDocsEnabled(): boolean {
+    const flag = process.env.ENABLE_API_DOCS;
+    if (flag !== undefined && flag !== '') return flag === 'true';
+    return process.env.NODE_ENV !== 'production' && !process.env.VERCEL;
   },
   /** BGE-M3를 서빙하는 TEI 주소. 없으면 dense 검색과 임베딩 작업을 쓰지 않는다. */
   get teiUrl(): string {

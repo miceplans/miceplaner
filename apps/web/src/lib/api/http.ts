@@ -32,7 +32,8 @@ export async function http<T>(url: string, init: RequestInit = {}): Promise<T> {
   if (!res.ok) {
     if (res.status === 401 && authed) {
       clearToken();
-      window.location.replace('/login');
+      // Client 포털 화면이면 포털 로그인으로, 그 밖에는 내부 로그인으로 보낸다.
+      window.location.replace(window.location.pathname.startsWith('/client') ? '/client/login' : '/login');
     }
     const detail = (await res.json().catch(() => null)) as { message?: unknown } | null;
     // 서버가 준 에러 문구를 그대로 보여 주고, 없으면 상태코드만 붙인 메시지를 쓴다.

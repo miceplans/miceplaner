@@ -15,6 +15,7 @@ COPY packages/config/package.json packages/config/
 COPY packages/contracts/package.json packages/contracts/
 COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
+COPY packages/editor-schema/package.json packages/editor-schema/
 COPY packages/knowledge/package.json packages/knowledge/
 COPY packages/queue/package.json packages/queue/
 COPY packages/storage/package.json packages/storage/
@@ -36,6 +37,8 @@ COPY packages/db/src packages/db/src
 COPY packages/db/tsconfig.json packages/db/
 COPY packages/domain/src packages/domain/src
 COPY packages/domain/tsconfig.json packages/domain/
+COPY packages/editor-schema/src packages/editor-schema/src
+COPY packages/editor-schema/tsconfig.json packages/editor-schema/
 COPY packages/knowledge/src packages/knowledge/src
 COPY packages/knowledge/tsconfig.json packages/knowledge/
 COPY packages/queue/src packages/queue/src
@@ -91,6 +94,42 @@ WORKDIR /app/apps/collaboration
 EXPOSE 3300
 CMD ["node_modules/.bin/tsx", "src/main.ts"]
 
+# Socket.IO 실시간 서버. 연결·방 상태를 한 프로세스가 가지므로 단일 머신으로 운영한다.
+# 빌드: docker build --target realtime -t miceplans-realtime .
+FROM base AS realtime-deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/realtime/package.json apps/realtime/
+COPY packages/config/package.json packages/config/
+COPY packages/contracts/package.json packages/contracts/
+COPY packages/db/package.json packages/db/
+COPY packages/domain/package.json packages/domain/
+COPY packages/knowledge/package.json packages/knowledge/
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prod --filter @miceplans/realtime...
+
+FROM base AS realtime
+ENV NODE_ENV=production REALTIME_PORT=3400
+COPY --from=realtime-deps /app/node_modules ./node_modules
+COPY --from=realtime-deps /app/apps/realtime/node_modules ./apps/realtime/node_modules
+COPY --from=realtime-deps /app/packages ./packages
+COPY package.json pnpm-workspace.yaml ./
+COPY packages/config packages/config
+COPY packages/db/src packages/db/src
+COPY packages/db/tsconfig.json packages/db/
+COPY packages/domain/src packages/domain/src
+COPY packages/domain/tsconfig.json packages/domain/
+COPY packages/contracts/src packages/contracts/src
+COPY packages/contracts/tsconfig.json packages/contracts/
+COPY packages/knowledge/src packages/knowledge/src
+COPY packages/knowledge/tsconfig.json packages/knowledge/
+COPY apps/realtime/package.json apps/realtime/
+COPY apps/realtime/src apps/realtime/src
+COPY apps/realtime/tsconfig.json apps/realtime/
+USER node
+WORKDIR /app/apps/realtime
+EXPOSE 3400
+CMD ["node_modules/.bin/tsx", "src/main.ts"]
+
 # 파일 변환·임베딩 worker(pg-boss). 작업이 없을 때도 큐를 폴링하므로 단일 task로 운영한다.
 # 빌드: docker build --target worker -t miceplans-worker .
 # 배포 때 한 번: 마이그레이션 소유자 DATABASE_URL로 `node_modules/.bin/tsx ../../packages/queue/src/migrate.ts` (pgboss 스키마·큐 생성)
@@ -126,6 +165,7 @@ COPY packages/queue/src packages/queue/src
 COPY packages/queue/tsconfig.json packages/queue/
 COPY packages/storage/src packages/storage/src
 COPY packages/storage/tsconfig.json packages/storage/
+COPY apps/worker/package.json apps/worker/
 COPY apps/worker/src apps/worker/src
 COPY apps/worker/tsconfig.json apps/worker/
 USER node
@@ -136,9 +176,10 @@ CMD ["node_modules/.bin/tsx", "src/main.ts"]
 FROM debian:bookworm-slim AS migrate
 RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client \
     && rm -rf /var/lib/apt/lists/*
-COPY packages/db/scripts /app/scripts
-COPY packages/db/migrations /app/migrations
-WORKDIR /app/scripts
+# migrate.sh는 자기 위치 기준으로 ../migrations와 (있으면) ../drizzle을 읽는다.
+# 디렉터리째 복사해 packages/db/drizzle이 아직 없어도 COPY가 실패하지 않게 한다.
+COPY packages/db /app/db
+WORKDIR /app/db/scripts
 ENTRYPOINT ["bash", "migrate.sh"]
 
 # 기본 타깃은 api

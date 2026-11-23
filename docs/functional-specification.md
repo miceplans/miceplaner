@@ -87,8 +87,10 @@ Event 아래에 Program, Task, Subtask가 한 계층으로 이어지며, 각 단
 - 하이웍스 구성원에서 빠진 계정은 로그인할 수 없다(로그인마다 확인).
 - **알려진 위험(결정 2026-11-03):** 메일 소유를 확인하지 않는 자유 가입이라, 동료 이메일을 아는 구성원이 먼저 비밀번호를 정해 계정을 선점할 수 있다. 비밀번호 재설정·관리자 발급 흐름은 아직 없다. 필요해지면 관리자 임시 비밀번호 발급을 추가한다.
 - Super Admin은 직원 관리 화면에서 내부 계정을 `재직` 또는 `퇴사`로 변경하고 다른 내부 직원을 Super Admin으로 승격하거나 Staff로 변경한다. 계정은 과거 업무 연결과 감사를 위해 삭제하지 않는다. 퇴사 상태는 로그인과 기존 세션을 즉시 차단하며, 변경은 감사 로그에 남긴다. 자기 자신의 관리자 권한·재직 상태 해제와 마지막 재직 Super Admin 해제는 허용하지 않는다. (결정 2026-11-23)
-- 권한이 회수되면 세션을 무효화하고 Socket.IO 방에서 제거하며, 열린 위키는 읽기 전용으로 전환하거나 연결을 종료한다.
-- Client 포털은 기본 접두사 `client`를 써 `client.<주 도메인>` 서브도메인으로 제공한다 (`CLIENT_PORTAL_PREFIX=client`). 정적 웹 배포는 이 호스트의 `/`·`/apply` 요청을 각각 `/client/dashboard`·`/client/apply` 정적 경로로 연결하고, API의 `CLIENT_PORTAL_ORIGIN`에는 해당 HTTPS origin을 등록한다. 신청자는 회사명·이름·이메일·비밀번호를 제출하고, Super Admin이 내부 알림에서 승인한 뒤 Client 계정이 활성화된다. Client 로그인은 포털 전용 이메일·비밀번호 로그인으로 처리하며 하이웍스 검증을 적용하지 않는다. 신청 이메일은 대기·활성 계정과 중복될 수 없다.
+- 가입·로그인·Client 신청은 IP·이메일 기준 요청 제한(초과 시 429)을 적용한다.
+- API 문서(Swagger UI `/docs`, OpenAPI JSON `/docs-json`)는 운영(`NODE_ENV=production` 또는 Vercel)에서 기본으로 열지 않는다. `ENABLE_API_DOCS=true`일 때만 연다. 웹 클라이언트 생성용 `openapi.json`은 `pnpm api:spec`으로 따로 만든다.
+- 권한이 회수되면 세션을 무효화하고 Socket.IO 방에서 제거하며(상시 실시간 서비스가 내부 푸시로 처리한다), 열린 위키는 읽기 전용으로 전환하거나 연결을 종료한다.
+- Client 포털은 기본 접두사 `client`를 써 `client.<주 도메인>` 서브도메인으로 제공한다 (`CLIENT_PORTAL_PREFIX=client`). 정적 웹 배포(`apps/web/vercel.json`)는 이 호스트(`client.*`)의 `/`·`/apply`·`/login` 요청을 각각 `/client/dashboard`·`/client/apply`·`/client/login` 정적 경로로 연결하고, `/client/events/<id>`는 정적 셸 `/client/events/_`로 연결해 행사 ID를 URL에서 읽게 한다. 포털 화면(대시보드·행사 목록·행사 상세·캘린더)은 로그인한 Client 세션으로 `GET /portal/events`·`GET /portal/programs`를 호출해 배정된 행사와 공개 Program만 보여 주며, 세션이 없으면 `/client/login`으로 보낸다. 포털 알림·준비 항목·담당자 화면은 전용 API가 생길 때까지 비어 있다(후속 작업). API의 `CLIENT_PORTAL_ORIGIN`에는 해당 HTTPS origin을 등록한다. 신청자는 회사명·이름·이메일·비밀번호를 제출하고, Super Admin이 내부 알림에서 승인한 뒤 Client 계정이 활성화된다. Client 로그인은 포털 전용 이메일·비밀번호 로그인으로 처리하며 하이웍스 검증을 적용하지 않는다. 신청 이메일은 대기·활성 계정과 중복될 수 없다.
 
 ### F-02 행사 관리
 
@@ -199,6 +201,7 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 
 - 가져오기 과정은 파일 선택, 시트·헤더 선택, 컬럼 매핑, 미리보기·검증, 실행의 단계로 구성한다.
 - 작업 입력(워크스페이스·실행 주체)과 단계별 상태·결과는 `import_jobs` 표에 남기고 만든 사람만 볼 수 있다 (RLS).
+- 업로드(`POST /import/excel`) 상한은 파일 업로드와 같은 4MB(`MAX_FILE_BYTES`)이며 넘으면 같은 413 문구를 돌려주고 웹이 보내기 전에 막는다(F-10).
 - 실행은 한 HTTP 요청 안에서 처리한다. 배포 환경(vercel)에 상주 worker가 없어 pg-boss 작업으로 두면 처리할 주체가 없기 때문이다. 파싱·변환을 worker로 옮기는 것은 worker 도입 뒤에 같은 계약으로 옮긴다.
 - 실패한 행은 걸러내고 나머지를 반영하며, 완료 화면에 행별 실패 사유와 경고를 보여 준다.
 - 업로드 원본은 실행(실패 포함) 완료 즉시 `import_jobs`에서 바이트와 파싱 그리드를 지운다 (원본 보관 정책: 처리 후 즉시 파기, 명세 6절 확정).
@@ -239,8 +242,8 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 
 파일 업로드와 변환:
 
-- `POST /events/:eventId/files`(multipart `file`, PM·AM·Super Admin)로 올린다. 지원 형식은 txt·md·csv·xlsx·docx·pdf(텍스트 레이어)이고 상한은 20MB(`MAX_FILE_BYTES`)다. 형식은 확장자로만 판정하며 클라이언트가 보낸 MIME은 믿지 않는다. 스캔 이미지 PDF·이미지·구형 doc/xls는 지원하지 않는다.
-- 원본은 S3 호환 저장소(운영은 Supabase Storage, `S3_BUCKET`·`S3_ENDPOINT`, 로컬 개발은 `FILES_DIR`)에 `events/<eventId>/<uuid>` 키로 저장한다. 원본은 저장 용량을 줄이려고 gzip으로 압축해 저장하고(`gzipStore`, 압축 전 객체는 그대로 읽음) 다운로드 때 API가 풀어 준다. 저장소 자격 증명은 서버 런타임에만 있고, 다운로드(`GET /files/:id/download`)는 API가 읽어 `attachment`로 전달한다. 서명 URL을 브라우저에 주지 않는다. 저장소 설정이 없으면 업로드는 503이다.
+- `POST /events/:eventId/files`(multipart `file`, PM·AM·Super Admin)로 올린다. 지원 형식은 txt·md·csv·xlsx·docx·pdf(텍스트 레이어)이고 상한은 4MB(`MAX_FILE_BYTES`, `packages/contracts/src/limits.ts`)다. API가 Vercel 함수로 실행되어 요청·응답 본문이 4.5MB로 제한되므로 multipart 오버헤드 여유를 두고 4MB로 확정했다. 상한을 넘으면 multer가 본문을 끊고 `[413] 파일은 4MB를 넘을 수 없습니다.`를 돌려주며, 웹은 같은 값으로 보내기 전에 막고 업로드 영역에 상한을 표시한다. 더 큰 파일은 저장소 직접 업로드 경로가 필요하며 결정을 미룬다(6절). 형식은 확장자로만 판정하며 클라이언트가 보낸 MIME은 믿지 않는다. 스캔 이미지 PDF·이미지·구형 doc/xls는 지원하지 않는다.
+- 원본은 S3 호환 저장소(운영은 Supabase Storage, `S3_BUCKET`·`S3_ENDPOINT`, 로컬 개발은 `FILES_DIR`)에 `events/<eventId>/<uuid>` 키로 저장한다. 원본은 저장 용량을 줄이려고 gzip으로 압축해 저장하고(`gzipStore`, 압축 전 객체는 그대로 읽음) 다운로드 때 API가 풀어 준다. 저장소 자격 증명은 서버 런타임에만 있고, 다운로드(`GET /files/:id/download`)는 API가 읽어 압축을 푼 원본을 `attachment`로 전달한다. 원본은 업로드 상한(4MB) 이하라 응답도 Vercel 응답 상한(4.5MB) 안에 든다. 상한을 낮추기 전에 올린 4MB 초과 원본은 Vercel이 응답을 끊지 않도록 413과 사유를 돌려준다. 서명 URL을 브라우저에 주지 않는다. 저장소 설정이 없으면 업로드는 503이다.
 - 업로드는 `event_files`(`pending`)를 만들고 pg-boss 작업 `parse-file`을 넣는다. worker가 업로더 권한(작업 입력의 워크스페이스·사용자·역할)으로 원본을 읽어 Markdown으로 바꾸고, 파일명을 제목으로 하는 `event_docs`(열람 범위 `행사 멤버`, PM·AM이 이후 변경)를 만들어 청크를 색인한 뒤 `ready`로 바꾼다. 변환할 수 없으면 사유와 함께 `failed`이며(형식 오류·빈 문서·원본 없음은 재시도하지 않고, 그 밖의 오류는 3회 재시도한 뒤 `failed`) 사용자는 파일 목록에서 사유를 본다.
 - 목록·상세는 변환 전에는 PM·AM만, 변환 후에는 변환 문서를 볼 수 있는 사람만 본다(Client는 항상 불가). 삭제(`DELETE /files/:id`, PM·AM)는 soft delete이며 변환 문서와 색인을 함께 내리고 감사 로그(`file.delete`)를 남긴다.
 - 웹은 행사 상세의 `문서` 탭 위 `자료 파일` 영역에서 올리기·상태 확인(변환 중이면 3초마다 갱신)·원본 받기·변환 문서 열기·삭제를 제공한다. 세션 토큰이 없거나 행사 ID가 서버의 것이 아닌 목업 데이터에서는 표시하지 않는다.
@@ -280,8 +283,8 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 - 구현은 `POST /ai/chat`(SSE: `text`·`tool`·`sources`·`proposal`·`done`·`error` 이벤트), `GET /events/:eventId/ai/proposals`, `POST /ai/proposals/:id/approve|reject`다. 도구는 질문한 사용자의 RLS 컨텍스트에서 실행되어 권한 밖 문서가 모델에 전달되지 않는다. 모델이 쓰는 도구 계약은 `packages/contracts/src/agent-tools.ts`, 어댑터·에이전트 루프·평가는 `packages/ai`다.
 - AI 질의는 내부 직원 전체가 할 수 있고(Client 불가), 제안은 만든 사람과 PM·AM만 볼 수 있으며, 승인·반려는 PM·AM과 Super Admin만 한다. 결정된 제안은 다시 바꿀 수 없다.
 - 승인은 승인자의 권한으로 한 PostgreSQL 트랜잭션 안에서 반영한다. `task_drafts`는 Task·Subtask 생성(상위 항목 검증), `notification`은 알림 생성, `wiki_edit`은 본문 교체와 재색인이다. `wiki_edit`은 제안 당시 `baseVersion`과 다르면 409 `VERSION_CONFLICT`로 거부하고 제안은 대기로 남는다. Yjs 상태가 있는 문서는 API가 에이전트 참여자로서 Yjs 트랜잭션을 수행해 Yjs 원본·Markdown 파생본·재색인·승인 직전 `wiki_revisions`(reason `ai_proposal`)·제안 결정·감사 로그를 함께 커밋한다. 커밋 뒤 협업 서버는 활성 연결에 저장된 Yjs 상태를 전파할 뿐이며, 전파 실패는 이미 커밋된 결정을 되돌리지 않고 재접속 때 DB 원본으로 회복한다.
-- 웹의 Agent 패널(`apps/web/src/app/ai-chat/ai-chat-panel.tsx`)은 `/ai/chat` SSE를 스트리밍해 답변·출처·제안 카드를 보여주고 승인·반려 버튼을 제공한다. 행사 상세(`/events/:id`)에서는 그 행사를 맥락으로 보낸다. 웹 로그인 화면(`/login`)은 이메일·비밀번호 로그인과 가입을 제공하며, 성공한 세션 토큰은 탭 종료 시 사라지는 `sessionStorage['miceplans.token']`에 저장한다(`apps/web/src/lib/api.ts`). REST 호출은 orval이 생성한 TanStack Query 훅(`apps/web/src/lib/api/generated`)을 쓰며 API 주소는 `NEXT_PUBLIC_API_URL`이다. 제안 표시 형식·재제안 흐름은 7절에서 미확정이라 요약·상태·승인/반려만 제공한다.
-- 사용자당 분당 질의 한도(`AI_REQUESTS_PER_MINUTE`, 기본 20)로 LLM 비용을 제한한다. 호출 기록은 `ai_calls`(본인과 Super Admin만 조회)에 남는다. LLM 키 `LLM_API_KEY`는 서버 런타임에서만 읽고 없으면 AI 질의는 503이다. 주소·모델은 비밀이 아니라 코드 기본값(GLM Coding Plan의 Anthropic 호환 `https://api.z.ai/api/anthropic`, `glm-4.5-flash`)이며 `LLM_BASE_URL`·`LLM_MODEL`로 덮어쓸 수 있다.
+- 웹의 Agent 패널(`apps/web/src/app/ai-chat/ai-chat-panel.tsx`)은 `/ai/chat` SSE를 스트리밍해 답변·출처·제안 카드를 보여주고 승인·반려 버튼을 제공한다. 행사 상세(`/events/detail?id=<uuid>`)에서는 그 행사 id를 맥락으로 보내고, 서버는 질문한 사용자의 RLS 컨텍스트로 행사 기본 정보(이름·기간·장소·상태, 예산 제외)를 조회해 시스템 프롬프트에 넣는다. 상세 화면이 보여 주는 탭 이름도 `eventTab`으로 함께 보내 모호한 질문을 그 탭 기준으로 해석하게 한다. 스케줄·할 일은 브라우저에만 저장되므로 화면의 목록(`eventItems`, 최대 300건: 단계·제목·담당자·상태·날짜·파트·상위)도 함께 보낸다. 서버는 담당자 이름과 질문한 사용자를 비식별 토큰으로 바꿔 넣어 "내가 담당인 할 일" 같은 질문에 답하게 한다. 웹 로그인 화면(`/login`)은 이메일·비밀번호 로그인과 가입을 제공하며, 성공한 세션 토큰은 탭 종료 시 사라지는 `sessionStorage['miceplans.token']`에 저장한다(`apps/web/src/lib/api.ts`). REST 호출은 orval이 생성한 TanStack Query 훅(`apps/web/src/lib/api/generated`)을 쓰며 API 주소는 `NEXT_PUBLIC_API_URL`이다. 제안 표시 형식·재제안 흐름은 7절에서 미확정이라 요약·상태·승인/반려만 제공한다.
+- 사용자당 분당 질의 한도(`AI_REQUESTS_PER_MINUTE`, 기본 20)로 LLM 비용을 제한한다. 카운터는 공개 인증 엔드포인트와 같은 PostgreSQL 고정 창 카운터(`hit_rate_limit`)라 서버리스 인스턴스가 여러 개여도 공유되며, 초과하면 스트리밍을 시작하기 전에 429다. 답변 전체에는 마감(`AI_CHAT_DEADLINE_MS`, 기본 50초)이 있어 넘기면 LLM 호출·재시도 대기를 중단하고 `error` 이벤트(`[504] ...`)로 스트림을 끝낸다. Vercel 함수 최대 실행 시간(60초)에 응답이 중간에 잘리지 않게 하기 위함이다. 호출 기록은 `ai_calls`(본인과 Super Admin만 조회)에 남는다. LLM 키 `LLM_API_KEY`는 서버 런타임에서만 읽고 없으면 AI 질의는 503이다. 주소·모델은 비밀이 아니라 코드 기본값(GLM Coding Plan의 Anthropic 호환 `https://api.z.ai/api/anthropic`, `glm-4.5-flash`)이며 `LLM_BASE_URL`·`LLM_MODEL`로 덮어쓸 수 있다.
 - GLM은 OpenAI 호환 어댑터 뒤에서 사용한다. 대표 시나리오 20~30개로 첫 2주 안에 도구 호출 품질을 평가하고, 모델 또는 프롬프트 변경 때 같은 골든 셋을 다시 실행한다. 골든 셋은 `packages/ai/src/eval/cases.ts`(현재 22개)이고 `LLM_* pnpm --filter @miceplans/ai eval`로 실행한다. 합격선은 미확정(7절)이라 통과율만 보고한다. **실행 기록(2026-11-02, z.ai `/api/anthropic`, `glm-4.5-flash`): 20/22(91%).** 실패는 `tasks-progress`(query_tasks 미호출)와 `propose-notification`(propose_notification 미호출) 2건이다. 이 계정에서는 유료 모델(`glm-5.3-flash`, `glm-4.7`, `glm-4.5` 등)이 `1113`(잔액·패키지 없음)으로 거절되고 무료 `glm-4.5-flash`만 응답해, 사용자 결정(2026-11-02)에 따라 `glm-4.5-flash`를 평가 모델로 삼았다. 다른 모델로 바꾸면 같은 골든 셋을 다시 실행한다(`LLM_* pnpm --filter @miceplans/ai eval`). 합격선은 미확정(7절)이다. 엔드포인트가 `/anthropic`으로 끝나면 Anthropic Messages 어댑터, 아니면 OpenAI 호환 어댑터를 쓴다(`createLlmClient`).
 
 ### F-12 휴가·연차
@@ -322,6 +325,7 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 | Redis 도입 | 협업 서버를 두 개 이상 운영하거나 동시 접속 증가 시 |
 | 전사 문서 space 권한 | 전사 문서 space 추가 직전 |
 | 한국어 lexical 검색 보강 (Kiwi 등 형태소 분석) | 골든 셋이 기준 미달일 때. 현재는 조사 제거 + 접두 일치 + `pg_trgm`으로 처리 |
+| 4MB 초과 파일 업로드(저장소 직접 업로드 경로) | 4MB보다 큰 자료를 올려야 하는 요구가 확인될 때. 현재 상한은 Vercel 본문 상한(4.5MB) 때문에 4MB이며, 서명 URL을 브라우저에 주지 않는 원칙과 함께 다시 정한다 |
 | 업로드 원본의 보존·파기 기간 | 운영 시작 전. 현재는 삭제해도 S3 원본을 지우지 않고 자동 파기도 없다 |
 | TEI 임베딩 서빙 방식·비용, worker 상시 실행 여부 | 임베딩을 운영에서 켜기 전. 코드는 구현됐고 `TEI_URL`이 없으면 꺼져 있다. 임계값 `DENSE_MAX_DISTANCE`는 소규모 실측으로 0.5를 정했고 실제 문서로 재점검한다 |
 | GLM 모델 유지 여부 | 초기 2주 평가 종료 시 |

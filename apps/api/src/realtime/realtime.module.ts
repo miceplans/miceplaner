@@ -1,10 +1,8 @@
 import { Module } from '@nestjs/common';
-import { DbModule } from '../db.module';
-import { RealtimeGateway, REALTIME } from './realtime.gateway';
+import { RealtimeClient, REALTIME } from './realtime.client';
 
 @Module({
-  imports: [DbModule],
-  providers: [RealtimeGateway, { provide: REALTIME, useExisting: RealtimeGateway }],
+  providers: [RealtimeClient, { provide: REALTIME, useExisting: RealtimeClient }],
   exports: [REALTIME],
 })
 export class RealtimeModule {}

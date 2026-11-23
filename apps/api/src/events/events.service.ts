@@ -9,7 +9,7 @@ import type { Pool, PoolClient } from '@miceplans/db';
 import { AuthUser, requireInternal } from '../common/auth';
 import { assertFound, assertOk, mapDbError } from '../common/http';
 import { DB_POOL } from '../tokens';
-import { REALTIME, type Realtime } from '../realtime/realtime.gateway';
+import { REALTIME, type Realtime } from '../realtime/realtime.client';
 import { CollabClient } from '../knowledge/collab.client';
 
 @Injectable()
