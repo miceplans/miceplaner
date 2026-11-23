@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { useGetMe, useStaffAccountsList, useStaffAccountsUpdate } from '../../lib/api/generated/endpoints';
+import { getToken } from '../../lib/api';
 
 type Filter = 'all' | 'active' | 'departed';
 
 export function StaffManagementView() {
-  const me = useGetMe();
+  // 권한 확인용 내 정보는 세션 중 불변이라 캐시에서 고정 쓴다.
+  const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
   const list = useStaffAccountsList({ query: { enabled: me.data?.role === 'super_admin' } });
   const update = useStaffAccountsUpdate();
   const [filter, setFilter] = useState<Filter>('active');
