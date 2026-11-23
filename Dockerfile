@@ -15,6 +15,7 @@ COPY packages/config/package.json packages/config/
 COPY packages/contracts/package.json packages/contracts/
 COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
+COPY packages/editor-schema/package.json packages/editor-schema/
 COPY packages/knowledge/package.json packages/knowledge/
 COPY packages/queue/package.json packages/queue/
 COPY packages/storage/package.json packages/storage/
@@ -36,6 +37,8 @@ COPY packages/db/src packages/db/src
 COPY packages/db/tsconfig.json packages/db/
 COPY packages/domain/src packages/domain/src
 COPY packages/domain/tsconfig.json packages/domain/
+COPY packages/editor-schema/src packages/editor-schema/src
+COPY packages/editor-schema/tsconfig.json packages/editor-schema/
 COPY packages/knowledge/src packages/knowledge/src
 COPY packages/knowledge/tsconfig.json packages/knowledge/
 COPY packages/queue/src packages/queue/src
@@ -173,9 +176,10 @@ CMD ["node_modules/.bin/tsx", "src/main.ts"]
 FROM debian:bookworm-slim AS migrate
 RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client \
     && rm -rf /var/lib/apt/lists/*
-COPY packages/db/scripts /app/scripts
-COPY packages/db/migrations /app/migrations
-WORKDIR /app/scripts
+# migrate.sh는 자기 위치 기준으로 ../migrations와 (있으면) ../drizzle을 읽는다.
+# 디렉터리째 복사해 packages/db/drizzle이 아직 없어도 COPY가 실패하지 않게 한다.
+COPY packages/db /app/db
+WORKDIR /app/db/scripts
 ENTRYPOINT ["bash", "migrate.sh"]
 
 # 기본 타깃은 api

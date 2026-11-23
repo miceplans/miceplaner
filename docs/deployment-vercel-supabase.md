@@ -59,7 +59,9 @@ SELECT name FROM schema_migrations ORDER BY name;
 pnpm --filter @miceplans/db drizzle:custom --name add_event_timezone
 ```
 
-생성된 `packages/db/drizzle/**.sql`에 SQL을 작성하고 테스트한 뒤 커밋한다. `main`에 병합되면 GitHub Actions의 `Deploy Supabase migrations`가 새 SQL과 pg-boss 스키마를 순서대로 적용한다. 실행 이력은 `schema_migrations`에 남아 같은 migration을 다시 적용하지 않는다.
+생성된 `packages/db/drizzle/**.sql`에 SQL을 작성하고 테스트한 뒤 커밋한다. `main`에 병합되면 GitHub Actions의 `Release`(`.github/workflows/release.yml`)가 마이그레이션 이미지(`Dockerfile`의 `migrate` 타깃, `packages/db/migrations`와 `packages/db/drizzle`을 함께 담는다)로 새 SQL을 적용한 뒤에만 API(Vercel CLI)·worker·collab·realtime을 배포한다. pg-boss 스키마·큐는 worker 배포 job이 같은 소유자 연결로 먼저 맞춘다. 실행 이력은 `schema_migrations`에 남아 같은 migration을 다시 적용하지 않는다.
+
+운영 DB를 바꾸는 워크플로는 `Release` 하나뿐이다. 예전의 `Deploy Supabase migrations`·Fly.io 협업 배포 워크플로는 릴리스 순서와 승인 단계를 우회해 같은 스키마에 동시에 적용될 수 있어 제거했다. 마이그레이션은 앱 배포보다 먼저 적용되므로, 아직 실행 중인 이전 API·웹·데스크톱 클라이언트와도 호환되는 추가(확장) 변경만 한 번에 넣고 컬럼 삭제 같은 축소는 다음 릴리스로 미룬다.
 
 GitHub 저장소의 **Settings → Secrets and variables → Actions**에 아래 repository secret을 한 번 등록한다.
 
@@ -67,7 +69,7 @@ GitHub 저장소의 **Settings → Secrets and variables → Actions**에 아래
 SUPABASE_MIGRATION_URL=<Supabase 직접 연결의 마이그레이션 소유자 URL>
 ```
 
-이는 API용 Transaction Pooler URL이나 `miceplans_app` URL이 아니라, DDL·역할 생성 권한이 있는 직접 연결이다. GitHub Actions의 `production` Environment에 배포 보호 규칙을 설정하면 운영 스키마 변경마다 승인 단계를 둘 수 있다.
+이는 API용 Transaction Pooler URL이나 `miceplans_app` URL이 아니라, DDL·역할 생성 권한이 있는 직접 연결이다. `Release`의 마이그레이션 job은 GitHub Actions의 `production` Environment를 사용하므로, 여기에 배포 보호 규칙을 설정하면 운영 스키마 변경마다 승인 단계를 둘 수 있다. 시크릿을 Environment secret으로 두면 마이그레이션 job만 읽을 수 있지만, worker 배포 job의 pg-boss 준비도 같은 시크릿을 쓰므로 현재는 repository secret으로 둔다.
 
 ## Vercel에서 제외되는 기능
 
@@ -81,7 +83,7 @@ Vercel 함수는 무상태 요청 처리에는 적합하지만, 이 저장소의
 
 ## 협업 서버와 파일 저장소 (비용 기준 잠정 선택)
 
-- 협업(Hocuspocus): Fly.io 최소 shared VM 한 대. 유휴 시 자동 정지를 허용하며, Yjs 스냅샷은 PostgreSQL에 있으므로 서버는 무상태다. 클라이언트는 재연결로 복구한다. 접속 토큰 검증과 RLS 컨텍스트 사용은 그대로다.
+- 협업(Hocuspocus): 실시간 서버·worker와 함께 AWS EC2 한 대(`infra/`, t4g.micro)의 컨테이너로 운영하고 `Release` 워크플로가 배포한다. Yjs 스냅샷은 PostgreSQL에 있으므로 서버는 무상태다. 클라이언트는 재연결로 복구한다. 접속 토큰 검증과 RLS 컨텍스트 사용은 그대로다.
 - 파일 저장소: Supabase Storage 비공개 버킷. 환경 변수는 `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`(`https://<project-ref>.storage.supabase.co/storage/v1/s3`)와 Storage 설정의 S3 접근 키다. 키는 서버 런타임(API·worker)에만 둔다.
 - 무료 플랜은 비활성 시 프로젝트가 일시정지되므로 운영 시작 전에 Pro로 전환한다.
 - 용량·다운로드가 늘면 `S3_ENDPOINT`만 바꿔 Cloudflare R2 등으로 이전할 수 있다.
