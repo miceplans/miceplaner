@@ -2866,7 +2866,7 @@ export const getUploadEventFileUrl = (eventId: string,) => {
 }
 
 /**
- * @summary 파일 업로드 (PM·AM). 원본은 저장소에 두고 worker가 변환·색인한다
+ * @summary 파일 업로드 (PM·AM, 최대 4MB). 원본은 저장소에 두고 worker가 변환·색인한다
  */
 export const uploadEventFile = async (eventId: string,
     uploadEventFileBody: UploadEventFileBody, options?: Parameters<typeof http>[1]): Promise<FileDto> => {
@@ -2925,7 +2925,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UploadEventFileMutationError = unknown
     export type UploadEventFileMutationVariables = {eventId: string;data: UploadEventFileBody}
 
-    /** @summary 파일 업로드 (PM·AM). 원본은 저장소에 두고 worker가 변환·색인한다 */
+    /** @summary 파일 업로드 (PM·AM, 최대 4MB). 원본은 저장소에 두고 worker가 변환·색인한다 */
 export const useUploadEventFile = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadEventFile>>, TError,UploadEventFileMutationVariables, TContext>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient): UseMutationResult<
@@ -6015,7 +6015,7 @@ export const getImportExcelUploadUrl = () => {
 }
 
 /**
- * @summary Excel 업로드와 시트 목록 파싱 (낮은 권한 이상). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다
+ * @summary Excel 업로드와 시트 목록 파싱 (낮은 권한 이상, 최대 4MB). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다
  */
 export const importExcelUpload = async (importExcelUploadBody: ImportExcelUploadBody, options?: Parameters<typeof http>[1]): Promise<ImportJobDto> => {
     const formData = new FormData();
@@ -6070,7 +6070,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ImportExcelUploadMutationError = unknown
     export type ImportExcelUploadMutationVariables = {data: ImportExcelUploadBody}
 
-    /** @summary Excel 업로드와 시트 목록 파싱 (낮은 권한 이상). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다 */
+    /** @summary Excel 업로드와 시트 목록 파싱 (낮은 권한 이상, 최대 4MB). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다 */
 export const useImportExcelUpload = <TError = unknown,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importExcelUpload>>, TError,ImportExcelUploadMutationVariables, TContext>, request?: SecondParameter<typeof http>}
  , queryClient?: QueryClient): UseMutationResult<

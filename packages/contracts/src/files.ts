@@ -2,8 +2,7 @@ import { z } from 'zod';
 import { ROLES } from '@miceplans/domain';
 import { isoDateTime, uuid } from './common';
 
-/** 업로드 파일 하나의 크기 상한(바이트). API는 이 값을 넘는 요청을 413으로 거부한다. */
-export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+export { FILE_TOO_LARGE_MESSAGE, MAX_FILE_BYTES, MAX_FILE_MB } from './limits';
 
 export const fileStatus = z.enum(['pending', 'ready', 'failed']);
 

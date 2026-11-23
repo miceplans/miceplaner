@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Inject, Injectable, PayloadTooLargeException } from '@nestjs/common';
 import {
-  importJobDto, MAX_FILE_BYTES, MAX_IMPORT_ROWS, type ImportJobDto, type ImportTargetField, type ParseImportBody, type PreviewImportBody,
+  FILE_TOO_LARGE_MESSAGE, importJobDto, MAX_FILE_BYTES, MAX_IMPORT_ROWS, type ImportJobDto, type ImportTargetField, type ParseImportBody, type PreviewImportBody,
 } from '@miceplans/contracts';
 import {
   addEventMember, auditEventImport, claimImportJobExecution, createDocPage, getImportJob, getImportJobFile,
@@ -49,7 +49,7 @@ export class ImportService {
   async upload(user: AuthUser, file: Upload | undefined): Promise<ImportJobDto> {
     requireInternal(user);
     if (!file) throw new BadRequestException('[400] file 필드로 파일을 별도로 첨부해야 합니다.');
-    if (file.size > MAX_FILE_BYTES) throw new PayloadTooLargeException(`[413] 파일은 ${MAX_FILE_BYTES / 1024 / 1024}MB를 넘을 수 없습니다.`);
+    if (file.size > MAX_FILE_BYTES) throw new PayloadTooLargeException(FILE_TOO_LARGE_MESSAGE);
     const name = cleanFileName(file.originalname);
     let sheets;
     try {

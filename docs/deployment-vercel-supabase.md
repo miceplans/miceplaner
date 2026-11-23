@@ -15,14 +15,35 @@ ALTER ROLE miceplans_app PASSWORD '<새 앱 역할 비밀번호>';
 Vercel API 프로젝트에는 다음처럼 설정한다.
 
 ```text
-DATABASE_URL=postgresql://miceplans_app.<project-ref>:<app-role-password>@<pooler-host>:6543/postgres?sslmode=require&workaround=supabase-pooler.vercel
+DATABASE_URL=postgresql://miceplans_app.<project-ref>:<app-role-password>@<pooler-host>:6543/postgres?sslmode=require
+DATABASE_CA_CERT=<Supabase 루트 CA PEM>
 DATABASE_POOL_MAX=1
 JWT_SECRET=<32자 이상의 무작위 비밀>
 WORKSPACE_ID=miceplans
 WEB_ORIGIN=https://<web-project>.vercel.app
 OFFICE_TOKEN=<Hiworks server token>
 HIWORKS_MAIL_DOMAIN=<company-domain>
+# 선택: 기본값을 바꿀 때만 둔다.
+# ENABLE_API_DOCS=false        # 운영에서 Swagger(/docs, /docs-json)는 기본으로 닫힌다. 꼭 필요할 때만 true
+# AI_REQUESTS_PER_MINUTE=20    # 사용자당 분당 AI 질의 한도(PostgreSQL 카운터라 인스턴스 사이에서 공유)
+# AI_CHAT_DEADLINE_MS=50000    # AI 질의 SSE 전체 마감. Vercel 함수 최대 실행 시간(60초)보다 짧게 둔다
 ```
+
+### DB TLS 인증서 (`DATABASE_CA_CERT`)
+
+Supabase 풀러(`*.pooler.supabase.com`)와 직접 연결의 서버 인증서는 공개 CA가 아니라 Supabase 자체 루트 CA(`Supabase Root 2021 CA`)로 서명된다. node-postgres 8은 `sslmode=require`를 `verify-full`로 취급해 시스템 CA로 검증하므로, CA를 주지 않으면 `SELF_SIGNED_CERT_IN_CHAIN`으로 접속이 실패한다. 예전 문서의 `workaround=supabase-pooler.vercel` 파라미터는 어디에서도 해석하지 않는 값이라 효과가 없으므로 지운다. 검증을 끄는 `sslmode=no-verify`나 `rejectUnauthorized: false`는 쓰지 않으며 코드에서도 거부한다.
+
+1. Supabase Dashboard → **Project Settings → Database → SSL Configuration**에서 **Download certificate**로 CA 인증서(`prod-ca-2021.crt`)를 내려받는다.
+2. 파일 내용(`-----BEGIN CERTIFICATE-----`부터 `-----END CERTIFICATE-----`까지)을 그대로 `DATABASE_CA_CERT`에 넣는다.
+   - Vercel: API 프로젝트 **Settings → Environment Variables**에 여러 줄 값 그대로 붙여 넣는다(Production·Preview 모두).
+   - EC2 호스트(실시간·협업·worker): 배포 스크립트가 SSM Parameter Store `/miceplans/prod/*`를 한 줄짜리 `.env`로 쓰므로 줄바꿈을 `\n`으로 바꾼 한 줄 값을 SecureString `/miceplans/prod/DATABASE_CA_CERT`로 등록한다. 코드가 `\n`을 줄바꿈으로 되돌린다.
+     `aws ssm put-parameter --type SecureString --name /miceplans/prod/DATABASE_CA_CERT --value "$(awk 'NF {sub(/\r/, ""); printf "%s\\n", $0}' prod-ca-2021.crt)"`
+   - GitHub Actions에서 컨테이너로 pg-boss 스키마를 만드는 단계(`packages/queue/src/migrate.ts`, 이미지가 `NODE_ENV=production`)도 같은 값을 repository secret `SUPABASE_CA_CERT`로 등록하고 `docker run --env DATABASE_CA_CERT=...`로 넘겨야 한다. CA 없이 `sslmode=require`만 두면 pg가 시스템 CA로 검증해 `SELF_SIGNED_CERT_IN_CHAIN`으로 실패하고, `sslmode`가 없으면 운영 설정 검사에서 실패한다.
+   - 로컬에서 운영 DB로 `pnpm --filter @miceplans/queue migrate`를 실행할 때도 같은 값을 환경 변수로 준다.
+3. 값이 있으면 API·협업·실시간·worker의 연결 풀과 pg-boss 연결은 연결 문자열의 `sslmode`를 지우고 `ssl: { ca, rejectUnauthorized: true }`로 인증서와 호스트 이름을 검증한다. pg는 연결 문자열의 SSL 파라미터로 `ssl` 객체를 통째로 덮어쓰기 때문에 둘을 함께 두면 CA가 무시된다.
+4. 운영(`NODE_ENV=production`)에서 `DATABASE_CA_CERT`도 없고 연결 문자열에 `sslmode=require`·`verify-full`도 없으면 서버가 시작하지 않는다. Supabase 풀러는 평문 접속도 받기 때문에 조용히 평문으로 붙는 것을 막기 위함이다. 같은 호스트의 로컬 DB처럼 평문이 의도된 경우에만 `sslmode=disable`을 명시한다.
+
+`DATABASE_URL`을 `psql`로 쓰는 SQL 마이그레이션(`packages/db/scripts/migrate.sh`)은 libpq 규칙을 따르므로 `sslmode=require`는 암호화만 하고 인증서를 검증하지 않는다. 검증까지 하려면 내려받은 파일로 `?sslmode=verify-full&sslrootcert=<파일 경로>`를 쓴다.
 
 `DATABASE_URL`, `JWT_SECRET`, `OFFICE_TOKEN`은 API 프로젝트에만 넣는다. `NEXT_PUBLIC_*` 변수에는 공개 URL만 둘 수 있으며 DB 비밀번호·Supabase service role 키를 넣으면 안 된다. 특히 API의 `DATABASE_URL`에 기본 `postgres` 계정을 쓰지 않는다. 서버리스에서는 Transaction Pooler와 인스턴스당 연결 하나를 사용한다.
 
@@ -59,15 +80,20 @@ SELECT name FROM schema_migrations ORDER BY name;
 pnpm --filter @miceplans/db drizzle:custom --name add_event_timezone
 ```
 
-생성된 `packages/db/drizzle/**.sql`에 SQL을 작성하고 테스트한 뒤 커밋한다. `main`에 병합되면 GitHub Actions의 `Deploy Supabase migrations`가 새 SQL과 pg-boss 스키마를 순서대로 적용한다. 실행 이력은 `schema_migrations`에 남아 같은 migration을 다시 적용하지 않는다.
+생성된 `packages/db/drizzle/**.sql`에 SQL을 작성하고 테스트한 뒤 커밋한다. `main`에 병합되면 GitHub Actions의 `Release`(`.github/workflows/release.yml`)가 마이그레이션 이미지(`Dockerfile`의 `migrate` 타깃, `packages/db/migrations`와 `packages/db/drizzle`을 함께 담는다)로 새 SQL을 적용한 뒤에만 API(Vercel CLI)·worker·collab·realtime을 배포한다. pg-boss 스키마·큐는 worker 배포 job이 같은 소유자 연결로 먼저 맞춘다. 실행 이력은 `schema_migrations`에 남아 같은 migration을 다시 적용하지 않는다.
+
+운영 DB를 바꾸는 워크플로는 `Release` 하나뿐이다. 예전의 `Deploy Supabase migrations`·Fly.io 협업 배포 워크플로는 릴리스 순서와 승인 단계를 우회해 같은 스키마에 동시에 적용될 수 있어 제거했다. 마이그레이션은 앱 배포보다 먼저 적용되므로, 아직 실행 중인 이전 API·웹·데스크톱 클라이언트와도 호환되는 추가(확장) 변경만 한 번에 넣고 컬럼 삭제 같은 축소는 다음 릴리스로 미룬다.
 
 GitHub 저장소의 **Settings → Secrets and variables → Actions**에 아래 repository secret을 한 번 등록한다.
 
 ```text
 SUPABASE_MIGRATION_URL=<Supabase 직접 연결의 마이그레이션 소유자 URL>
+SUPABASE_CA_CERT=<Supabase Root 2021 CA PEM (DATABASE_CA_CERT와 같은 값)>
 ```
 
-이는 API용 Transaction Pooler URL이나 `miceplans_app` URL이 아니라, DDL·역할 생성 권한이 있는 직접 연결이다. GitHub Actions의 `production` Environment에 배포 보호 규칙을 설정하면 운영 스키마 변경마다 승인 단계를 둘 수 있다.
+`SUPABASE_CA_CERT`는 worker 배포 job의 pg-boss 준비 단계에서 운영 worker 이미지에 `DATABASE_CA_CERT`로 전달한다. 운영 이미지는 CA나 `sslmode` 없이 평문으로 접속하지 않으므로 이 값이 없으면 그 단계가 실패한다.
+
+이는 API용 Transaction Pooler URL이나 `miceplans_app` URL이 아니라, DDL·역할 생성 권한이 있는 직접 연결이다. `Release`의 마이그레이션 job은 GitHub Actions의 `production` Environment를 사용하므로, 여기에 배포 보호 규칙을 설정하면 운영 스키마 변경마다 승인 단계를 둘 수 있다. 시크릿을 Environment secret으로 두면 마이그레이션 job만 읽을 수 있지만, worker 배포 job의 pg-boss 준비도 같은 시크릿을 쓰므로 현재는 repository secret으로 둔다.
 
 ## Vercel에서 제외되는 기능
 
@@ -75,13 +101,13 @@ Vercel 함수는 무상태 요청 처리에는 적합하지만, 이 저장소의
 
 - Socket.IO 및 Hocuspocus 장기 연결: 현재 Vercel 공식 한도 문서는 함수가 WebSocket 서버 역할을 지원하지 않는다고 명시한다. 실시간 기능을 출시할 때는 별도 지속 실행 서비스 또는 검증된 Vercel WebSocket 베타를 사용한다.
 - `apps/worker`의 pg-boss 소비: 폴링하는 지속 worker라 Vercel에 상주시킬 수 없다. 파일 변환·임베딩을 운영할 때만 작은 별도 worker를 둔다.
-- 파일 업로드와 다운로드: Vercel 함수 요청·응답은 4.5MB 제한이 있어 현재 명세의 20MB 파일을 통과시킬 수 없다. 업로드 기능 출시 전, Supabase Storage(S3 호환) multipart/direct upload로 전환하고 API는 권한 검증과 메타데이터 기록만 처리한다.
+- 파일 업로드와 다운로드: Vercel 함수 요청·응답은 4.5MB 제한이 있어 업로드 상한을 4MB(`MAX_FILE_BYTES`)로 낮췄다. 4MB 이하 원본은 API를 거쳐 올리고 내려받는다. 더 큰 파일이 필요해지면 Supabase Storage(S3 호환) multipart/direct upload로 전환하고 API는 권한 검증과 메타데이터 기록만 처리하는 방식을 검토한다(명세 6절).
 
 현재 웹은 정적 UI가 중심이고 Socket.IO 클라이언트를 연결하지 않으므로, 이 구성으로 웹·인증·일반 HTTP API를 가장 작은 운영 단위로 먼저 올릴 수 있다.
 
 ## 협업 서버와 파일 저장소 (비용 기준 잠정 선택)
 
-- 협업(Hocuspocus): Fly.io 최소 shared VM 한 대. 유휴 시 자동 정지를 허용하며, Yjs 스냅샷은 PostgreSQL에 있으므로 서버는 무상태다. 클라이언트는 재연결로 복구한다. 접속 토큰 검증과 RLS 컨텍스트 사용은 그대로다.
+- 협업(Hocuspocus): 실시간 서버·worker와 함께 AWS EC2 한 대(`infra/`, t4g.micro)의 컨테이너로 운영하고 `Release` 워크플로가 배포한다. Yjs 스냅샷은 PostgreSQL에 있으므로 서버는 무상태다. 클라이언트는 재연결로 복구한다. 접속 토큰 검증과 RLS 컨텍스트 사용은 그대로다.
 - 파일 저장소: Supabase Storage 비공개 버킷. 환경 변수는 `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`(`https://<project-ref>.storage.supabase.co/storage/v1/s3`)와 Storage 설정의 S3 접근 키다. 키는 서버 런타임(API·worker)에만 둔다.
 - 무료 플랜은 비활성 시 프로젝트가 일시정지되므로 운영 시작 전에 Pro로 전환한다.
 - 용량·다운로드가 늘면 `S3_ENDPOINT`만 바꿔 Cloudflare R2 등으로 이전할 수 있다.

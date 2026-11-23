@@ -13,6 +13,8 @@ export default async function setup() {
   process.env.DATABASE_URL = pg.appUrl;
   process.env.TEST_PG_ADMIN_URL = pg.adminUrl;
   process.env.JWT_SECRET = 'e2e-test-secret';
+  // 요청 제한은 rate-limit.spec.ts에서만 켠다. 다른 테스트는 같은 IP로 로그인을 반복한다.
+  process.env.RATE_LIMIT_DISABLED = 'true';
   return () => {
     pg.stop();
     rmSync(files, { recursive: true, force: true });

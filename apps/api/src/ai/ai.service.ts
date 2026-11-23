@@ -5,9 +5,10 @@ import {
 import { PARENT_KIND, canQueryAi } from '@miceplans/domain';
 import { PersonNameMasker, runAgent, systemPrompt, ToolError, type ChatMsg, type LlmClient, type ToolHandlers } from '@miceplans/ai';
 import {
-  getDocPage, getEvent, getItem, insertProposal, listEvents, listItems, listUsers, logAiCall, withContext, type Pool, type PoolClient,
+  getDocPage, getEvent, getItem, hitRateLimit, insertProposal, listEvents, listItems, listUsers, logAiCall, withContext, type Pool, type PoolClient,
 } from '@miceplans/db';
 import { AuthUser } from '../common/auth';
+import { rateLimitKey } from '../common/rate-limit';
 import { config } from '../config';
 import { searchKnowledge } from '../knowledge/knowledge.service';
 import type { Embedder } from '@miceplans/knowledge/embed';
@@ -17,73 +18,104 @@ const MAX_PAGE_CHARS = 20_000;
 const LOG_CONTENT_CHARS = 4_000;
 const SEARCH_LIMIT_DEFAULT = 5;
 
+/** 사용자당 AI 질의 한도의 창 길이(초). */
+const AI_RATE_WINDOW_SECONDS = 60;
+
+/** 정해진 마감이나 연결 종료로 signal이 끊기면 작업이 signal을 무시하더라도 바로 거부한다. */
+const untilAborted = <T>(work: Promise<T>, signal: AbortSignal): Promise<T> => {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  let onAbort = () => {};
+  const aborted = new Promise<never>((_, reject) => {
+    onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+  return Promise.race([work, aborted]).finally(() => signal.removeEventListener('abort', onAbort));
+};
+
 const PROPOSAL_NOTE = '제안이 저장되었다. PM·AM이 승인하기 전에는 아무것도 바뀌지 않는다. 사용자에게 승인이 필요하다고 알려라.';
 
 /** AI 질의 오케스트레이션 (명세 F-11). 도구는 호출한 사용자의 RLS 컨텍스트에서 실행되고, 쓰기 도구는 없다. */
 @Injectable()
 export class AiService {
-  private readonly calls = new Map<string, number[]>();
-
   constructor(
     @Inject(DB_POOL) private readonly pool: Pool,
     @Optional() @Inject(LLM_CLIENT) private readonly llm: LlmClient | null,
     @Optional() @Inject(EMBEDDER) private readonly embedder: Embedder | null = null,
   ) {}
 
-  /** 사용자당 분당 한도. 인스턴스 메모리로 충분하다(별도 캐시 없음). */
-  private throttle(userId: string, now = Date.now()) {
-    const recent = (this.calls.get(userId) ?? []).filter((t) => now - t < 60_000);
-    if (recent.length >= config.aiRequestsPerMinute) throw new HttpException('[429] AI 질의가 너무 잦습니다. 잠시 후 다시 시도해 주세요.', HttpStatus.TOO_MANY_REQUESTS);
-    this.calls.set(userId, [...recent, now]);
-    if (this.calls.size > 1000) for (const [id, ts] of this.calls) if (ts.every((t) => now - t >= 60_000)) this.calls.delete(id);
-  }
-
   /** 스트리밍을 시작하기 전에 검사한다. 통과하면 chat()을 호출해도 된다. */
   async prepare(user: AuthUser, body: ChatBody): Promise<LlmClient> {
     if (!canQueryAi(user.role)) throw new ForbiddenException('[403] Client는 AI 질의를 할 수 없습니다.');
     if (!this.llm) throw new ServiceUnavailableException('[503] AI가 설정되지 않았습니다.');
-    if (body.eventId) {
-      const eventId = body.eventId;
-      const visible = await withContext(this.pool, user, (db) => getEvent(db, eventId));
-      if (!visible) throw new ForbiddenException('[404] 행사를 찾을 수 없거나 볼 수 없습니다.');
-    }
-    this.throttle(user.userId);
+    const eventId = body.eventId;
+    // 사용자당 분당 한도. 서버리스 인스턴스마다 메모리가 따로라 카운터는 PostgreSQL에 둔다. 볼 수 없는 행사 질의는 세지 않는다.
+    const allowed = await withContext(this.pool, user, async (db) => {
+      if (eventId && !(await getEvent(db, eventId))) throw new ForbiddenException('[404] 행사를 찾을 수 없거나 볼 수 없습니다.');
+      return hitRateLimit(db, rateLimitKey('ai-chat', 'user', user.userId), AI_RATE_WINDOW_SECONDS, config.aiRequestsPerMinute);
+    });
+    if (!allowed) throw new HttpException('[429] AI 질의가 너무 잦습니다. 잠시 후 다시 시도해 주세요.', HttpStatus.TOO_MANY_REQUESTS);
     return this.llm;
   }
 
+  /**
+   * 답변을 스트리밍한다. 전체 마감(AI_CHAT_DEADLINE_MS)을 넘기면 LLM 호출·재시도 대기를 끊고 error 이벤트로 끝낸다.
+   * Vercel 함수 최대 실행 시간에 응답이 중간에 잘리는 대신 클라이언트가 실패를 분명히 받게 하기 위함이다.
+   */
   async chat(user: AuthUser, body: ChatBody, llm: LlmClient, send: (e: ChatEvent) => void, signal?: AbortSignal): Promise<void> {
     const started = Date.now();
+    const deadline = AbortSignal.timeout(config.aiChatDeadlineMs);
+    const stop = signal ? AbortSignal.any([signal, deadline]) : deadline;
     const sources = new Map<string, Pick<SearchHitDto, 'docId' | 'title' | 'heading' | 'snippet'>>();
     const people = await this.run(user, (db) => listUsers(db));
     const masker = new PersonNameMasker([...people.map((person) => person.name), user.name]);
     const restore = masker.createStreamRestorer();
+    const eventId = body.eventId;
+    const current = eventId ? await this.run(user, (db) => getEvent(db, eventId)) : undefined;
+    const event = current && {
+      name: masker.redactText(current.name), startDate: current.startDate, endDate: current.endDate,
+      place: current.place ? masker.redactText(current.place) : null, status: current.status,
+    };
     const messages: ChatMsg[] = [
-      { role: 'system', content: systemPrompt({ today: new Date().toISOString().slice(0, 10), eventId: body.eventId }) },
+      { role: 'system', content: systemPrompt({
+        today: new Date().toISOString().slice(0, 10), eventId, event,
+        eventTab: eventId ? body.eventTab : undefined,
+        eventItems: eventId && body.eventItems ? (masker.redact(body.eventItems) as unknown[]) : undefined,
+        me: { id: user.userId, token: masker.redactText(user.name) },
+      }) },
       ...body.messages.map((message) => ({ ...message, content: masker.redactText(message.content) })),
     ];
     const handlers = this.handlers(user, sources, send, masker);
     let result: Awaited<ReturnType<typeof runAgent>> | undefined;
     let failure: string | null = null;
     try {
-      result = await runAgent({
+      result = await untilAborted(runAgent({
         llm,
         messages,
         handlers,
-        signal,
+        signal: stop,
         onText: (delta) => {
           const restored = restore.push(delta);
           if (restored) send({ type: 'text', delta: restored });
         },
         onTool: (t) => send({ type: 'tool', name: t.name, ok: t.ok }),
-      });
+      }), stop);
       const tail = restore.flush();
       if (tail) send({ type: 'text', delta: tail });
       if (sources.size) send({ type: 'sources', sources: [...sources.values()] });
       send({ type: 'done' });
     } catch (error) {
-      failure = error instanceof Error ? error.message : String(error);
-      console.error(`[ai] 답변 생성 실패 (model=${llm.model}): ${failure}`);
-      send({ type: 'error', message: '[500] 답변을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.' });
+      if (deadline.aborted) {
+        failure = `마감 초과 (${config.aiChatDeadlineMs}ms)`;
+        console.error(`[ai] 답변 생성 중단 (model=${llm.model}): ${failure}`);
+        send({ type: 'error', message: '[504] 답변 시간이 너무 길어 중단했습니다. 질문을 좁혀 다시 시도해 주세요.' });
+      } else if (signal?.aborted) {
+        // 사용자가 연결을 끊었다. 보낼 곳이 없으므로 기록만 남긴다.
+        failure = '클라이언트 연결 종료';
+      } else {
+        failure = error instanceof Error ? error.message : String(error);
+        console.error(`[ai] 답변 생성 실패 (model=${llm.model}): ${failure}`);
+        send({ type: 'error', message: '[500] 답변을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.' });
+      }
     }
     await this.log(user, body.eventId ?? null, llm.model, [...messages, ...(result?.messages ?? [])], result, started, failure);
   }

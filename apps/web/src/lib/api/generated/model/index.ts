@@ -18,6 +18,8 @@ export * from './changeEventMemberRoleBody';
 export * from './changeEventMemberRoleBodyRole';
 export * from './changePasswordBody';
 export * from './chatBody';
+export * from './chatBodyEventItemsItem';
+export * from './chatBodyEventItemsItemLevel';
 export * from './chatBodyMessagesItem';
 export * from './chatBodyMessagesItemRole';
 export * from './clientApplicationDto';
