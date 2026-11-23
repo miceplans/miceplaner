@@ -1,5 +1,6 @@
 import type { AuthSessionDto, ChatBody, ChatEvent, ClientDto, CreateEventBody, DocPageDto, EventListItemDto, FileDto, ProposalDto } from '@miceplans/contracts';
 import type { PortalEventDto, PortalProgramDto } from '@miceplans/contracts/portal';
+import { FILE_TOO_LARGE_MESSAGE } from '@miceplans/contracts/limits';
 
 /** 빌드 시점에 정해지는 공개 주소다. 비밀 값은 두지 않는다. */
 export const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -26,7 +27,7 @@ export const STATUS_MESSAGE: Record<number, string> = {
   404: '[404] 대상을 찾을 수 없습니다.',
   409: '[409] 다른 사용자가 먼저 바꿨거나 이미 결정된 제안입니다.',
   429: '[429] AI 질의가 너무 잦습니다. 잠시 후 다시 시도해 주세요.',
-  413: '[413] 파일이 너무 큽니다 (최대 20MB).',
+  413: FILE_TOO_LARGE_MESSAGE,
   503: '[503] AI·파일 저장소 등 서버 기능이 설정되지 않았습니다.',
 };
 

@@ -4,9 +4,10 @@ import { join } from 'node:path';
 import { SignJWT } from 'jose';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { MAX_FILE_BYTES } from '@miceplans/contracts';
+import { FILE_TOO_LARGE_MESSAGE, MAX_FILE_BYTES } from '@miceplans/contracts';
 import { connectTestAdmin, type TestAdmin } from '@miceplans/db/testing';
 import { EMBEDDING_DIM, type Embedder } from '@miceplans/knowledge/embed';
+import { storeFromEnv } from '@miceplans/storage';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module';
@@ -81,7 +82,15 @@ describe('파일 업로드 (명세 F-10)', () => {
     await upload('pm', 'run.exe').expect(400);
     await upload('pm', '확장자없음').expect(400);
     await api().post(`/events/${EVENT}/files`).set(as('pm')).field('x', 'y').expect(400);
-    await upload('pm', 'big.txt', Buffer.alloc(MAX_FILE_BYTES + 1, 97)).expect(413);
+    const big = await upload('pm', 'big.txt', Buffer.alloc(MAX_FILE_BYTES + 1, 97)).expect(413);
+    expect(big.body.message).toBe(FILE_TOO_LARGE_MESSAGE);
+    expect(FILE_TOO_LARGE_MESSAGE).toBe('[413] 파일은 4MB를 넘을 수 없습니다.');
+  });
+
+  it('상한은 Vercel 함수 본문 상한(4.5MB)보다 작고 상한 크기의 파일은 받는다', async () => {
+    expect(MAX_FILE_BYTES).toBe(4 * 1024 * 1024);
+    expect(MAX_FILE_BYTES).toBeLessThan(4.5 * 1000 * 1000);
+    await upload('pm', 'exact.txt', Buffer.alloc(MAX_FILE_BYTES, 97)).expect(201);
   });
 
   it('경로 구분자가 든 파일명은 안전하게 바꾼다', async () => {
@@ -124,6 +133,14 @@ describe('파일 조회·다운로드·삭제', () => {
     expect((res.body as Buffer).toString('utf8')).toBe('공유할 본문');
     expect(res.headers['content-disposition']).toContain(`filename*=UTF-8''${encodeURIComponent('공유 자료.txt')}`);
     expect(res.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('상한 변경 전에 올린 4MB 초과 원본은 Vercel 응답 상한 대신 한국어 413으로 알린다', async () => {
+    const key = `events/${EVENT}/legacy-big`;
+    await storeFromEnv()!.put(key, Buffer.alloc(MAX_FILE_BYTES + 1, 97), 'text/plain');
+    const legacy = (await admin.query(`INSERT INTO event_files (event_id, name, mime, size_bytes, storage_key, uploaded_by) VALUES ($1, 'legacy.txt', 'text/plain', $2, $3, $4) RETURNING id`, [EVENT, MAX_FILE_BYTES + 1, key, U.pm])).rows[0]!.id as string;
+    const res = await api().get(`/files/${legacy}/download`).set(as('pm')).expect(413);
+    expect(res.body.message).toContain('4MB를 넘는 원본');
   });
 
   it('삭제는 PM·AM만, soft delete로 변환 문서·색인을 내리고 감사 로그를 남긴다', async () => {

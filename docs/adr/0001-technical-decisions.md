@@ -51,7 +51,7 @@ API의 `/health`는 PostgreSQL, pg-boss, 업로드 원본 저장소, 협업 서�
 
 DB 스키마 변경은 Drizzle Kit custom SQL migration으로 커밋하고, `main` 병합 시 GitHub Actions가 `SUPABASE_MIGRATION_URL`(마이그레이션 소유자 직접 연결)로 적용한다. 운영 DB에 대한 Drizzle `push` 자동 실행은 RLS·권한 함수·감사 트리거를 예기치 않게 변경할 수 있어 사용하지 않는다.
 
-Vercel 함수의 요청·응답 크기 제한 때문에 4.5MB 초과 파일 처리는 직접 업로드 경로 등 별도 방법으로 결정한다. 이는 권한 검증과 PostgreSQL RLS 원칙을 변경하지 않는다.
+Vercel 함수의 요청·응답 본문은 4.5MB로 제한되므로 파일 업로드(자료 파일·Excel 가져오기) 상한은 multipart 오버헤드 여유를 둔 4MB(`MAX_FILE_BYTES`)로 확정한다. 현재 구조(API가 multipart를 받아 저장소에 올리고, 다운로드도 API가 읽어 전달하며 서명 URL을 브라우저에 주지 않음)를 유지하며, gzip으로 저장된 원본도 API가 푼 뒤 4MB 이하라 응답 상한을 넘지 않는다. 상한 초과는 API가 한국어 413으로 거부하고 웹이 보내기 전에 막는다. 4MB 초과 파일은 직접 업로드 경로 등 별도 방법이 필요하며 요구가 확인될 때 결정한다(명세 6절). 이는 권한 검증과 PostgreSQL RLS 원칙을 변경하지 않는다.
 
 ### 시스템 경계
 

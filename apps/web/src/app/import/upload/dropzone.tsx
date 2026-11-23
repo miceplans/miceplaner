@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from '@miceplans/ui';
 import { useImportExcelUpload } from '../../../lib/api/generated/endpoints';
 import { ApiError } from '../../../lib/api';
+import { FILE_TOO_LARGE_MESSAGE, MAX_FILE_BYTES, MAX_FILE_MB } from '@miceplans/contracts/limits';
 
 const A = '/assets/import';
 
@@ -15,6 +16,11 @@ export function Dropzone() {
   const upload = useImportExcelUpload();
 
   const submit = async (file: File) => {
+    // 서버(Vercel 함수 본문 상한 4.5MB)까지 보내지 않고 먼저 막는다. 서버도 같은 상한으로 413을 돌려준다.
+    if (file.size > MAX_FILE_BYTES) {
+      toast.error(FILE_TOO_LARGE_MESSAGE);
+      return;
+    }
     setFileName(file.name);
     try {
       const job = await upload.mutateAsync({ data: { file } });
@@ -58,7 +64,7 @@ export function Dropzone() {
         </div>
       </div>
       <p className="text-md font-medium whitespace-nowrap text-brand">{busy ? '업로드 중…' : (fileName ?? '파일 찾아보기')}</p>
-      {!busy && <p className="m-0 text-xs whitespace-nowrap text-fg-tertiary">.xlsx 또는 .csv (최대 20MB)</p>}
+      {!busy && <p className="m-0 text-xs whitespace-nowrap text-fg-tertiary">.xlsx 또는 .csv (최대 {MAX_FILE_MB}MB)</p>}
     </div>
   );
 }
