@@ -1,6 +1,6 @@
-import { Controller, Get, Inject, Post } from '@nestjs/common';
+import { Controller, Get, Inject, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { createClientBody, type CreateClientBody } from '@miceplans/contracts';
+import { createClientBody, updateStaffAccountBody, type CreateClientBody, type UpdateStaffAccountBody } from '@miceplans/contracts';
 import { Auth, type AuthUser } from '../common/auth';
 import { Returns } from '../common/openapi';
 import { ZodBody } from '../common/zod';
@@ -16,6 +16,18 @@ export class DirectoryController {
   @Returns('UserDto', { array: true })
   users(@Auth() user: AuthUser) {
     return this.directory.users(user);
+  }
+
+  @Get('staff-accounts')
+  @ApiOperation({ summary: '직원 계정 목록 (Super Admin)', operationId: 'staffAccountsList' })
+  @Returns('StaffAccountDto', { array: true })
+  staffAccounts(@Auth() user: AuthUser) { return this.directory.staffAccounts(user); }
+
+  @Patch('staff-accounts/:id')
+  @ApiOperation({ summary: '직원 관리자 역할·재직 상태 변경 (Super Admin)', operationId: 'staffAccountsUpdate' })
+  @Returns('StaffAccountDto')
+  updateStaffAccount(@Auth() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @ZodBody(updateStaffAccountBody) body: UpdateStaffAccountBody) {
+    return this.directory.updateStaffAccount(user, id, body);
   }
 
   @Get('clients')

@@ -39,7 +39,7 @@ export class JwtAuthGuard implements CanActivate {
     const user = await withContext(this.pool, { workspaceId: config.workspaceId, userId, role }, (db) => getUserById(db, userId)).catch(
       () => undefined,
     );
-    if (!user) throw new UnauthorizedException('[401] 사용자를 찾을 수 없습니다.');
+    if (!user || user.employmentStatus !== 'active') throw new UnauthorizedException('[401] 사용 중지된 계정입니다.');
 
     req.user = { workspaceId: config.workspaceId, userId: user.id, role: user.role, name: user.name };
     return true;

@@ -1,6 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { clientDto, userDto } from '@miceplans/contracts';
-import { createClient, listClients, listUsers, withContext } from '@miceplans/db';
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { clientDto, staffAccountDto, userDto, type UpdateStaffAccountBody } from '@miceplans/contracts';
+import { createClient, listClients, listStaffAccounts, listUsers, updateStaffAccount, withContext } from '@miceplans/db';
 import type { Pool } from '@miceplans/db';
 import { AuthUser, requireInternal } from '../common/auth';
 import { mapDbError } from '../common/http';
@@ -21,6 +21,19 @@ export class DirectoryService {
     requireInternal(user);
     const rows = await withContext(this.pool, user, (db) => listClients(db)).catch((error) => mapDbError(error));
     return rows.map((r) => clientDto.parse(r));
+  }
+
+  async staffAccounts(user: AuthUser) {
+    if (user.role !== 'super_admin') throw new ForbiddenException('[403] 직원 계정 관리는 Super Admin만 할 수 있습니다.');
+    const rows = await withContext(this.pool, user, (db) => listStaffAccounts(db)).catch((error) => mapDbError(error));
+    return rows.map((row) => staffAccountDto.parse(row));
+  }
+
+  async updateStaffAccount(user: AuthUser, id: string, body: UpdateStaffAccountBody) {
+    if (user.role !== 'super_admin') throw new ForbiddenException('[403] 직원 계정 관리는 Super Admin만 할 수 있습니다.');
+    const row = await withContext(this.pool, user, (db) => updateStaffAccount(db, id, body)).catch((error) => mapDbError(error));
+    if (!row) throw new NotFoundException('[404] 직원 계정을 찾을 수 없습니다.');
+    return staffAccountDto.parse(row);
   }
 
   async createClient(user: AuthUser, name: string) {

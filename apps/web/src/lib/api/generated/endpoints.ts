@@ -74,9 +74,11 @@ import type {
   SearchHitDto,
   SetClientVisibleBody,
   SetDocVisibilityBody,
+  StaffAccountDto,
   TransferPmBody,
   UpdateEventBody,
   UpdateItemBody,
+  UpdateStaffAccountBody,
   UploadEventFileBody,
   UserDto,
   WeekendWorkBody,
@@ -5628,6 +5630,194 @@ export function useDirectoryUsers<TData = Awaited<ReturnType<typeof directoryUse
 
 
 
+
+export const getStaffAccountsListUrl = () => {
+
+
+
+
+  return `/staff-accounts`
+}
+
+/**
+ * @summary 직원 계정 목록 (Super Admin)
+ */
+export const staffAccountsList = async ( options?: Parameters<typeof http>[1]): Promise<StaffAccountDto[]> => {
+
+  return http<StaffAccountDto[]>(getStaffAccountsListUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStaffAccountsListQueryKey = () => {
+    return [
+    `/staff-accounts`
+    ] as const;
+    }
+
+
+export const getStaffAccountsListQueryOptions = <TData = Awaited<ReturnType<typeof staffAccountsList>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffAccountsList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStaffAccountsListQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof staffAccountsList>>> = ({ signal }) => staffAccountsList({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof staffAccountsList>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type StaffAccountsListQueryResult = NonNullable<Awaited<ReturnType<typeof staffAccountsList>>>
+export type StaffAccountsListQueryError = unknown
+
+
+/** @summary 직원 계정 목록 (Super Admin) */
+export function useStaffAccountsList<TData = Awaited<ReturnType<typeof staffAccountsList>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffAccountsList>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof staffAccountsList>>,
+          TError,
+          Awaited<ReturnType<typeof staffAccountsList>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 직원 계정 목록 (Super Admin) */
+export function useStaffAccountsList<TData = Awaited<ReturnType<typeof staffAccountsList>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffAccountsList>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof staffAccountsList>>,
+          TError,
+          Awaited<ReturnType<typeof staffAccountsList>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 직원 계정 목록 (Super Admin) */
+export function useStaffAccountsList<TData = Awaited<ReturnType<typeof staffAccountsList>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffAccountsList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 직원 계정 목록 (Super Admin) */
+export function useStaffAccountsList<TData = Awaited<ReturnType<typeof staffAccountsList>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof staffAccountsList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getStaffAccountsListQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStaffAccountsUpdateUrl = (id: string,) => {
+
+
+
+
+  return `/staff-accounts/${id}`
+}
+
+/**
+ * @summary 직원 관리자 역할·재직 상태 변경 (Super Admin)
+ */
+export const staffAccountsUpdate = async (id: string,
+    updateStaffAccountBody: UpdateStaffAccountBody, options?: Parameters<typeof http>[1]): Promise<StaffAccountDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<StaffAccountDto>(getStaffAccountsUpdateUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(updateStaffAccountBody)
+  }
+);}
+
+
+
+
+
+export const getStaffAccountsUpdateMutationKey = () => ['staffAccountsUpdate'] as const;
+
+export const getStaffAccountsUpdateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof staffAccountsUpdate>>, TError,StaffAccountsUpdateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof staffAccountsUpdate>>, TError,StaffAccountsUpdateMutationVariables, TContext> => {
+
+const mutationKey = getStaffAccountsUpdateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof staffAccountsUpdate>>, StaffAccountsUpdateMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  staffAccountsUpdate(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StaffAccountsUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof staffAccountsUpdate>>>
+    export type StaffAccountsUpdateMutationBody = UpdateStaffAccountBody
+    export type StaffAccountsUpdateMutationError = unknown
+    export type StaffAccountsUpdateMutationVariables = {id: string;data: UpdateStaffAccountBody}
+
+    /** @summary 직원 관리자 역할·재직 상태 변경 (Super Admin) */
+export const useStaffAccountsUpdate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof staffAccountsUpdate>>, TError,StaffAccountsUpdateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof staffAccountsUpdate>>,
+        TError,
+        StaffAccountsUpdateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStaffAccountsUpdateMutationOptions(options), queryClient);
+    }
 
 export const getDirectoryClientsUrl = () => {
 

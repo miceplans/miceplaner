@@ -183,14 +183,24 @@ async function notifyPmTransferred(client: PoolClient, eventId: string, fromUser
 
 // ── 사용자·고객사 조회 ──────────────────────────────────────────────────────
 
-export type UserRow = { id: string; name: string; email: string; jobTitle: string; role: Role; annualLeaveDays: number };
+export type UserRow = { id: string; name: string; email: string; jobTitle: string; role: Role; annualLeaveDays: number; employmentStatus: 'active' | 'departed'; joinedAt: string; departedAt: string | null };
 
-const USER_COLUMNS = `id, name, email, job_title AS "jobTitle", role, annual_leave_days::float8 AS "annualLeaveDays"`;
+const USER_COLUMNS = `id, name, email, job_title AS "jobTitle", role, annual_leave_days::float8 AS "annualLeaveDays", employment_status AS "employmentStatus", ${isoTs('joined_at', 'joinedAt')}, to_char(departed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "departedAt"`;
 
 /** 낮은 권한 주체는 RLS가 걸러낸다. 목록은 낮은 권한만 볼 수 있다. */
 export async function listUsers(client: PoolClient): Promise<UserRow[]> {
-  const { rows } = await client.query<UserRow>(`SELECT ${USER_COLUMNS} FROM users ORDER BY name`);
+  const { rows } = await client.query<UserRow>(`SELECT ${USER_COLUMNS} FROM users WHERE employment_status = 'active' ORDER BY name`);
   return rows;
+}
+
+export async function listStaffAccounts(client: PoolClient): Promise<UserRow[]> {
+  const { rows } = await client.query<UserRow>(`SELECT ${USER_COLUMNS} FROM users WHERE role <> 'client' ORDER BY employment_status, name`);
+  return rows;
+}
+
+export async function updateStaffAccount(client: PoolClient, id: string, patch: { role?: 'super_admin' | 'staff'; employmentStatus?: 'active' | 'departed' }): Promise<UserRow | undefined> {
+  await client.query(`SELECT manage_staff_account($1, $2, $3)`, [id, patch.role ?? null, patch.employmentStatus ?? null]);
+  return getUserById(client, id);
 }
 
 export async function getUserById(client: PoolClient, id: string): Promise<UserRow | undefined> {

@@ -18,6 +18,28 @@ export const userDto = z.object({
 });
 export type UserDto = z.infer<typeof userDto>;
 
+export const employmentStatus = z.enum(['active', 'departed']);
+export type EmploymentStatus = z.infer<typeof employmentStatus>;
+
+/** 대표가 보는 직원 계정 관리 목록. Client 계정은 이 목록에서 제외한다. */
+export const staffAccountDto = z.object({
+  id: uuid,
+  name: z.string(),
+  email: z.string(),
+  jobTitle: z.string(),
+  role: z.enum(['super_admin', 'staff']),
+  employmentStatus,
+  joinedAt: z.string(),
+  departedAt: z.string().nullable(),
+});
+export type StaffAccountDto = z.infer<typeof staffAccountDto>;
+
+export const updateStaffAccountBody = z.object({
+  role: z.enum(['super_admin', 'staff']).optional(),
+  employmentStatus: employmentStatus.optional(),
+}).refine((value) => value.role !== undefined || value.employmentStatus !== undefined, '변경할 값을 입력하세요.');
+export type UpdateStaffAccountBody = z.infer<typeof updateStaffAccountBody>;
+
 export const clientDto = z.object({ id: uuid, name: z.string() });
 export type ClientDto = z.infer<typeof clientDto>;
 
