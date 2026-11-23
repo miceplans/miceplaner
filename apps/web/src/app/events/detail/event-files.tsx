@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@miceplans/ui';
 import Link from 'next/link';
 import type { FileDto } from '@miceplans/contracts';
+import { FILE_TOO_LARGE_MESSAGE, MAX_FILE_BYTES, MAX_FILE_MB } from '@miceplans/contracts/limits';
 import { ApiError, getToken } from '@/lib/api';
 import { downloadFile, getListEventFilesQueryKey, useDeleteFile, useListEventFiles, useUploadEventFile } from '@/lib/api/generated/endpoints';
 
@@ -67,8 +68,9 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
   };
 
   const uploadFile = (file: File) => {
-    if (file.size > 20 * 1024 * 1024) {
-      toast.error('[413] 파일은 최대 20MB까지 올릴 수 없습니다.');
+    // 서버(Vercel 함수 본문 상한 4.5MB)까지 보내지 않고 먼저 막는다. 서버도 같은 상한으로 413을 돌려준다.
+    if (file.size > MAX_FILE_BYTES) {
+      toast.error(FILE_TOO_LARGE_MESSAGE);
       return;
     }
     void run(() => upload.mutateAsync({ eventId, data: { file } }));
@@ -86,7 +88,7 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
       <header className="flex items-center justify-between gap-[12px]">
         <div className="flex flex-col gap-[2px]">
           <h2 className="text-base font-semibold text-fg">자료 파일</h2>
-          <p className="text-2xs text-fg-secondary">txt·md·csv·xlsx·docx·pdf, 최대 20MB. 파일을 끌어 놓거나 올리면 변환되어 검색과 AI 출처에 포함된다.</p>
+          <p className="text-2xs text-fg-secondary">txt·md·csv·xlsx·docx·pdf, 최대 {MAX_FILE_MB}MB. 파일을 끌어 놓거나 올리면 변환되어 검색과 AI 출처에 포함된다.</p>
         </div>
         {canManage && (
           <>

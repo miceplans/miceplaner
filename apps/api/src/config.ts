@@ -84,9 +84,24 @@ export const config = {
   get clientApplicationIpLimit(): number {
     return Number(process.env.CLIENT_APPLICATION_RATE_LIMIT_IP ?? 5);
   },
-  /** 사용자당 분당 AI 질의 한도. LLM 비용을 제한한다. */
+  /** 사용자당 분당 AI 질의 한도. LLM 비용을 제한한다. 카운터는 PostgreSQL(hit_rate_limit)에 두어 서버리스 인스턴스 사이에서 공유한다. */
   get aiRequestsPerMinute(): number {
-    return Number(process.env.AI_REQUESTS_PER_MINUTE ?? 20);
+    const configured = Number(process.env.AI_REQUESTS_PER_MINUTE);
+    return Number.isInteger(configured) && configured > 0 ? configured : 20;
+  },
+  /**
+   * AI 질의 SSE 전체 마감(ms). Vercel 함수 최대 실행 시간(60초)에 잘리기 전에 LLM 호출을 중단하고 error 이벤트로 끝낸다.
+   * 호출 로그 저장 시간을 남기도록 기본값은 50초다.
+   */
+  get aiChatDeadlineMs(): number {
+    const configured = Number(process.env.AI_CHAT_DEADLINE_MS);
+    return Number.isFinite(configured) && configured > 0 ? configured : 50_000;
+  },
+  /** Swagger UI(`/docs`)·OpenAPI JSON(`/docs-json`) 노출 여부. ENABLE_API_DOCS가 있으면 그 값을 따르고, 없으면 운영(NODE_ENV=production 또는 Vercel)에서는 끈다. */
+  get apiDocsEnabled(): boolean {
+    const flag = process.env.ENABLE_API_DOCS;
+    if (flag !== undefined && flag !== '') return flag === 'true';
+    return process.env.NODE_ENV !== 'production' && !process.env.VERCEL;
   },
   /** BGE-M3를 서빙하는 TEI 주소. 없으면 dense 검색과 임베딩 작업을 쓰지 않는다. */
   get teiUrl(): string {

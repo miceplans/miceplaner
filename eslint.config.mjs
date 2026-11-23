@@ -77,13 +77,13 @@ export default tseslint.config(
     },
   },
   {
-    // queue는 contracts만 import한다 (테스트 공용은 db/testing 하위 경로 예외).
+    // queue는 contracts만 import한다 (테스트 공용은 db/testing, 접속 TLS 설정은 DB 클라이언트가 없는 db/connection 하위 경로만 예외).
     files: ['packages/queue/**/*.{ts,tsx}'],
     ignores: ['**/*.spec.ts', '**/test/**'],
     rules: {
       'no-restricted-imports': ['error', {
         paths: [{ name: 'pg', message: 'DB 클라이언트는 packages/db repository에서만 사용한다.' }],
-        patterns: [appPatterns, { group: ['@miceplans/db', '@miceplans/domain', '@miceplans/ui', '@miceplans/knowledge', '@miceplans/ai', '@miceplans/storage', '@miceplans/editor-schema', '@miceplans/config'], message: 'queue는 contracts만 import한다.' }],
+        patterns: [appPatterns, { regex: '^@miceplans/db(?!/connection$)(/.*)?$', message: 'queue는 contracts만 import한다.' }, { group: ['@miceplans/domain', '@miceplans/ui', '@miceplans/knowledge', '@miceplans/ai', '@miceplans/storage', '@miceplans/editor-schema', '@miceplans/config'], message: 'queue는 contracts만 import한다.' }],
       }],
     },
   },

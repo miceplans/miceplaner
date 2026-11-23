@@ -41,6 +41,7 @@ jobs:
           filters: |
             migrate:
               - 'packages/db/migrations/**'
+              - 'packages/db/drizzle/**'
               - 'packages/db/scripts/migrate.sh'
               - 'Dockerfile'
               - '.github/workflows/release.yml'
@@ -101,6 +102,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.migrate == 'true' || inputs.force_all
     runs-on: ubuntu-latest
+    # 운영 스키마 변경은 production Environment의 보호 규칙(승인)을 거친다.
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -162,8 +165,10 @@ jobs:
       - name: Prepare pg-boss schema and queues
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_MIGRATION_URL }}
+          # 운영 이미지(NODE_ENV=production)는 CA 또는 sslmode 없이는 평문 연결을 거부한다.
+          DATABASE_CA_CERT: ${{ secrets.SUPABASE_CA_CERT }}
         run: >-
-          docker run --rm --env DATABASE_URL miceplans-worker:${{ github.sha }}
+          docker run --rm --env DATABASE_URL --env DATABASE_CA_CERT miceplans-worker:${{ github.sha }}
           node_modules/.bin/tsx ../../packages/queue/src/migrate.ts
 
       - uses: ./.github/actions/deploy-aws

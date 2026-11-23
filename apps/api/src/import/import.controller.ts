@@ -1,12 +1,12 @@
 import { Controller, Get, Inject, Param, ParseUUIDPipe, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { MAX_FILE_BYTES, parseImportBody, previewImportBody, type ParseImportBody, type PreviewImportBody } from '@miceplans/contracts';
+import { parseImportBody, previewImportBody, type ParseImportBody, type PreviewImportBody } from '@miceplans/contracts';
 import { Auth, type AuthUser } from '../common/auth';
 import { Returns } from '../common/openapi';
 import { ZodBody } from '../common/zod';
 import { ImportService } from './import.service';
 import type { Upload } from '../knowledge/files.service';
+import { SingleFileUpload } from '../knowledge/upload.interceptor';
 
 @ApiTags('import')
 @Controller('import')
@@ -14,12 +14,12 @@ export class ImportController {
   constructor(@Inject(ImportService) private readonly imports: ImportService) {}
 
   @Post('excel')
-  @ApiOperation({ operationId: 'importExcelUpload', summary: 'Excel 업로드와 시트 목록 파싱 (낮은 권한 이상). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다' })
+  @ApiOperation({ operationId: 'importExcelUpload', summary: 'Excel 업로드와 시트 목록 파싱 (낮은 권한 이상, 최대 4MB). 원본은 실행 완료까지 보관하고 끝나면 즉시 지운다' })
   @ApiConsumes('multipart/form-data')
   @ApiCreatedResponse({ schema: { $ref: '#/components/schemas/ImportJobDto' } })
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
-  // multer가 상한을 넘으면 413으로 끊는다. 파일은 메모리에 올라오므로 상한을 작게 유지한다.
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_BYTES, files: 1 } }))
+  // 상한(4MB)을 넘으면 multer가 413으로 끊는다. 파일은 메모리에 올라오므로 상한을 작게 유지한다.
+  @UseInterceptors(SingleFileUpload())
   upload(@Auth() user: AuthUser, @UploadedFile() file: Upload | undefined) {
     return this.imports.upload(user, file);
   }
