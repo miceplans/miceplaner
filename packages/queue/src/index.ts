@@ -1,6 +1,8 @@
 import { PgBoss } from 'pg-boss';
+import { pgConnectionConfig } from '@miceplans/db/connection';
 import { embedDocJob, JOB_EMBED_DOC, JOB_PARSE_FILE, parseFileJob, type EmbedDocJob, type ParseFileJob } from '@miceplans/contracts';
 
+/** 접속 TLS(DATABASE_CA_CERT)는 앱 Pool과 같은 pgConnectionConfig로 정한다. */
 /** pg-boss 스키마 이름. 앱 테이블과 분리되어 있고 RLS 대상 데이터(본문 등)는 담지 않는다. 작업 입력에는 ID와 주체만 있다. */
 const SCHEMA = 'pgboss';
 /** 실패한 작업을 다시 시도하는 횟수. 마지막 시도에서도 던지면 작업은 failed로 남는다. */
@@ -12,7 +14,7 @@ const QUEUES = [JOB_PARSE_FILE, JOB_EMBED_DOC] as const;
  * 앱·worker 역할(miceplans_app)은 DDL 권한 없이 이 스키마의 작업 테이블만 읽고 쓴다.
  */
 export async function migrateQueue(adminUrl: string, appRole = 'miceplans_app'): Promise<void> {
-  const boss = new PgBoss({ connectionString: adminUrl, schema: SCHEMA, supervise: false, schedule: false });
+  const boss = new PgBoss({ ...pgConnectionConfig(adminUrl), schema: SCHEMA, supervise: false, schedule: false });
   boss.on('error', () => {});
   await boss.start();
   try {
@@ -34,7 +36,7 @@ export type Producer = {
 
 /** API·협업 서버처럼 작업을 넣기만 하는 쪽. 유지보수 작업은 worker가 한다. */
 export async function openProducer(url: string): Promise<Producer> {
-  const boss = new PgBoss({ connectionString: url, schema: SCHEMA, migrate: false, supervise: false, schedule: false, max: 2 });
+  const boss = new PgBoss({ ...pgConnectionConfig(url), schema: SCHEMA, migrate: false, supervise: false, schedule: false, max: 2 });
   boss.on('error', (e) => console.error('[queue]', e));
   await boss.start();
   return {
@@ -54,7 +56,7 @@ export type WorkerHandlers = {
 
 /** 작업을 받아 처리한다. 처리가 던지면 pg-boss가 재시도 정책에 따라 다시 실행한다. */
 export async function runWorker(url: string, handlers: WorkerHandlers): Promise<{ stop: () => Promise<void> }> {
-  const boss = new PgBoss({ connectionString: url, schema: SCHEMA, migrate: false, max: 4 });
+  const boss = new PgBoss({ ...pgConnectionConfig(url), schema: SCHEMA, migrate: false, max: 4 });
   boss.on('error', (e) => console.error('[queue]', e));
   await boss.start();
   await boss.work(JOB_PARSE_FILE, { batchSize: 1 }, async ([job]) => { await handlers.parseFile(parseFileJob.parse(job!.data), { final: job!.retryCount >= RETRY_LIMIT }); });

@@ -33,7 +33,8 @@ export async function createApiApp() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('');
   if (config.webOrigin) app.enableCors({ origin: config.webOrigin.split(','), credentials: true });
-  SwaggerModule.setup('docs', app, buildOpenApiDocument(app));
+  // 운영에서는 API 구조(내부 경로·스키마)를 공개하지 않는다. 웹 클라이언트 생성은 scripts/export-openapi.ts가 buildOpenApiDocument로 따로 한다.
+  if (config.apiDocsEnabled) SwaggerModule.setup('docs', app, buildOpenApiDocument(app));
   await app.init();
   return app;
 }
