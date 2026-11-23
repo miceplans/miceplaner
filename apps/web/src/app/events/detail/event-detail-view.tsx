@@ -14,6 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event-filter';
 import { PmTransfer } from './pm-transfer';
 import { TaskBoard } from './task-board-view';
+import { useScheduleNoteStore } from '../../schedule-calendar/schedule-note-store';
 import type { EventListItemDto } from '@miceplans/contracts';
 import { setEventItems, setEventTab } from '../../ai-chat/event-context';
 
@@ -293,6 +294,7 @@ export function EventDetailView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [peekId, setPeekId] = useState<string | null>(null);
+  const peekStore = useScheduleNoteStore(eventId || null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [invited, setInvited] = useState<(Invitee & { as: InviteRole })[]>([]);
   const canInvite = roleResolved ? myRole === 'pm' : CURRENT_USER.name === event.pm;
@@ -669,6 +671,9 @@ export function EventDetailView() {
           date={`${dateOf(peekEvent.day).getMonth() + 1}월 ${dateOf(peekEvent.day).getDate()}일 (${['월', '화', '수', '목', '금', '토', '일'][((peekEvent.day % 7) + 7) % 7]})`}
           period={`${dateOf(peekEvent.day).getMonth() + 1}월 ${dateOf(peekEvent.day).getDate()}일 (${['월', '화', '수', '목', '금', '토', '일'][((peekEvent.day % 7) + 7) % 7]}) · ${formatRange(peekEvent.start, peekEvent.end)}`}
           place={event.place}
+          members={assignable}
+          storageKey={`event:${eventId}:${peekEvent.id}`}
+          store={peekStore}
           onClose={() => setPeekId(null)}
         />
       )}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type MouseEvent, type ReactNode } from 'react';
-import { SidePeekPanel } from './side-peek';
+import { SidePeekPanel, type SidePeekStore } from './side-peek';
 import { type PersonalTodo } from './personal-todo';
 import { Input } from './field';
 import { statusTones, type StatusToneKey } from './tokens';
@@ -310,6 +310,8 @@ export function MonthCalendar({
   personal = false,
   todos = [],
   initialMonth,
+  peekMembers = [],
+  peekStore,
 }: {
   /** 월 제목 옆에 표시할 보기 전환 등 보조 컨트롤 */
   headerAddon?: ReactNode;
@@ -325,15 +327,22 @@ export function MonthCalendar({
   todos?: PersonalTodo[];
   /** 처음에 표시할 월. 없으면 이번 달이다. 이전/다음 달 버튼으로 월을 옮긴다. */
   initialMonth?: { year: number; month: number };
+  /** 일정 상세 패널에서 담당자로 지정할 수 있는 인력 이름 */
+  peekMembers?: string[];
+  /** 일정 상세 패널 내용 저장소(서버). 없으면 저장하지 않는다. */
+  peekStore?: SidePeekStore;
 }): ReactNode {
   const [cursor, setCursor] = useState(() => initialMonth ?? (() => { const n = new Date(); return { year: n.getFullYear(), month: n.getMonth() + 1 }; })());
   const weeks = buildMonthWeeks(cursor.year, cursor.month);
   const title = `${cursor.year}년 ${cursor.month}월`;
   const last = weeks.length - 1;
-  const [peek, setPeek] = useState<{ title: string; date: string; day: number } | null>(null);
+  const [peek, setPeek] = useState<{ title: string; date: string; day: number; key: string } | null>(null);
+  /** 날짜 패널은 day:YYYY-MM-DD, 그 날의 항목 패널은 뒤에 항목 제목을 붙인다. */
+  const peekKey = (day: number, item?: string) =>
+    `day:${cursor.year}-${String(cursor.month).padStart(2, '0')}-${String(day).padStart(2, '0')}${item ? `:${item}` : ''}`;
   return (
     <div className="flex w-full flex-col items-center" style={{ gap: gridGap }}>
-      {peek ? <SidePeekPanel title={peek.title} date={peek.date} agenda={[]} onClose={() => setPeek(null)} /> : null}
+      {peek ? <SidePeekPanel title={peek.title} date={peek.date} agenda={[]} members={peekMembers} storageKey={peek.key} store={peekStore} onClose={() => setPeek(null)} /> : null}
       <div className="flex shrink-0 items-center gap-[17.895px]">
         <button type="button" aria-label="이전 달" onClick={() => setCursor((c) => shiftMonth(c, -1))} className="size-[26.842px] rounded-sm hover:bg-surface-chip">
           <img alt="" src={`${A}/4f176.svg`} className="size-full" />
@@ -371,7 +380,7 @@ export function MonthCalendar({
               return (
                 <div
                   key={ci}
-                  onClick={cell.d === undefined ? undefined : () => setPeek({ title: `${cell.d}일 일정`, date: `${title} ${cell.d}일`, day: cell.d! })}
+                  onClick={cell.d === undefined ? undefined : () => setPeek({ title: `${cell.d}일 일정`, date: `${title} ${cell.d}일`, day: cell.d!, key: peekKey(cell.d!) })}
                   className={`flex h-full flex-col items-start gap-[4px] px-[8px] pb-[6px] pt-[8px] ${cell.d === undefined ? '' : 'cursor-pointer hover:bg-surface-muted'} ${
                     cell.d === undefined ? 'bg-surface-subtle' : 'bg-surface'
                   } ${border}`}
@@ -396,7 +405,7 @@ export function MonthCalendar({
                 const day = week[entry.start].d!;
                 const openPeek = (itemTitle: string) => (e: MouseEvent<HTMLButtonElement>) => {
                   e.stopPropagation();
-                  setPeek({ title: itemTitle, date: `${title} ${day}일`, day });
+                  setPeek({ title: itemTitle, date: `${title} ${day}일`, day, key: peekKey(day, itemTitle) });
                 };
                 if (entry.kind === 'todoBar') {
                   return <TodoBar key={`todo-${entry.todo.id}-${entry.start}`} seg={entry} onClick={openPeek(entry.todo.title)} />;

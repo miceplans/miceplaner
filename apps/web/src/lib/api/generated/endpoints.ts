@@ -73,6 +73,9 @@ import type {
   SaveDocBodyBody,
   SearchHitDto,
   SetClientVisibleBody,
+  SaveScheduleNoteBody,
+  ScheduleNoteDto,
+  ScheduleNotesGetParams,
   SetDocVisibilityBody,
   StaffAccountDto,
   TransferPmBody,
@@ -6427,4 +6430,198 @@ export const useImportExecute = <TError = unknown,
         TContext
       > => {
       return useMutation(getImportExecuteMutationOptions(options), queryClient);
+    }
+
+export const getScheduleNotesGetUrl = (params: ScheduleNotesGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/schedule-notes?${stringifiedParams}` : `/schedule-notes`
+}
+
+/**
+ * @summary 캘린더 일정 상세 패널 내용 (내부 직원, 저장 전이면 빈 내용과 version 0)
+ */
+export const scheduleNotesGet = async (params: ScheduleNotesGetParams, options?: Parameters<typeof http>[1]): Promise<ScheduleNoteDto> => {
+
+  return http<ScheduleNoteDto>(getScheduleNotesGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getScheduleNotesGetQueryKey = (params?: ScheduleNotesGetParams,) => {
+    return [
+    `/schedule-notes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getScheduleNotesGetQueryOptions = <TData = Awaited<ReturnType<typeof scheduleNotesGet>>, TError = unknown>(params: ScheduleNotesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof scheduleNotesGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getScheduleNotesGetQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof scheduleNotesGet>>> = ({ signal }) => scheduleNotesGet(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof scheduleNotesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ScheduleNotesGetQueryResult = NonNullable<Awaited<ReturnType<typeof scheduleNotesGet>>>
+export type ScheduleNotesGetQueryError = unknown
+
+
+/** @summary 캘린더 일정 상세 패널 내용 (내부 직원, 저장 전이면 빈 내용과 version 0) */
+export function useScheduleNotesGet<TData = Awaited<ReturnType<typeof scheduleNotesGet>>, TError = unknown>(
+ params: ScheduleNotesGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof scheduleNotesGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof scheduleNotesGet>>,
+          TError,
+          Awaited<ReturnType<typeof scheduleNotesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 캘린더 일정 상세 패널 내용 (내부 직원, 저장 전이면 빈 내용과 version 0) */
+export function useScheduleNotesGet<TData = Awaited<ReturnType<typeof scheduleNotesGet>>, TError = unknown>(
+ params: ScheduleNotesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof scheduleNotesGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof scheduleNotesGet>>,
+          TError,
+          Awaited<ReturnType<typeof scheduleNotesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 캘린더 일정 상세 패널 내용 (내부 직원, 저장 전이면 빈 내용과 version 0) */
+export function useScheduleNotesGet<TData = Awaited<ReturnType<typeof scheduleNotesGet>>, TError = unknown>(
+ params: ScheduleNotesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof scheduleNotesGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 캘린더 일정 상세 패널 내용 (내부 직원, 저장 전이면 빈 내용과 version 0) */
+export function useScheduleNotesGet<TData = Awaited<ReturnType<typeof scheduleNotesGet>>, TError = unknown>(
+ params: ScheduleNotesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof scheduleNotesGet>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getScheduleNotesGetQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getScheduleNotesSaveUrl = () => {
+
+
+
+
+  return `/schedule-notes`
+}
+
+/**
+ * @summary 일정 상세 패널 내용 저장 (바뀐 필드만, 담당자는 version 충돌 검사)
+ */
+export const scheduleNotesSave = async (saveScheduleNoteBody: SaveScheduleNoteBody, options?: Parameters<typeof http>[1]): Promise<ScheduleNoteDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ScheduleNoteDto>(getScheduleNotesSaveUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saveScheduleNoteBody)
+  }
+);}
+
+
+
+
+
+export const getScheduleNotesSaveMutationKey = () => ['scheduleNotesSave'] as const;
+
+export const getScheduleNotesSaveMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scheduleNotesSave>>, TError,ScheduleNotesSaveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof scheduleNotesSave>>, TError,ScheduleNotesSaveMutationVariables, TContext> => {
+
+const mutationKey = getScheduleNotesSaveMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof scheduleNotesSave>>, ScheduleNotesSaveMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  scheduleNotesSave(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ScheduleNotesSaveMutationResult = NonNullable<Awaited<ReturnType<typeof scheduleNotesSave>>>
+    export type ScheduleNotesSaveMutationBody = SaveScheduleNoteBody
+    export type ScheduleNotesSaveMutationError = unknown
+    export type ScheduleNotesSaveMutationVariables = {data: SaveScheduleNoteBody}
+
+    /** @summary 일정 상세 패널 내용 저장 (바뀐 필드만, 담당자는 version 충돌 검사) */
+export const useScheduleNotesSave = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scheduleNotesSave>>, TError,ScheduleNotesSaveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof scheduleNotesSave>>,
+        TError,
+        ScheduleNotesSaveMutationVariables,
+        TContext
+      > => {
+      return useMutation(getScheduleNotesSaveMutationOptions(options), queryClient);
     }

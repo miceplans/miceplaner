@@ -6,6 +6,7 @@ import {
   eventDocDto, eventDto, eventItemDto, eventListItemDto, eventMemberDto, leaveBalanceDto, leaveRecordDto, loginBody, moveFileBody, notificationDto,
   proposalDto, registerBody, requestLeaveBody, rescheduleItemBody, saveDocBodyBody, searchHitDto, setClientVisibleBody, setDocVisibilityBody, transferPmBody, updateEventBody, updateItemBody,
   fileDto, userDto, staffAccountDto, updateStaffAccountBody, weekendWorkDto, wikiRevisionDetailDto, wikiRevisionDto, importJobDto, parseImportBody, previewImportBody,
+  scheduleNoteDto, saveScheduleNoteBody,
 } from '@miceplans/contracts';
 import { portalEventDto, portalProgramDto } from '@miceplans/contracts/portal';
 
@@ -22,6 +23,7 @@ export const API_SCHEMAS: Record<string, ZodType> = {
   WeekendWorkBody: weekendWorkBody, MarkNotificationsReadBody: markNotificationsReadBody,
   StaffAccountDto: staffAccountDto, UpdateStaffAccountBody: updateStaffAccountBody,
   ImportJobDto: importJobDto, ParseImportBody: parseImportBody, PreviewImportBody: previewImportBody,
+  ScheduleNoteDto: scheduleNoteDto, SaveScheduleNoteBody: saveScheduleNoteBody,
 };
 
 const NAME_OF = new Map<ZodType, string>(Object.entries(API_SCHEMAS).map(([name, schema]) => [schema, name]));

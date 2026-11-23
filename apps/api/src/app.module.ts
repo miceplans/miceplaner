@@ -17,6 +17,7 @@ import { LeaveModule } from './leave/leave.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PortalModule } from './portal/portal.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { ScheduleNotesModule } from './schedule-notes/schedule-notes.module';
 
 @Controller()
 class HealthController {
@@ -42,6 +43,7 @@ class HealthController {
     AiModule,
     DirectoryModule,
     ImportModule,
+    ScheduleNotesModule,
   ],
   controllers: [HealthController],
   providers: [

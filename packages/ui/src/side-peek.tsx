@@ -1,15 +1,12 @@
 'use client';
 
-import { useEffect, useState, type DragEvent, type PointerEvent, type ReactNode } from 'react';
-import { Input } from './field';
+import { useCallback, useEffect, useRef, useState, type DragEvent, type PointerEvent, type ReactNode } from 'react';
+import { Input, Textarea } from './field';
 import { Select } from './select';
 const A = '/assets/schedule';
 
-const PROPS = [] as readonly { icon: string; label: string; value: string }[];
-
-const LINKS = [] as readonly { icon: string; name: string; meta: string }[];
-
-const MEMO = '';
+/** 담당자 미지정 값. Select 옵션 값으로 쓴다. */
+const UNASSIGNED = '';
 
 type PeekComponentKey = 'period' | 'place' | 'assignee' | 'agenda' | 'description' | 'clientMemo' | 'tasks' | 'links';
 const PEEK_COMPONENTS: { key: PeekComponentKey; label: string }[] = [
@@ -39,6 +36,42 @@ function readPeekLayout(): PeekComponentKey[] {
   }
 }
 
+/* ---------- 패널 내용 (서버 저장) ---------- */
+
+type SubtaskItem = { id: string; title: string; who: string; done: boolean };
+type TaskItem = { id: string; title: string; who: string; subs: SubtaskItem[] };
+type LinkItem = { id: string; name: string; url: string };
+export type SidePeekContent = { assignees: string[]; description: string; clientMemo: string; tasks: TaskItem[]; links: LinkItem[] };
+type PeekContent = SidePeekContent;
+
+const EMPTY_CONTENT: PeekContent = { assignees: [], description: '', clientMemo: '', tasks: [], links: [] };
+
+/**
+ * 패널 내용을 읽고 쓰는 저장소. 앱이 서버 API로 구현해 넘긴다.
+ * save는 바뀐 필드만 받고, 담당자 version 충돌이면 { conflict: true }를 돌려준다. 그 밖의 실패는 throw한다.
+ */
+export type SidePeekStore = {
+  load: (key: string) => Promise<{ content: SidePeekContent; version: number }>;
+  save: (key: string, patch: Partial<SidePeekContent>, baseVersion: number) => Promise<{ conflict: false; version: number } | { conflict: true }>;
+};
+
+/** 텍스트 입력은 잠시 멈췄을 때 저장한다. */
+const TEXT_SAVE_DELAY = 600;
+
+const newId = (prefix: string): string => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+/** http(s) 링크만 허용한다. 스킴이 없으면 https를 붙인다. */
+function normalizeUrl(input: string): string | null {
+  const text = input.trim();
+  if (!text) return null;
+  try {
+    const url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(text) ? text : `https://${text}`);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 export function SidePeekSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex w-full flex-col gap-[12px]">
@@ -53,6 +86,23 @@ export function SidePeekTextBlock({ children }: { children: string }) {
     <div className="flex w-full items-center justify-center rounded-md bg-surface-subtle px-[16.433px] py-[12.912px]">
       <p className="w-full text-lg text-fg-strong">{children}</p>
     </div>
+  );
+}
+
+/** 설명·메모처럼 바로 고쳐 쓰는 여러 줄 입력. */
+function SidePeekTextField({ label, value, placeholder, onChange }: { label: string; value: string; placeholder: string; onChange: (value: string) => void }) {
+  return (
+    <SidePeekSection label={label}>
+      <Textarea
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        variant="ghost"
+        rows={3}
+        className="w-full rounded-md bg-surface-subtle px-[16px] py-[12px] text-lg text-fg-strong focus:bg-surface-muted"
+      />
+    </SidePeekSection>
   );
 }
 
@@ -97,29 +147,84 @@ function AgendaSection({ items }: { items: AgendaItem[] }) {
   );
 }
 
+/* ---------- 담당자 ---------- */
+
+function AssigneeRow({ assignees, members, onChange }: { assignees: string[]; members: string[]; onChange: (next: string[]) => void }) {
+  const [adding, setAdding] = useState(false);
+  const candidates = members.filter((m) => !assignees.includes(m));
+  return (
+    <div className="flex min-h-[30px] w-full items-center gap-[8.465px] py-[4.699px] text-xs text-fg-strong">
+      <div className="flex w-[71.653px] shrink-0 items-center gap-[8.223px]">
+        <img alt="" src={`${A}/dd62d.svg`} className="size-[14.108px]" />
+        <span className="whitespace-nowrap">담당자</span>
+      </div>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-[6px]">
+        {assignees.length === 0 && !adding ? <span className="text-fg-tertiary">미지정</span> : null}
+        {assignees.map((name) => (
+          <span key={name} className="flex items-center gap-[4px] rounded-sm bg-surface-chip px-[6px] py-[2px]">
+            <span className="whitespace-nowrap">{name}</span>
+            <button
+              type="button"
+              aria-label={`담당자 제거: ${name}`}
+              onClick={() => onChange(assignees.filter((a) => a !== name))}
+              className="text-2xs text-fg-tertiary hover:text-error"
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+        {adding ? (
+          candidates.length ? (
+            <Select
+              value={UNASSIGNED}
+              autoFocus
+              onChange={(e) => {
+                const name = e.target.value;
+                if (name) onChange([...assignees, name]);
+                setAdding(false);
+              }}
+              aria-label="담당자 선택"
+              size="sm"
+              searchable
+            >
+              <option value={UNASSIGNED}>선택</option>
+              {candidates.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </Select>
+          ) : (
+            <span className="text-fg-tertiary">추가할 수 있는 인력이 없습니다.</span>
+          )
+        ) : null}
+        <button
+          type="button"
+          aria-label={adding ? '담당자 추가 닫기' : '담당자 추가'}
+          aria-expanded={adding}
+          onClick={() => setAdding((v) => !v)}
+          className="flex size-[18.81px] items-center justify-center rounded-md hover:bg-surface-chip"
+        >
+          <img alt="" src={`${A}/1d729.svg`} className="size-[9.405px]" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- 할 일 · 하위 할 일 지정 ---------- */
 
-type AssigneeKey = '한' | '최' | '박' | '이' | '김';
-
-const ASSIGNEE: Record<AssigneeKey, { name: string }> = {
-  한: { name: '한' },
-  최: { name: '최' },
-  박: { name: '박' },
-  이: { name: '이' },
-  김: { name: '김' },
-};
-
-type SubtaskItem = { id: string; title: string; who: AssigneeKey; done: boolean };
-type TaskItem = { id: string; title: string; who: AssigneeKey; subs: SubtaskItem[] };
-
-const INITIAL_TASKS: TaskItem[] = [];
-
-function AssigneeAvatar({ who, size = 'md' }: { who: AssigneeKey; size?: 'md' | 'sm' }): React.ReactNode {
-  const cls = size === 'sm' ? 'text-2xs' : 'text-xs';
+function AssigneeSelect({ value, members, onChange, label }: { value: string; members: string[]; onChange: (value: string) => void; label: string }) {
+  const options = value && !members.includes(value) ? [value, ...members] : members;
   return (
-    <span aria-label={ASSIGNEE[who].name} className={`whitespace-nowrap text-fg-secondary ${cls}`}>
-      {ASSIGNEE[who].name}
-    </span>
+    <Select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} size="sm" className="shrink-0">
+      <option value={UNASSIGNED}>미지정</option>
+      {options.map((m) => (
+        <option key={m} value={m}>
+          {m}
+        </option>
+      ))}
+    </Select>
   );
 }
 
@@ -140,51 +245,40 @@ function SubtaskCheck({ done, onToggle }: { done: boolean; onToggle: () => void 
   );
 }
 
-/** 일정 상세에서 Task와 Subtask를 지정·관리하는 섹션. */
-export function TaskSubtaskSection(): React.ReactNode {
-  const [tasks, setTasks] = useState<TaskItem[]>(INITIAL_TASKS);
+/** 일정 상세에서 Task와 Subtask를 지정·관리하는 섹션. 담당자 후보는 members로 받는다. */
+export function TaskSubtaskSection({
+  tasks,
+  members = [],
+  onChange,
+}: {
+  tasks: TaskItem[];
+  members?: string[];
+  onChange: (next: TaskItem[]) => void;
+}): React.ReactNode {
   const [taskDraft, setTaskDraft] = useState('');
-  const [taskWho, setTaskWho] = useState<AssigneeKey>('박');
+  const [taskWho, setTaskWho] = useState<string>(UNASSIGNED);
   const [subDrafts, setSubDrafts] = useState<Record<string, string>>({});
-  const [subWhos, setSubWhos] = useState<Record<string, AssigneeKey>>({});
+  const [subWhos, setSubWhos] = useState<Record<string, string>>({});
+
+  const updateTask = (taskId: string, fn: (t: TaskItem) => TaskItem): void => onChange(tasks.map((t) => (t.id === taskId ? fn(t) : t)));
 
   const addTask = (): void => {
     const title = taskDraft.trim();
     if (!title) return;
-    setTasks((prev) => [...prev, { id: `task-${Date.now()}`, title, who: taskWho, subs: [] }]);
+    onChange([...tasks, { id: newId('task'), title, who: taskWho, subs: [] }]);
     setTaskDraft('');
   };
 
-  const removeTask = (taskId: string): void => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
-  };
-
-  const addSub = (taskId: string): void => {
-    const title = (subDrafts[taskId] ?? '').trim();
+  const addSub = (task: TaskItem): void => {
+    const title = (subDrafts[task.id] ?? '').trim();
     if (!title) return;
-    const task = tasks.find((t) => t.id === taskId);
-    const who = subWhos[taskId] ?? task?.who ?? '박';
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, subs: [...t.subs, { id: `sub-${Date.now()}`, title, who, done: false }] } : t)),
-    );
-    setSubDrafts((prev) => ({ ...prev, [taskId]: '' }));
-  };
-
-  const toggleSub = (taskId: string, subId: string): void => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, subs: t.subs.map((s) => (s.id === subId ? { ...s, done: !s.done } : s)) } : t)),
-    );
-  };
-
-  const removeSub = (taskId: string, subId: string): void => {
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, subs: t.subs.filter((s) => s.id !== subId) } : t)));
+    const who = subWhos[task.id] ?? task.who;
+    updateTask(task.id, (t) => ({ ...t, subs: [...t.subs, { id: newId('sub'), title, who, done: false }] }));
+    setSubDrafts((prev) => ({ ...prev, [task.id]: '' }));
   };
 
   const doneCount = tasks.reduce((n, t) => n + t.subs.filter((s) => s.done).length, 0);
   const totalCount = tasks.reduce((n, t) => n + t.subs.length, 0);
-
-  const selectCls = 'shrink-0';
-  const draftInputCls = 'flex-1';
 
   return (
     <div className="flex w-full flex-col gap-[12px]">
@@ -198,12 +292,21 @@ export function TaskSubtaskSection(): React.ReactNode {
         {tasks.map((task) => (
           <div key={task.id} className="flex w-full flex-col gap-[6px] rounded-md bg-surface-subtle p-[10px]">
             <div className="flex w-full items-center gap-[8px]">
-              <span className="min-w-0 flex-1 truncate text-md font-bold text-fg-strong">{task.title}</span>
-              <span className="whitespace-nowrap text-xs text-fg-secondary">{ASSIGNEE[task.who].name}</span>
+              <Input
+                aria-label="할 일 제목"
+                value={task.title}
+                onChange={(e) => updateTask(task.id, (t) => ({ ...t, title: e.target.value }))}
+                onBlur={(e) => {
+                  if (!e.target.value.trim()) updateTask(task.id, (t) => ({ ...t, title: '제목 없음' }));
+                }}
+                variant="ghost"
+                className="min-w-0 flex-1 text-md font-bold text-fg-strong"
+              />
+              <AssigneeSelect value={task.who} members={members} label="할 일 담당자" onChange={(who) => updateTask(task.id, (t) => ({ ...t, who }))} />
               <button
                 type="button"
                 aria-label={`Task 삭제: ${task.title}`}
-                onClick={() => removeTask(task.id)}
+                onClick={() => onChange(tasks.filter((t) => t.id !== task.id))}
                 className="flex size-[18px] shrink-0 items-center justify-center rounded-md text-sm text-fg-tertiary hover:bg-surface-chip hover:text-error"
               >
                 ✕
@@ -212,13 +315,27 @@ export function TaskSubtaskSection(): React.ReactNode {
             <div className="flex w-full flex-col gap-[2px]">
               {task.subs.map((sub) => (
                 <div key={sub.id} className="flex w-full items-center gap-[8px] rounded-sm px-[4px] py-[3px] hover:bg-surface">
-                  <SubtaskCheck done={sub.done} onToggle={() => toggleSub(task.id, sub.id)} />
-                  <span className={`min-w-0 flex-1 truncate text-md ${sub.done ? 'text-fg-tertiary line-through' : 'text-fg'}`}>{sub.title}</span>
-                  <AssigneeAvatar who={sub.who} size="sm" />
+                  <SubtaskCheck
+                    done={sub.done}
+                    onToggle={() => updateTask(task.id, (t) => ({ ...t, subs: t.subs.map((s) => (s.id === sub.id ? { ...s, done: !s.done } : s)) }))}
+                  />
+                  <Input
+                    aria-label="하위 할 일 제목"
+                    value={sub.title}
+                    onChange={(e) => updateTask(task.id, (t) => ({ ...t, subs: t.subs.map((s) => (s.id === sub.id ? { ...s, title: e.target.value } : s)) }))}
+                    variant="ghost"
+                    className={`min-w-0 flex-1 text-md ${sub.done ? 'text-fg-tertiary line-through' : 'text-fg'}`}
+                  />
+                  <AssigneeSelect
+                    value={sub.who}
+                    members={members}
+                    label="하위 할 일 담당자"
+                    onChange={(who) => updateTask(task.id, (t) => ({ ...t, subs: t.subs.map((s) => (s.id === sub.id ? { ...s, who } : s)) }))}
+                  />
                   <button
                     type="button"
                     aria-label={`Subtask 삭제: ${sub.title}`}
-                    onClick={() => removeSub(task.id, sub.id)}
+                    onClick={() => updateTask(task.id, (t) => ({ ...t, subs: t.subs.filter((s) => s.id !== sub.id) }))}
                     className="flex size-[18px] shrink-0 items-center justify-center rounded-md text-sm text-fg-tertiary hover:bg-surface-chip hover:text-error"
                   >
                     ✕
@@ -231,31 +348,24 @@ export function TaskSubtaskSection(): React.ReactNode {
                   value={subDrafts[task.id] ?? ''}
                   onChange={(e) => setSubDrafts((prev) => ({ ...prev, [task.id]: e.target.value }))}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                       e.preventDefault();
-                      addSub(task.id);
+                      addSub(task);
                     }
                   }}
                   placeholder="하위 할 일 추가"
                   variant="ghost"
                   className="flex-1 text-md"
                 />
-                <Select
+                <AssigneeSelect
                   value={subWhos[task.id] ?? task.who}
-                  onChange={(e) => setSubWhos((prev) => ({ ...prev, [task.id]: e.target.value as AssigneeKey }))}
-                  aria-label="하위 할 일 담당자"
-                  size="sm"
-                  className={selectCls}
-                >
-                  {(Object.keys(ASSIGNEE) as AssigneeKey[]).map((a) => (
-                    <option key={a} value={a}>
-                      {ASSIGNEE[a].name}
-                    </option>
-                  ))}
-                </Select>
+                  members={members}
+                  label="새 하위 할 일 담당자"
+                  onChange={(who) => setSubWhos((prev) => ({ ...prev, [task.id]: who }))}
+                />
                 <button
                   type="button"
-                  onClick={() => addSub(task.id)}
+                  onClick={() => addSub(task)}
                   className="h-[26px] shrink-0 rounded-sm bg-surface-chip px-[8px] text-xs font-medium text-fg-secondary hover:bg-border-strong"
                 >
                   추가
@@ -269,28 +379,16 @@ export function TaskSubtaskSection(): React.ReactNode {
             value={taskDraft}
             onChange={(e) => setTaskDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                 e.preventDefault();
                 addTask();
               }
             }}
             placeholder="할 일 추가"
             size="sm"
-            className={draftInputCls}
+            className="flex-1"
           />
-          <Select
-            value={taskWho}
-            onChange={(e) => setTaskWho(e.target.value as AssigneeKey)}
-            aria-label="할 일 담당자"
-            size="sm"
-            className={selectCls}
-          >
-            {(Object.keys(ASSIGNEE) as AssigneeKey[]).map((a) => (
-              <option key={a} value={a}>
-                {ASSIGNEE[a].name}
-              </option>
-            ))}
-          </Select>
+          <AssigneeSelect value={taskWho} members={members} label="새 할 일 담당자" onChange={setTaskWho} />
           <button
             type="button"
             onClick={addTask}
@@ -304,12 +402,85 @@ export function TaskSubtaskSection(): React.ReactNode {
   );
 }
 
+/* ---------- 관련 링크 ---------- */
+
+function LinksSection({ links, onChange }: { links: LinkItem[]; onChange: (next: LinkItem[]) => void }) {
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState(false);
+  const add = (): void => {
+    const href = normalizeUrl(url);
+    if (!href) {
+      setError(true);
+      return;
+    }
+    onChange([...links, { id: newId('link'), name: name.trim() || new URL(href).hostname, url: href }]);
+    setName('');
+    setUrl('');
+    setError(false);
+  };
+  const onEnter = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      add();
+    }
+  };
+  return (
+    <SidePeekSection label="관련 링크 및 첨부">
+      <div className="flex w-full flex-col gap-[2px]">
+        {links.map((link) => (
+          <div key={link.id} className="flex w-full items-center gap-[10.564px] rounded-md p-[8.217px] hover:bg-surface-muted">
+            <img alt="" src={`${A}/04dda.svg`} className="size-[15.26px]" />
+            <a href={link.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-md text-fg-strong hover:underline">
+              {link.name}
+            </a>
+            <button
+              type="button"
+              aria-label={`링크 삭제: ${link.name}`}
+              onClick={() => onChange(links.filter((l) => l.id !== link.id))}
+              className="flex size-[18px] shrink-0 items-center justify-center rounded-md text-sm text-fg-tertiary hover:bg-surface-chip hover:text-error"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <div className="flex w-full items-center gap-[6px] rounded-md border border-dashed border-border-strong p-[8px]">
+          <Input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={onEnter} placeholder="이름" size="sm" className="w-[30%]" />
+          <Input
+            value={url}
+            onChange={(e) => {
+              setUrl(e.target.value);
+              setError(false);
+            }}
+            onKeyDown={onEnter}
+            placeholder="https://"
+            size="sm"
+            invalid={error}
+            className="flex-1"
+          />
+          <button
+            type="button"
+            onClick={add}
+            className="h-[26px] shrink-0 rounded-sm bg-surface-chip px-[8px] text-xs font-medium text-fg-secondary hover:bg-border-strong"
+          >
+            추가
+          </button>
+        </div>
+        {error ? <p className="text-xs text-error">http(s) 주소를 입력하세요.</p> : null}
+      </div>
+    </SidePeekSection>
+  );
+}
+
 export function SidePeekPanel({
   title,
   date,
   period,
   place,
   agenda,
+  members = [],
+  storageKey,
+  store,
   onClose,
 }: {
   title: string;
@@ -317,6 +488,12 @@ export function SidePeekPanel({
   period?: string;
   place?: string;
   agenda?: AgendaItem[];
+  /** 담당자로 지정할 수 있는 인력 이름 */
+  members?: string[];
+  /** 패널 내용을 저장할 키. 없으면 제목과 날짜로 만든다. */
+  storageKey?: string;
+  /** 패널 내용 저장소. 없으면 화면에서만 편집되고 저장되지 않는다. */
+  store?: SidePeekStore;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -327,7 +504,98 @@ export function SidePeekPanel({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const props = PROPS.map((p) => (p.label === '기간' && period ? { ...p, value: period } : p.label === '장소' && place ? { ...p, value: place } : p));
+  const contentKey = storageKey ?? `${date ?? ''}|${title}`;
+  const [content, setContent] = useState<PeekContent>(EMPTY_CONTENT);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>(store ? 'loading' : 'ready');
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [notice, setNotice] = useState('');
+  const [reloadTick, setReloadTick] = useState(0);
+  const versionRef = useRef(0);
+  // 아직 서버에 보내지 않은 변경. 키가 바뀌거나 패널이 닫혀도 원래 키로 보낸다.
+  const pendingRef = useRef<{ key: string; patch: Partial<PeekContent> } | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 저장은 한 번에 하나씩 보내 version이 순서대로 오르게 한다.
+  const chainRef = useRef<Promise<void>>(Promise.resolve());
+  const storeRef = useRef(store);
+  storeRef.current = store;
+
+  const flush = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    const pending = pendingRef.current;
+    const target = storeRef.current;
+    if (!pending || !target) return;
+    pendingRef.current = null;
+    setSaveState('saving');
+    chainRef.current = chainRef.current.then(async () => {
+      try {
+        const result = await target.save(pending.key, pending.patch, versionRef.current);
+        if (!result.conflict) {
+          versionRef.current = result.version;
+          setSaveState(pendingRef.current ? 'saving' : 'saved');
+          return;
+        }
+        // 다른 사용자가 먼저 담당자를 바꿨다. 최신 내용을 다시 읽고, 담당자 외 변경은 다시 보낸다.
+        const latest = await target.load(pending.key);
+        versionRef.current = latest.version;
+        const rest = { ...pending.patch };
+        delete rest.assignees;
+        setContent((prev) => ({ ...prev, assignees: latest.content.assignees }));
+        setNotice('다른 사용자가 담당자를 먼저 바꿔 최신 담당자로 갱신했습니다. 필요하면 다시 지정해 주세요.');
+        if (Object.keys(rest).length) {
+          pendingRef.current = { key: pending.key, patch: { ...rest, ...(pendingRef.current?.key === pending.key ? pendingRef.current.patch : {}) } };
+        }
+        setSaveState('idle');
+        if (pendingRef.current) queueMicrotask(flush);
+      } catch {
+        // 실패한 변경은 다음 저장에 다시 싣는다.
+        const later = pendingRef.current?.key === pending.key ? pendingRef.current.patch : {};
+        pendingRef.current = { key: pending.key, patch: { ...pending.patch, ...later } };
+        setSaveState('error');
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!store) {
+      setContent(EMPTY_CONTENT);
+      setLoadState('ready');
+      return;
+    }
+    let alive = true;
+    setLoadState('loading');
+    setNotice('');
+    setSaveState('idle');
+    store
+      .load(contentKey)
+      .then((data) => {
+        if (!alive) return;
+        versionRef.current = data.version;
+        setContent(data.content);
+        setLoadState('ready');
+      })
+      .catch(() => {
+        if (alive) setLoadState('error');
+      });
+    return () => {
+      alive = false;
+      flush();
+    };
+  }, [contentKey, store, reloadTick, flush]);
+
+  const patchContent = (patch: Partial<PeekContent>, { debounce = false }: { debounce?: boolean } = {}) => {
+    setContent((prev) => ({ ...prev, ...patch }));
+    if (!store) return;
+    if (patch.assignees) setNotice('');
+    const merged = pendingRef.current?.key === contentKey ? pendingRef.current.patch : {};
+    if (pendingRef.current && pendingRef.current.key !== contentKey) flush();
+    pendingRef.current = { key: contentKey, patch: { ...merged, ...patch } };
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (debounce) timerRef.current = setTimeout(flush, TEXT_SAVE_DELAY);
+    else flush();
+  };
   const [componentOrder, setComponentOrder] = useState<PeekComponentKey[]>(DEFAULT_PEEK_LAYOUT);
   const [editingLayout, setEditingLayout] = useState(false);
   const [draggedComponent, setDraggedComponent] = useState<PeekComponentKey | null>(null);
@@ -410,55 +678,27 @@ export function SidePeekPanel({
     switch (key) {
       case 'period':
       case 'place': {
-        const property = props.find((item) => item.label === (key === 'period' ? '기간' : '장소'));
-        return property ? (
+        const value = key === 'period' ? period : place;
+        if (!value) return null;
+        return (
           <div className="flex h-[30px] w-full items-center gap-[8.465px] py-[4.699px] text-xs text-fg-strong">
             <div className="flex w-[71.653px] shrink-0 items-center gap-[8.223px]">
-              <img alt="" src={`${A}/${property.icon}.svg`} className="size-[14.108px]" />
-              <span className="whitespace-nowrap">{property.label}</span>
+              <img alt="" src={`${A}/${key === 'period' ? 'f7145' : '5b17e'}.svg`} className="size-[14.108px]" />
+              <span className="whitespace-nowrap">{key === 'period' ? '기간' : '장소'}</span>
             </div>
-            <span className="whitespace-nowrap">{property.value}</span>
+            <span className="truncate">{value}</span>
           </div>
-        ) : null;
+        );
       }
       case 'assignee':
-        return (
-          <div className="flex h-[30px] w-full items-center gap-[8.465px] py-[4.699px] text-xs text-fg-strong">
-            <div className="flex w-[71.653px] shrink-0 items-center gap-[8.223px]">
-              <img alt="" src={`${A}/dd62d.svg`} className="size-[14.108px]" />
-              <span className="whitespace-nowrap">담당자</span>
-            </div>
-            <div className="flex items-center gap-[8px]">
-              <div className="flex items-center gap-[4px]">
-                <span className="whitespace-nowrap">민준</span>
-              </div>
-              <button type="button" aria-label="담당자 추가" className="flex size-[18.81px] items-center justify-center rounded-md hover:bg-surface-chip">
-                <img alt="" src={`${A}/1d729.svg`} className="size-[9.405px]" />
-              </button>
-            </div>
-          </div>
-        );
+        return <AssigneeRow assignees={content.assignees} members={members} onChange={(assignees) => patchContent({ assignees })} />;
       case 'agenda': return agenda ? <AgendaSection items={agenda} /> : null;
       case 'description':
-        return <SidePeekSection label="설명"><SidePeekTextBlock>{MEMO}</SidePeekTextBlock></SidePeekSection>;
+        return <SidePeekTextField label="설명" value={content.description} placeholder="설명을 입력하세요" onChange={(description) => patchContent({ description }, { debounce: true })} />;
       case 'clientMemo':
-        return <SidePeekSection label="클라이언트 메모"><SidePeekTextBlock>{MEMO}</SidePeekTextBlock></SidePeekSection>;
-      case 'tasks': return <TaskSubtaskSection />;
-      case 'links':
-        return (
-          <SidePeekSection label="관련 링크 및 첨부">
-            <div className="flex w-full flex-col gap-[2px]">
-              {LINKS.map((link) => (
-                <a key={link.name} href="#" className="flex w-full items-center gap-[10.564px] rounded-md p-[8.217px] hover:bg-surface-muted">
-                  <img alt="" src={`${A}/${link.icon}.svg`} className="size-[15.26px]" />
-                  <span className="whitespace-nowrap text-md text-fg-strong">{link.name}</span>
-                  <span className="h-[1.174px] min-w-px flex-1" />
-                  <span className="whitespace-nowrap text-sm text-fg-tertiary">{link.meta}</span>
-                </a>
-              ))}
-            </div>
-          </SidePeekSection>
-        );
+        return <SidePeekTextField label="클라이언트 메모" value={content.clientMemo} placeholder="클라이언트 메모를 입력하세요" onChange={(clientMemo) => patchContent({ clientMemo }, { debounce: true })} />;
+      case 'tasks': return <TaskSubtaskSection tasks={content.tasks} members={members} onChange={(tasks) => patchContent({ tasks }, { debounce: true })} />;
+      case 'links': return <LinksSection links={content.links} onChange={(links) => patchContent({ links })} />;
     }
   };
 
@@ -473,6 +713,19 @@ export function SidePeekPanel({
           <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
             <h2 className="text-3xl font-bold text-fg-strong">{title}</h2>
             {date ? <p className="text-sm text-fg-tertiary">{date}</p> : null}
+            {store ? (
+              <p role="status" className={`text-xs ${saveState === 'error' ? 'text-error' : 'text-fg-tertiary'}`}>
+                {saveState === 'saving' ? '저장 중…' : saveState === 'saved' ? '저장됨' : null}
+                {saveState === 'error' ? (
+                  <>
+                    저장하지 못했습니다.{' '}
+                    <button type="button" onClick={flush} className="underline">
+                      다시 시도
+                    </button>
+                  </>
+                ) : null}
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -489,6 +742,19 @@ export function SidePeekPanel({
           </button>
         </div>
         <div className="flex min-h-0 w-full flex-1 flex-col items-start gap-[32px] overflow-y-auto">
+          {notice ? <p role="alert" className="w-full rounded-md bg-surface-subtle px-[12px] py-[8px] text-xs text-fg-secondary">{notice}</p> : null}
+          {loadState !== 'ready' ? (
+            <div className="flex w-full flex-col items-start gap-[8px] text-sm text-fg-tertiary">
+              {loadState === 'loading' ? '불러오는 중…' : (
+                <>
+                  <span className="text-error">일정 내용을 불러오지 못했습니다.</span>
+                  <button type="button" onClick={() => setReloadTick((n) => n + 1)} className="text-xs text-fg-secondary underline">
+                    다시 시도
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
           <div className="flex w-full flex-col items-start gap-[24px]">
             {componentOrder.map((key) => {
               const component = PEEK_COMPONENTS.find((item) => item.key === key);
@@ -560,6 +826,7 @@ export function SidePeekPanel({
               </div>
             ) : null}
           </div>
+          )}
         </div>
         {editingLayout ? (
           <button

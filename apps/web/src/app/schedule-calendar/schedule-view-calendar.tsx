@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { MonthCalendar, PERSONAL_TODOS } from '@miceplans/ui';
+import { getToken } from '../../lib/api';
+import { useGetMe } from '../../lib/api/generated/endpoints';
+import { useScheduleNoteStore } from './schedule-note-store';
 
 const LS_TODOS = 'miceplans:schedule-calendar:todo';
 
@@ -31,6 +34,9 @@ export function ScheduleViewCalendar({
   padX?: number;
 }) {
   const [todosOn, setTodosOn] = useState(true);
+  const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
+  const peekMembers = me.data?.name ? [me.data.name] : [];
+  const peekStore = useScheduleNoteStore();
 
   /* 새로고침 후에도 표시 설정을 유지한다 (hydration 직후 저장값 적용) */
   useEffect(() => {
@@ -46,7 +52,7 @@ export function ScheduleViewCalendar({
 
   const todos = todosOn ? PERSONAL_TODOS : [];
   if (mine) {
-    return <MonthCalendar gridGap={gridGap} padX={padX} personal todos={todos} />;
+    return <MonthCalendar gridGap={gridGap} padX={padX} personal todos={todos} peekMembers={peekMembers} peekStore={peekStore} />;
   }
 
   return (
@@ -54,6 +60,8 @@ export function ScheduleViewCalendar({
       gridGap={gridGap}
       padX={padX}
       todos={todos}
+      peekMembers={peekMembers}
+      peekStore={peekStore}
       headerAddon={
         <button
           type="button"
