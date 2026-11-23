@@ -49,6 +49,8 @@ const tauriArgs = process.argv.slice(2).filter((arg) => arg !== '--');
 const result = spawnSync(tauri, ['build', '--config', 'src-tauri/tauri.release.conf.json', ...tauriArgs], {
   cwd: desktopDir,
   stdio: 'inherit',
+  // Node 22+는 보안 패치로 shell 없이 .cmd를 spawn하면 EINVAL을 던진다.
+  shell: process.platform === 'win32',
 });
 if (result.error) throw result.error;
 process.exit(result.status ?? 1);
