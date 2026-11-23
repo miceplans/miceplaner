@@ -60,10 +60,10 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Generate latest.json
+      - name: Prepare release assets
         run: |
           version="${GITHUB_REF_NAME#desktop-v}"
-          node apps/desktop/scripts/updater-manifest.mjs dist "$version" \
+          node apps/desktop/scripts/release-assets.mjs dist release-assets "$version" \
             "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
 
       - name: Create release
@@ -71,8 +71,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#desktop-v}"
-          mapfile -t assets < <(find dist -type f \( -name '*.dmg' -o -name '*.msi' -o -name '*.exe' -o -name '*.app.tar.gz' -o -name '*.sig' -o -name 'latest.json' \))
-          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+          gh release create "$GITHUB_REF_NAME" release-assets/* \
             --title "MICEPLANNER Desktop $version" \
-            --generate-notes \
+            --notes-file release-notes.md \
             --latest

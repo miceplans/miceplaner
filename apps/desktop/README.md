@@ -21,6 +21,16 @@ API 서버의 `WEB_ORIGIN`에는 `tauri://localhost,http://tauri.localhost`를 �
 
 `pnpm desktop:installers [ref]`는 GitHub Actions에서 Windows(.msi/.exe)와 macOS(.dmg)를 동시에 빌드하고 결과를 `release/`에 내려받는다. `gh` 로그인과 `DESKTOP_API_URL` 변수가 필요하며, ref는 원격에 push되어 있어야 한다.
 
+## 설치 파일 받기
+
+항상 최신 버전을 받는 고정 링크:
+
+- Mac (Apple Silicon: M1 이후): https://github.com/miceplans/miceplaner/releases/latest/download/MICEPLANNER-Mac.dmg
+- Windows (일반 PC): https://github.com/miceplans/miceplaner/releases/latest/download/MICEPLANNER-Windows-setup.exe
+- Windows (ARM PC): https://github.com/miceplans/miceplaner/releases/latest/download/MICEPLANNER-Windows-ARM-setup.exe
+
+Intel Mac은 배포하지 않는다.
+
 ## 자동 업데이트와 릴리스
 
 배포 빌드 앱은 시작할 때 GitHub의 latest Release에 있는 `latest.json`을 확인한다. 새 버전이 있으면 대화상자로 묻고, **업데이트**를 누르면 내려받아 설치한 뒤 다시 시작한다. 개발 실행(`tauri dev`)에서는 확인하지 않는다.
@@ -29,7 +39,7 @@ API 서버의 `WEB_ORIGIN`에는 `tauri://localhost,http://tauri.localhost`를 �
 
 1. `src-tauri/tauri.conf.json`과 `package.json`의 `version`을 올린다(예: `0.1.2`).
 2. 커밋을 push한 뒤 같은 버전의 태그를 push한다: `git tag desktop-v0.1.2 && git push origin desktop-v0.1.2`
-3. `desktop-release.yml`이 두 OS를 빌드해 GitHub Release(설치 파일, 업데이트 파일, `latest.json`)를 만든다. 설치된 앱은 다음 실행 때 업데이트를 안내한다.
+3. `desktop-release.yml`이 두 OS를 빌드하고 `scripts/release-assets.mjs`로 올릴 파일만 골라 GitHub Release(설치 파일, `updater-*`, `latest.json`, 다운로드 안내)를 만든다. 설치된 앱은 다음 실행 때 업데이트를 안내한다.
 
 서명 키:
 
@@ -37,4 +47,4 @@ API 서버의 `WEB_ORIGIN`에는 `tauri://localhost,http://tauri.localhost`를 �
 - 개인키와 비밀번호는 Repository Secrets `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`에 둔다. **키를 잃으면 이미 설치된 앱에 업데이트를 보낼 수 없으므로** 따로 백업한다.
 - 키가 없는 로컬 빌드는 설치 파일만 만들고 업데이트 파일은 만들지 않는다.
 
-OS 코드 서명(macOS 공증, Windows 코드 서명)은 아직 하지 않는다. macOS에서 처음 열 때 차단되면 Finder에서 앱을 우클릭한 뒤 **열기**를 누른다. Windows SmartScreen 경고가 뜨면 **추가 정보 → 실행**을 누른다.
+OS 코드 서명(macOS 공증, Windows 코드 서명)은 아직 하지 않는다. macOS는 `bundle.macOS.signingIdentity: "-"`로 앱 번들 전체를 ad-hoc 서명한다. 번들 서명이 없으면 내려받은 앱이 "손상되었습니다"로 차단되기 때문이다. 처음 열 때 "확인되지 않은 개발자" 경고가 나오면 **시스템 설정 → 개인정보 보호 및 보안**에서 **그래도 열기**를 누른다. Windows SmartScreen 경고가 뜨면 **추가 정보 → 실행**을 누른다.

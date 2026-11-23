@@ -3,9 +3,17 @@
   "buildCommand": "pnpm build",
   "regions": ["icn1"],
   "cleanUrls": true,
+  "redirects": [
+    { "source": "/", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/dashboard", "permanent": false },
+    { "source": "/login", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/login", "permanent": false },
+    {
+      "source": "/:path((?!client/|_next/|assets/|apply$|favicon\\.ico$).+)",
+      "has": [{ "type": "host", "value": "client\\..+" }],
+      "destination": "/client/dashboard",
+      "permanent": false
+    }
+  ],
   "rewrites": [
-    { "source": "/", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/dashboard" },
-    { "source": "/apply", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/apply" },
-    { "source": "/login", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/login" }
+    { "source": "/apply", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/apply" }
   ]
 }
