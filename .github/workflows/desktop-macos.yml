@@ -14,14 +14,12 @@ jobs:
     runs-on: macos-latest
     strategy:
       fail-fast: false
+      # Intel Mac은 배포하지 않으므로 Apple Silicon만 빌드한다.
       matrix:
         include:
           - arch: arm64
             updater_arch: aarch64
             rust_target: aarch64-apple-darwin
-          - arch: x64
-            updater_arch: x86_64
-            rust_target: x86_64-apple-darwin
     steps:
       - uses: actions/checkout@v4
 
@@ -59,7 +57,7 @@ jobs:
           path: |
             apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg/*.dmg
 
-      # 두 아키텍처의 업데이트 묶음 이름이 같으므로 Release 자산 이름이 겹치지 않게 아키텍처를 붙인다.
+      # Release 자산 이름에 아키텍처를 붙여 업데이트 묶음을 구분한다.
       - name: Collect updater bundle
         if: ${{ hashFiles(format('apps/desktop/src-tauri/target/{0}/release/bundle/macos/*.app.tar.gz.sig', matrix.rust_target)) != '' }}
         run: |
