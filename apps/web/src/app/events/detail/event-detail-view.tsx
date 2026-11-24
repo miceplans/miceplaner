@@ -887,8 +887,19 @@ export function EventDetailView() {
           className="relative flex h-[230px] w-[369px] shrink-0 items-end overflow-hidden rounded-[27px] border-[10px] border-solid border-brand-pink bg-brand-gradient p-[24px] shadow-card max-lg:w-full"
           aria-label={`${event.name} ${event.dday}`}
         >
-          <span className="relative z-[2] mr-[-108px] shrink-0 whitespace-nowrap text-[56px] font-bold leading-none tracking-[-0.8px] text-fg-inverse">{event.name}</span>
-          <span className="relative z-[1] shrink-0 whitespace-nowrap text-[128px] font-bold leading-[0.9] tracking-[-0.9px] text-fg-inverse/60">{event.dday}</span>
+          {/* D-day는 배경 장식으로 우상단에 두고, 행사명은 카드 안에서 줄바꿈·말줄임해 밖으로 넘치지 않게 한다. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute right-[16px] top-[4px] z-[1] whitespace-nowrap text-[112px] font-bold leading-[0.9] tracking-[-0.9px] text-fg-inverse/60"
+          >
+            {event.dday}
+          </span>
+          <span
+            title={event.name}
+            className="relative z-[2] line-clamp-2 min-w-0 break-keep text-[44px] font-bold leading-[1.1] tracking-[-0.8px] text-fg-inverse [overflow-wrap:anywhere]"
+          >
+            {event.name}
+          </span>
         </div>
 
         <section className={`flex min-w-0 flex-1 flex-col gap-[24px] p-[24px] ${CARD} rounded-lg`}>
