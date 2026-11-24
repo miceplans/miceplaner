@@ -55,7 +55,8 @@
 | 보류중 | `#fff4ed` | `#f38817` | `*-warning-hold` / `*-warning-hold-bg` |
 | 실패 | `#ffeeee` | `#fe525c` | `*-error` / `*-error-bg` |
 | 제출 | `#f0eaff` | `#783dff` | `*-submit` / `*-submit-bg` |
-| 만료 | `#f1f1f1` | `#7b7b7b` | `*-expired` / `*-expired-bg` |
+| 만료 | `#f6f1e2` | `#7d6d3f` | `*-expired` / `*-expired-bg` |
+| 종료 | `#f1f1f1` | `#7b7b7b` | `*-closed` / `*-closed-bg` |
 | 지연 | — | `#c4382e` | `text-error-delay` |
 | 예정 | `#e2f4ff` | `#2e5fd8` | `*-scheduled`(배경은 진행중과 동일) |
 | 반려 | `#ffe4f0` | `#f53488` | `*-reject` / `*-reject-bg` |

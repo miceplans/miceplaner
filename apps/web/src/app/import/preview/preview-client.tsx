@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
+import { eventStatus } from '@miceplans/contracts';
 import { Button, StatusPill, toast } from '@miceplans/ui';
 import { useImportExecute, useImportGet } from '../../../lib/api/generated/endpoints';
 import { ApiError } from '../../../lib/api';
@@ -25,8 +26,7 @@ const COLS: { label: string; w?: number }[] = [
   { label: '비고', w: 52 },
 ];
 
-const EVENT_STATUSES = ['진행중', '성공', '확인중', '만료', '제출', '보류중'] as const;
-const asStatus = (s: string): (typeof EVENT_STATUSES)[number] => EVENT_STATUSES.find((x) => x === s) ?? '진행중';
+const asStatus = (s: string): (typeof eventStatus.options)[number] => eventStatus.options.find((x) => x === s) ?? '진행중';
 
 export function PreviewClient() {
   const router = useRouter();

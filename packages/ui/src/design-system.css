@@ -84,8 +84,10 @@
   --color-error-brand: #ff4c50;
   --color-submit: #783dff;         /* 제출 상태 */
   --color-submit-bg: #f0eaff;
-  --color-expired: #7b7b7b;        /* 만료 상태 */
-  --color-expired-bg: #f1f1f1;
+  --color-expired: #7d6d3f;        /* 만료 상태 */
+  --color-expired-bg: #f6f1e2;
+  --color-closed: #7b7b7b;         /* 종료 상태 */
+  --color-closed-bg: #f1f1f1;
   --color-scheduled: #2e5fd8;      /* 예정 상태 */
   --color-reject: #f53488;         /* 반려 상태 */
   --color-reject-bg: #ffe4f0;

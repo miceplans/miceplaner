@@ -110,7 +110,7 @@ export function EventsByYearView() {
                   </div>
                 ))}
                 {[...Array(Math.max(0, 3 - g.events.length))].map((_, n) => (
-                  <div key={`empty-${n}`} className={`h-[64px] rounded-md bg-expired ${view === 'folder' ? 'w-[96px] shrink-0' : 'min-w-0 flex-1'}`} />
+                  <div key={`empty-${n}`} className={`h-[64px] rounded-md bg-closed ${view === 'folder' ? 'w-[96px] shrink-0' : 'min-w-0 flex-1'}`} />
                 ))}
               </div>
               {view === 'folder' ? <div className="h-px min-w-px flex-1" /> : null}

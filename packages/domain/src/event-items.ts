@@ -14,8 +14,8 @@ export type ItemStatus = (typeof ITEM_STATUSES)[number];
 export const PRODUCT_PARTS = ['디자인', '영상', '3D'] as const;
 export type ProductPart = (typeof PRODUCT_PARTS)[number];
 
-/** 행사 목록 상태 배지와 같은 값 (초안). */
-export const EVENT_STATUSES = ['진행중', '성공', '확인중', '만료', '제출', '보류중'] as const;
+/** 행사 목록 상태 배지와 같은 값. Figma '상태 태그' 순서를 따른다. */
+export const EVENT_STATUSES = ['진행중', '성공', '확인중', '실패', '만료', '보류중', '제출', '반려', '종료'] as const;
 export type EventStatus = (typeof EVENT_STATUSES)[number];
 
 export const NOTIFICATION_KINDS = ['assigned', 'schedule_changed', 'due_soon', 'member_changed', 'pm_transferred', 'client_application'] as const;
