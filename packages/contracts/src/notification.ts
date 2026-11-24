@@ -12,6 +12,8 @@ export const notificationDto = z.object({
   title: z.string(),
   createdAt: isoDateTime,
   readAt: isoDateTime.nullable(),
+  /** Client 가입 신청 알림의 현재 처리 상태. 일반 알림은 null이다. */
+  actionStatus: z.enum(['pending', 'approved', 'rejected']).nullable(),
 });
 export type NotificationDto = z.infer<typeof notificationDto>;
 

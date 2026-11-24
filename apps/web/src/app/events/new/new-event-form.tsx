@@ -7,8 +7,7 @@ import { Button, DatePicker, Input, SegmentControl, Select, toast } from '@micep
 import { useDirectoryClients, useDirectoryCreateClient, useEventsCreate } from '../../../lib/api/generated/endpoints';
 import type { ClientDto } from '../../../lib/api/generated/model';
 import { ApiError } from '../../../lib/api';
-
-const DEFAULT_EVENT_COLOR = '#f567a5';
+import { randomEventColor } from '../../../lib/event-color';
 
 /** 행사일 입력 방식. 하루는 날짜 하나를 시작일·종료일로 함께 저장한다. */
 type DateMode = 'single' | 'range';
@@ -77,7 +76,7 @@ export function NewEventForm() {
     if (invalid) return;
     try {
       const event = await create.mutateAsync({
-        data: { name: name.trim(), clientId, startDate, endDate: effectiveEnd, place: place.trim(), status: '진행중', priority: false, color: DEFAULT_EVENT_COLOR, budget: budget === '' ? null : Number(budget) },
+        data: { name: name.trim(), clientId, startDate, endDate: effectiveEnd, place: place.trim(), status: '진행중', priority: false, color: randomEventColor(), budget: budget === '' ? null : Number(budget) },
       });
       void queryClient.invalidateQueries();
       toast.info('행사를 추가했습니다.');

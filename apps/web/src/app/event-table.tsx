@@ -4,6 +4,7 @@ import { useEffect, useState, type DragEvent, type FormEvent } from 'react';
 import Link from 'next/link';
 import { Checkbox, DatePicker, Dialog, Input, Select, StatusPill, type StatusKey } from '@miceplans/ui';
 import { EMPTY_ATTR, type EventAttrType, useEventAttrs } from './event-attrs';
+import { eventColor } from '../lib/event-color';
 
 const A = '/assets/schedule';
 
@@ -298,7 +299,7 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
                 {e.dot ? (
                   <img alt="" src={`${A}/${e.dot}.svg`} className="size-[13px] shrink-0" />
                 ) : (
-                  <span aria-hidden style={{ backgroundColor: e.color ?? '#c8c8c8' }} className="size-[8px] shrink-0 rounded-full" />
+                  <span aria-hidden style={{ backgroundColor: eventColor(e.color, e.id) }} className="size-[8px] shrink-0 rounded-full" />
                 )}
                 <span className="whitespace-nowrap">{e.name}</span>
               </div>

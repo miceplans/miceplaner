@@ -9,8 +9,9 @@ import { FILE_TOO_LARGE_MESSAGE, MAX_FILE_BYTES, MAX_FILE_MB } from '@miceplans/
 import { ApiError, getToken } from '@/lib/api';
 import { downloadFile, getListEventFilesQueryKey, useDeleteFile, useListEventFiles, useUploadEventFile } from '@/lib/api/generated/endpoints';
 
-const STATUS_LABEL: Record<FileDto['status'], string> = { pending: '변환 중', ready: '검색 가능', failed: '변환 실패' };
-const ACCEPT = '.txt,.md,.markdown,.csv,.xlsx,.docx,.pdf';
+/** 서버가 변환할 수 있는 형식(`@miceplans/knowledge/parse`의 SUPPORTED_EXTENSIONS와 같다). */
+const EXTENSIONS = ['txt', 'md', 'markdown', 'csv', 'xlsx', 'docx', 'pdf'];
+const ACCEPT = EXTENSIONS.map((e) => `.${e}`).join(',');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const POLL_MS = 3000;
 
@@ -25,13 +26,24 @@ async function saveFile(file: Pick<FileDto, 'id' | 'name'>): Promise<void> {
 }
 
 const size = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)}MB` : `${Math.max(1, Math.round(bytes / 1024))}KB`);
+const extOf = (name: string) => (name.includes('.') ? name.split('.').pop()!.toLowerCase() : '');
+
+/** 보내기 전에 막을 수 있는 오류. 서버도 같은 기준(413·415)으로 거부한다. */
+function precheck(file: File): string | null {
+  if (!EXTENSIONS.includes(extOf(file.name))) return `[415] 지원하지 않는 형식입니다 (${EXTENSIONS.join(', ')}).`;
+  if (file.size > MAX_FILE_BYTES) return FILE_TOO_LARGE_MESSAGE;
+  return null;
+}
+
+/** 화면에만 있는 업로드 행. 올리는 중이거나 실패한 파일을 목록 위에 남겨 결과가 묻히지 않게 한다. */
+type Pending = { key: string; name: string; size: number; error?: string };
 
 /**
  * 행사 자료 파일(명세 F-10). 올린 파일은 서버가 Markdown으로 변환해 위키 검색과 AI 출처에 포함한다.
  * 세션 토큰이 없거나 행사 ID가 서버에 없으면 표시하지 않는다.
  */
 export function EventFiles({ eventId, canManage }: { eventId: string; canManage: boolean }) {
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<Pending[]>([]);
   const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const live = UUID.test(eventId) && Boolean(getToken());
@@ -55,67 +67,116 @@ export function EventFiles({ eventId, canManage }: { eventId: string; canManage:
 
   if (!live) return null;
 
-  const run = async (fn: () => Promise<unknown>) => {
-    setBusy(true);
-    try {
-      await fn();
-      await queryClient.invalidateQueries({ queryKey: getListEventFilesQueryKey(eventId) });
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : '[500] 요청에 실패했습니다.');
-    } finally {
-      setBusy(false);
+  const refresh = () => queryClient.invalidateQueries({ queryKey: getListEventFilesQueryKey(eventId) });
+  const fail = (e: unknown) => (e instanceof ApiError ? e.message : '[500] 요청에 실패했습니다.');
+
+  const uploadFiles = (picked: File[]) => {
+    for (const file of picked) {
+      const key = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const error = precheck(file);
+      setPending((list) => [...list, { key, name: file.name, size: file.size, error: error ?? undefined }]);
+      if (error) continue;
+      void upload
+        .mutateAsync({ eventId, data: { file } })
+        .then(async () => {
+          await refresh();
+          setPending((list) => list.filter((p) => p.key !== key));
+        })
+        .catch((e: unknown) => setPending((list) => list.map((p) => (p.key === key ? { ...p, error: fail(e) } : p))));
     }
   };
 
-  const uploadFile = (file: File) => {
-    // 서버(Vercel 함수 본문 상한 4.5MB)까지 보내지 않고 먼저 막는다. 서버도 같은 상한으로 413을 돌려준다.
-    if (file.size > MAX_FILE_BYTES) {
-      toast.error(FILE_TOO_LARGE_MESSAGE);
-      return;
-    }
-    void run(() => upload.mutateAsync({ eventId, data: { file } }));
-  };
+  const deleteFile = (id: string) =>
+    void remove
+      .mutateAsync({ id })
+      .then(refresh)
+      .catch((e: unknown) => toast.error(fail(e)));
+
+  const download = (file: FileDto) => void saveFile(file).catch((e: unknown) => toast.error(fail(e)));
+
+  const empty = files?.length === 0 && pending.length === 0;
+  const action = 'rounded-sm px-[6px] py-[2px] text-2xs text-fg-secondary hover:bg-surface-chip hover:text-fg';
 
   return (
     <section
       aria-label="자료 파일"
       onDragEnter={canManage ? (event) => { event.preventDefault(); setDragging(true); } : undefined}
       onDragOver={canManage ? (event) => event.preventDefault() : undefined}
-      onDragLeave={canManage ? (event) => { if (event.currentTarget === event.target) setDragging(false); } : undefined}
-      onDrop={canManage ? (event) => { event.preventDefault(); setDragging(false); const file = event.dataTransfer.files.item(0); if (file) uploadFile(file); } : undefined}
-      className={`mt-[24px] flex w-full flex-col gap-[12px] rounded-md border bg-surface p-[16px] ${dragging ? 'border-brand' : 'border-border'}`}
+      onDragLeave={canManage ? (event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); } : undefined}
+      onDrop={canManage ? (event) => { event.preventDefault(); setDragging(false); uploadFiles([...event.dataTransfer.files]); } : undefined}
+      className={`mt-[24px] flex w-full flex-col rounded-md border border-solid ${dragging ? 'border-brand bg-brand-tint' : 'border-border bg-surface'}`}
     >
-      <header className="flex items-center justify-between gap-[12px]">
-        <div className="flex flex-col gap-[2px]">
-          <h2 className="text-base font-semibold text-fg">자료 파일</h2>
-          <p className="text-2xs text-fg-secondary">txt·md·csv·xlsx·docx·pdf, 최대 {MAX_FILE_MB}MB. 파일을 끌어 놓거나 올리면 변환되어 검색과 AI 출처에 포함된다.</p>
-        </div>
+      <header className="flex h-[40px] items-center gap-[8px] px-[12px]">
+        <h2 className="text-sm font-semibold text-fg">자료 파일</h2>
+        {files && files.length > 0 && <span className="text-2xs text-fg-tertiary">{files.length}</span>}
+        <span className="flex-1" />
         {canManage && (
           <>
-            <input ref={input} type="file" accept={ACCEPT} hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadFile(f); }} />
-            <button type="button" disabled={busy} onClick={() => input.current?.click()} className="h-[32px] rounded-sm bg-brand px-[12px] text-2xs font-semibold text-fg-inverse disabled:opacity-50">파일 올리기</button>
+            <input
+              ref={input}
+              type="file"
+              multiple
+              accept={ACCEPT}
+              className="hidden"
+              onChange={(e) => {
+                const picked = [...(e.target.files ?? [])];
+                e.target.value = '';
+                uploadFiles(picked);
+              }}
+            />
+            <button
+              type="button"
+              title={`${EXTENSIONS.join(', ')} · 최대 ${MAX_FILE_MB}MB`}
+              onClick={() => input.current?.click()}
+              className="h-[26px] rounded-sm px-[8px] text-xs font-medium text-brand hover:bg-brand-tint"
+            >
+              + 파일 추가
+            </button>
           </>
         )}
       </header>
-      {files && files.length === 0 && <p className="text-2xs text-fg-secondary">올린 파일이 없다.</p>}
-      <ul className="flex flex-col divide-y divide-border">
-        {files?.map((f) => (
-          <li key={f.id} className="flex flex-wrap items-center justify-between gap-[8px] py-[8px]">
-            <div className="flex min-w-0 flex-col gap-[2px]">
-              <span className="truncate text-base text-fg">{f.name}</span>
-              <span className="text-2xs text-fg-secondary">
-                {size(f.sizeBytes)} · {STATUS_LABEL[f.status]}
-                {f.status === 'failed' && f.error ? ` — ${f.error}` : ''}
+
+      {empty && (
+        <p className="border-0 border-t border-solid border-border px-[12px] py-[10px] text-2xs text-fg-tertiary">
+          {canManage ? `파일을 끌어 놓거나 추가하세요 · 최대 ${MAX_FILE_MB}MB` : '올린 파일이 없습니다.'}
+        </p>
+      )}
+
+      {(pending.length > 0 || (files && files.length > 0)) && (
+        <ul className="m-0 flex list-none flex-col border-0 border-t border-solid border-border p-0">
+          {pending.map((p) => (
+            <li key={p.key} className="flex h-[36px] items-center gap-[8px] px-[12px]">
+              <span className={`min-w-0 flex-1 truncate text-sm ${p.error ? 'text-fg-secondary' : 'text-fg-tertiary'}`}>{p.name}</span>
+              {p.error ? (
+                <>
+                  <span role="alert" className="min-w-0 truncate text-2xs text-error" title={p.error}>{p.error}</span>
+                  <button type="button" aria-label={`${p.name} 닫기`} onClick={() => setPending((list) => list.filter((x) => x.key !== p.key))} className={action}>✕</button>
+                </>
+              ) : (
+                <span role="status" className="shrink-0 text-2xs text-fg-tertiary">올리는 중…</span>
+              )}
+            </li>
+          ))}
+          {files?.map((f) => (
+            <li key={f.id} className="group flex h-[36px] items-center gap-[8px] px-[12px] hover:bg-surface-sunken">
+              <button type="button" onClick={() => download(f)} title="원본 받기" className="min-w-0 flex-1 truncate text-left text-sm text-fg hover:underline">
+                {f.name}
+              </button>
+              {f.status === 'pending' && <span className="shrink-0 text-2xs text-fg-tertiary">변환 중</span>}
+              {f.status === 'failed' && <span className="shrink-0 text-2xs text-error" title={f.error ?? undefined}>변환 실패</span>}
+              <span className="w-[52px] shrink-0 text-right text-2xs text-fg-tertiary">{size(f.sizeBytes)}</span>
+              <span className="flex shrink-0 items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+                {f.docId && <Link href={`/wiki?doc=${f.docId}`} className={action}>문서</Link>}
+                {canManage && (
+                  <button type="button" aria-label={`${f.name} 삭제`} onClick={() => deleteFile(f.id)} className={`${action} hover:text-error`}>
+                    삭제
+                  </button>
+                )}
               </span>
-            </div>
-            <div className="flex items-center gap-[8px] text-2xs">
-              {f.docId && <Link href={`/wiki?doc=${f.docId}`} className="text-brand underline">변환 문서</Link>}
-              <button type="button" onClick={() => void run(() => saveFile(f))} className="text-fg-secondary underline">원본</button>
-              {canManage && <button type="button" disabled={busy} onClick={() => void run(() => remove.mutateAsync({ id: f.id }))} className="text-notice underline">삭제</button>}
-            </div>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

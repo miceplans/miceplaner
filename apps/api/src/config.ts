@@ -62,11 +62,12 @@ export const config = {
   /**
    * LLM 엔드포인트(GLM Coding Plan). 주소·모델은 비밀이 아니라 코드 기본값을 두고, 모델 평가 중에는 LLM_MODEL로만 바꾼다.
    * 키(LLM_API_KEY)만 서버 런타임 환경 변수로 받으며 없으면 AI 질의는 503이다.
+   * GLM 사고 모드는 응답 지연이 커서 기본으로 끄고, 평가 비교용으로만 LLM_THINKING=true로 켠다.
    */
-  get llm(): { baseUrl: string; apiKey: string; model: string } | null {
-    const { LLM_BASE_URL, LLM_API_KEY: apiKey, LLM_MODEL } = process.env;
+  get llm(): { baseUrl: string; apiKey: string; model: string; thinking: boolean } | null {
+    const { LLM_BASE_URL, LLM_API_KEY: apiKey, LLM_MODEL, LLM_THINKING } = process.env;
     if (!apiKey) return null;
-    return { baseUrl: LLM_BASE_URL || DEFAULT_LLM_BASE_URL, apiKey, model: LLM_MODEL || DEFAULT_LLM_MODEL };
+    return { baseUrl: LLM_BASE_URL || DEFAULT_LLM_BASE_URL, apiKey, model: LLM_MODEL || DEFAULT_LLM_MODEL, thinking: LLM_THINKING === 'true' };
   },
   /** 공개 인증 엔드포인트 요청 제한. 끄는 것은 테스트용이며 운영에서는 항상 켠다. */
   get rateLimitEnabled(): boolean {

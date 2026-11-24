@@ -85,8 +85,18 @@ describe('openAiCompatible', () => {
     expect(chunks.filter((c) => c.type === 'text').map((c) => (c as { delta: string }).delta).join('')).toBe('안녕');
     expect(chunks).toContainEqual({ type: 'tool_calls', calls: [{ id: 'x', name: 'search_wiki', arguments: '{"query":"a"}' }] });
     expect(chunks).toContainEqual({ type: 'usage', promptTokens: 7, completionTokens: 2 });
-    expect(body).toMatchObject({ stream: true, tools: [{ type: 'function', function: { name: 't' } }] });
+    expect(body).toMatchObject({ stream: true, thinking: { type: 'disabled' }, tools: [{ type: 'function', function: { name: 't' } }] });
     expect(JSON.stringify(body!.messages)).toContain('tool_call_id');
+  });
+  it('thinking을 켜면 사고 모드를 요청한다', async () => {
+    let body: { thinking?: unknown } | undefined;
+    const fetchFake = (async (_url: unknown, init: RequestInit) => {
+      body = JSON.parse(init.body as string);
+      return sse({ choices: [{ delta: { content: 'a' } }] });
+    }) as unknown as typeof fetch;
+    const llm = openAiCompatible({ baseUrl: 'https://llm.test', apiKey: 'k', model: 'm', fetch: fetchFake, thinking: true });
+    for await (const _ of llm.stream({ messages: [], tools: [] })) void _;
+    expect(body!.thinking).toEqual({ type: 'enabled' });
   });
   it('HTTP 오류는 응답 본문 없이 상태만 알린다', async () => {
     const llm = openAiCompatible({ baseUrl: 'https://llm.test', apiKey: 'k', model: 'm', fetch: (async () => new Response('secret detail', { status: 401 })) as typeof fetch });
@@ -99,7 +109,7 @@ describe('anthropicCompatible', () => {
   it('system 분리, tool 결과 묶기, 도구 호출 조각·사용량을 처리한다', async () => {
     let url = '';
     let headers: Record<string, string> = {};
-    let body: { system?: string; messages: { role: string; content: unknown }[]; tools?: unknown[] } | undefined;
+    let body: { system?: string; thinking?: unknown; messages: { role: string; content: unknown }[]; tools?: unknown[] } | undefined;
     const fetchFake = (async (u: string, init: RequestInit) => {
       url = u;
       headers = init.headers as Record<string, string>;
@@ -126,6 +136,7 @@ describe('anthropicCompatible', () => {
     expect(url).toBe('https://llm.test/api/anthropic/v1/messages');
     expect(headers['x-api-key']).toBe('k');
     expect(body!.system).toBe('sys');
+    expect(body!.thinking).toEqual({ type: 'disabled' });
     expect(body!.messages).toHaveLength(3);
     expect((body!.messages[2]!.content as unknown[]).length).toBe(2);
     expect(body!.tools).toEqual([{ name: 't', description: 'd', input_schema: { type: 'object' } }]);
