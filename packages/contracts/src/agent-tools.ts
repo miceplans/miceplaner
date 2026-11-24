@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ITEM_KINDS, ITEM_STATUSES, NOTIFICATION_KINDS, PROPOSAL_KINDS, type ProposalKind } from '@miceplans/domain';
+import { EVENT_STATUSES, ITEM_KINDS, ITEM_STATUSES, NOTIFICATION_KINDS, PROPOSAL_KINDS, type ProposalKind } from '@miceplans/domain';
 import { isoDate, uuid } from './common';
 import { searchHitDto } from './knowledge';
 
@@ -29,7 +29,8 @@ export const PROPOSAL_PAYLOADS = { task_drafts: taskDraftsPayload, notification:
 
 const summary = z.string().trim().min(1).max(300).describe('사람이 승인 여부를 판단할 한 줄 요약');
 
-export const queryEventsInput = z.object({ year: z.number().int().min(2000).max(2100).optional(), status: z.string().optional(), clientId: uuid.optional() });
+// 상태는 DB 값과 정확히 일치해야 걸러지므로 열거형으로 준다. 자유 문자열이면 모델이 '보류중' 대신 '보류'를 보내 빈 결과가 된다.
+export const queryEventsInput = z.object({ year: z.number().int().min(2000).max(2100).optional(), status: z.enum(EVENT_STATUSES).optional(), clientId: uuid.optional() });
 export const queryTasksInput = z.object({
   eventId: uuid,
   kind: z.enum(ITEM_KINDS).optional(),

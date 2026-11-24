@@ -57,6 +57,35 @@ describe('runAgent', () => {
     expect(leaked).not.toContain('hunter2');
     expect(leaked).toContain('도구 실행에 실패');
   });
+  it('한 단계의 도구 호출은 동시에 실행하고 결과는 호출 순서대로 모델에 돌려준다', async () => {
+    const seen: ChatMsg[][] = [];
+    let running = 0;
+    let peak = 0;
+    const slow = (ms: number, value: unknown) => async () => {
+      running++;
+      peak = Math.max(peak, running);
+      await new Promise((r) => setTimeout(r, ms));
+      running--;
+      return value;
+    };
+    const both: LlmChunk = { type: 'tool_calls', calls: [{ id: 'a', name: 'query_events', arguments: '{}' }, { id: 'b', name: 'search_wiki', arguments: '{"query":"q"}' }] };
+    const out = await runAgent({ llm: scripted([[both], []], seen), messages: [], handlers: handlers({ query_events: slow(30, 'first'), search_wiki: slow(1, 'second') }) });
+    expect(peak).toBe(2);
+    expect(seen[1]!.slice(-2)).toEqual([{ role: 'tool', toolCallId: 'a', content: '"first"' }, { role: 'tool', toolCallId: 'b', content: '"second"' }]);
+    expect(out.toolLog.map((t) => t.name)).toEqual(['query_events', 'search_wiki']);
+  });
+  it('LLM 재시도 알림을 onRetry로 전달한다', async () => {
+    const retries: number[] = [];
+    const llm: LlmClient = {
+      model: 'fake',
+      async *stream({ onRetry }) {
+        onRetry?.({ attempt: 1, delayMs: 1500, status: 429 });
+        yield { type: 'text', delta: '답' };
+      },
+    };
+    await runAgent({ llm, messages: [], handlers: handlers(), onRetry: (i) => retries.push(i.delayMs) });
+    expect(retries).toEqual([1500]);
+  });
   it('단계 한도를 넘으면 멈춘다', async () => {
     const llm = scripted(Array.from({ length: 10 }, () => [call('query_events', {})]));
     const out = await runAgent({ llm, messages: [], handlers: handlers(), maxSteps: 3 });

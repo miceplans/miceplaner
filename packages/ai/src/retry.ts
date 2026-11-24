@@ -14,18 +14,23 @@ const wait = (ms: number, signal?: AbortSignal | null) =>
     signal?.addEventListener('abort', done, { once: true });
   });
 
+/** 재시도 직전에 알린다. 대기 동안 화면에 아무것도 오지 않으므로 호출 쪽이 사용자에게 상태를 보여 줄 수 있게 한다. */
+export type RetryInfo = { attempt: number; delayMs: number; status: number };
+
 export async function fetchWithRetry(
   doFetch: typeof fetch,
   url: string,
   init: RequestInit,
-  { retries = 3, baseDelayMs = 1500 }: { retries?: number; baseDelayMs?: number } = {},
+  { retries = 3, baseDelayMs = 1500, onRetry }: { retries?: number; baseDelayMs?: number; onRetry?: (info: RetryInfo) => void } = {},
 ): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     const res = await doFetch(url, init);
     if (!TRANSIENT.has(res.status) || attempt >= retries) return res;
     if (res.status === 429 && /"code"\s*:\s*"?1113"?/.test(await res.clone().text())) return res;
     await res.body?.cancel();
-    await wait(baseDelayMs * 2 ** attempt, init.signal);
+    const delayMs = baseDelayMs * 2 ** attempt;
+    onRetry?.({ attempt: attempt + 1, delayMs, status: res.status });
+    await wait(delayMs, init.signal);
     init.signal?.throwIfAborted();
   }
 }

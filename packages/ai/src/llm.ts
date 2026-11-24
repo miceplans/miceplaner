@@ -1,4 +1,4 @@
-import { fetchWithRetry } from './retry';
+import { fetchWithRetry, type RetryInfo } from './retry';
 export type ToolCall = { id: string; name: string; arguments: string };
 
 export type ChatMsg =
@@ -16,7 +16,7 @@ export type LlmChunk =
 /** 모델 교체를 가능하게 하는 어댑터 경계 (ADR). 구현은 GLM 등 OpenAI 호환 API 하나다. */
 export interface LlmClient {
   readonly model: string;
-  stream(req: { messages: readonly ChatMsg[]; tools: readonly ToolSpec[]; signal?: AbortSignal }): AsyncIterable<LlmChunk>;
+  stream(req: { messages: readonly ChatMsg[]; tools: readonly ToolSpec[]; signal?: AbortSignal; onRetry?: (info: RetryInfo) => void }): AsyncIterable<LlmChunk>;
 }
 
 /**
@@ -41,7 +41,7 @@ const toWire = (m: ChatMsg) => {
 export function openAiCompatible({ baseUrl, apiKey, model, fetch: doFetch = fetch, temperature = 0.2, thinking = false }: OpenAiCompatOptions): LlmClient {
   return {
     model,
-    async *stream({ messages, tools, signal }) {
+    async *stream({ messages, tools, signal, onRetry }) {
       const res = await fetchWithRetry(doFetch, `${baseUrl.replace(/\/$/, '')}/chat/completions`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
@@ -55,7 +55,7 @@ export function openAiCompatible({ baseUrl, apiKey, model, fetch: doFetch = fetc
           ...(tools.length ? { tools: tools.map((t) => ({ type: 'function', function: t })) } : {}),
         }),
         signal,
-      });
+      }, { onRetry });
       if (!res.ok || !res.body) throw new Error(`LLM 요청 실패 (HTTP ${res.status})`);
 
       const pending = new Map<number, ToolCall>();
