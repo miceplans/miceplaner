@@ -120,6 +120,28 @@ describe('인증 (F-01)', () => {
     expect(login.body.user).toMatchObject({ name: '홍길동', role: 'client' });
     approvedClientUserId = login.body.user.id;
   });
+  it('신청 회사명과 같은 고객사가 있으면 승인 때 연결되어 그 고객사의 행사가 포털에 보인다', async () => {
+    const application = await api().post('/auth/client-applications').send({
+      companyName: ' 고객사 ', applicantName: '김연결', email: 'linked@x.test', password: 'client-long-password',
+    }).expect(201);
+    await api().post(`/auth/client-applications/${application.body.id}/approve`).set(as('admin')).expect(200);
+    const login = await api().post('/auth/client/login').send({ email: 'linked@x.test', password: 'client-long-password' }).expect(200);
+    const portal = await api().get('/portal/events').set({ Authorization: `Bearer ${login.body.accessToken}` }).expect(200);
+    expect(portal.body.map((e: { eventId: string }) => e.eventId).sort()).toEqual([EVENT, OTHER_EVENT].sort());
+    const accounts = await api().get('/client-accounts').set(as('staff')).expect(200);
+    expect(accounts.body).toEqual(expect.arrayContaining([expect.objectContaining({ id: login.body.user.id, clientId: CO, companyName: null })]));
+  });
+  it('Super Admin만 Client 계정을 고객사에 연결·해제하고 감사 로그를 남긴다', async () => {
+    await api().get('/client-accounts').set(as('client')).expect(403);
+    await api().put(`/client-accounts/${approvedClientUserId}/client`).set(as('staff')).send({ clientId: CO }).expect(403);
+    await api().put(`/client-accounts/${U.staff}/client`).set(as('admin')).send({ clientId: CO }).expect(404);
+    const linked = await api().put(`/client-accounts/${approvedClientUserId}/client`).set(as('admin')).send({ clientId: CO }).expect(200);
+    expect(linked.body).toMatchObject({ id: approvedClientUserId, clientId: CO, companyName: '테스트사' });
+    const unlinked = await api().put(`/client-accounts/${approvedClientUserId}/client`).set(as('admin')).send({ clientId: null }).expect(200);
+    expect(unlinked.body).toMatchObject({ clientId: null });
+    const audit = await admin.query(`SELECT detail->>'clientId' AS "clientId" FROM audit_log WHERE action = 'client.account.link' AND detail->>'userId' = $1 ORDER BY id`, [approvedClientUserId]);
+    expect(audit.rows).toEqual([{ clientId: CO }, { clientId: null }]);
+  });
   it('비밀번호를 변경한다', async () => {
     const login = await api().post('/auth/login').send({ email: 'new@x.test', password: 'long-enough-pw' }).expect(200);
     const h = { Authorization: `Bearer ${login.body.accessToken}` };

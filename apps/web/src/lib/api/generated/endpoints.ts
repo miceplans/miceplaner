@@ -32,6 +32,7 @@ import type {
   ChangeEventMemberRoleBody,
   ChangePasswordBody,
   ChatBody,
+  ClientAccountDto,
   ClientApplicationDto,
   ClientDto,
   CreateClientApplicationBody,
@@ -39,6 +40,7 @@ import type {
   CreateDocBody,
   CreateEventBody,
   CreateItemBody,
+  CreateNoticeBody,
   DocPageDto,
   EventDocDto,
   EventDto,
@@ -55,10 +57,12 @@ import type {
   LeaveBalancesParams,
   LeaveListParams,
   LeaveRecordDto,
+  LinkClientAccountBody,
   ListEventFilesParams,
   LoginBody,
   MarkNotificationsReadBody,
   MoveFileBody,
+  NoticeDto,
   NotificationDto,
   NotificationsListParams,
   NotificationsMarkRead200,
@@ -71,11 +75,11 @@ import type {
   RequestLeaveBody,
   RescheduleItemBody,
   SaveDocBodyBody,
-  SearchHitDto,
-  SetClientVisibleBody,
   SaveScheduleNoteBody,
   ScheduleNoteDto,
   ScheduleNotesGetParams,
+  SearchHitDto,
+  SetClientVisibleBody,
   SetDocVisibilityBody,
   StaffAccountDto,
   TransferPmBody,
@@ -5098,6 +5102,337 @@ export const useLeaveSetWeekendWork = <TError = unknown,
       return useMutation(getLeaveSetWeekendWorkMutationOptions(options), queryClient);
     }
 
+export const getNoticesListUrl = () => {
+
+
+
+
+  return `/notices`
+}
+
+/**
+ * @summary 내가 받은 공지 목록 (닫지 않은 공지가 최상단, 전체 공지는 내부 직원 전원·행사 공지는 행사 멤버)
+ */
+export const noticesList = async ( options?: Parameters<typeof http>[1]): Promise<NoticeDto[]> => {
+
+  return http<NoticeDto[]>(getNoticesListUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getNoticesListQueryKey = () => {
+    return [
+    `/notices`
+    ] as const;
+    }
+
+
+export const getNoticesListQueryOptions = <TData = Awaited<ReturnType<typeof noticesList>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof noticesList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getNoticesListQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof noticesList>>> = ({ signal }) => noticesList({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof noticesList>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type NoticesListQueryResult = NonNullable<Awaited<ReturnType<typeof noticesList>>>
+export type NoticesListQueryError = unknown
+
+
+/** @summary 내가 받은 공지 목록 (닫지 않은 공지가 최상단, 전체 공지는 내부 직원 전원·행사 공지는 행사 멤버) */
+export function useNoticesList<TData = Awaited<ReturnType<typeof noticesList>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof noticesList>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof noticesList>>,
+          TError,
+          Awaited<ReturnType<typeof noticesList>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 내가 받은 공지 목록 (닫지 않은 공지가 최상단, 전체 공지는 내부 직원 전원·행사 공지는 행사 멤버) */
+export function useNoticesList<TData = Awaited<ReturnType<typeof noticesList>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof noticesList>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof noticesList>>,
+          TError,
+          Awaited<ReturnType<typeof noticesList>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 내가 받은 공지 목록 (닫지 않은 공지가 최상단, 전체 공지는 내부 직원 전원·행사 공지는 행사 멤버) */
+export function useNoticesList<TData = Awaited<ReturnType<typeof noticesList>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof noticesList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 내가 받은 공지 목록 (닫지 않은 공지가 최상단, 전체 공지는 내부 직원 전원·행사 공지는 행사 멤버) */
+export function useNoticesList<TData = Awaited<ReturnType<typeof noticesList>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof noticesList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getNoticesListQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getNoticesCreateUrl = () => {
+
+
+
+
+  return `/notices`
+}
+
+/**
+ * @summary 공지 올리기 (전체 공지는 Super Admin, 행사 공지는 그 행사의 PM·AM과 Super Admin)
+ */
+export const noticesCreate = async (createNoticeBody: CreateNoticeBody, options?: Parameters<typeof http>[1]): Promise<NoticeDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<NoticeDto>(getNoticesCreateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createNoticeBody)
+  }
+);}
+
+
+
+
+
+export const getNoticesCreateMutationKey = () => ['noticesCreate'] as const;
+
+export const getNoticesCreateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof noticesCreate>>, TError,NoticesCreateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof noticesCreate>>, TError,NoticesCreateMutationVariables, TContext> => {
+
+const mutationKey = getNoticesCreateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof noticesCreate>>, NoticesCreateMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  noticesCreate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NoticesCreateMutationResult = NonNullable<Awaited<ReturnType<typeof noticesCreate>>>
+    export type NoticesCreateMutationBody = CreateNoticeBody
+    export type NoticesCreateMutationError = unknown
+    export type NoticesCreateMutationVariables = {data: CreateNoticeBody}
+
+    /** @summary 공지 올리기 (전체 공지는 Super Admin, 행사 공지는 그 행사의 PM·AM과 Super Admin) */
+export const useNoticesCreate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof noticesCreate>>, TError,NoticesCreateMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof noticesCreate>>,
+        TError,
+        NoticesCreateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getNoticesCreateMutationOptions(options), queryClient);
+    }
+
+export const getNoticesRemoveUrl = (id: string,) => {
+
+
+
+
+  return `/notices/${id}`
+}
+
+/**
+ * @summary 공지 삭제 (soft delete, 작성자와 Super Admin)
+ */
+export const noticesRemove = async (id: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getNoticesRemoveUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getNoticesRemoveMutationKey = () => ['noticesRemove'] as const;
+
+export const getNoticesRemoveMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof noticesRemove>>, TError,NoticesRemoveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof noticesRemove>>, TError,NoticesRemoveMutationVariables, TContext> => {
+
+const mutationKey = getNoticesRemoveMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof noticesRemove>>, NoticesRemoveMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  noticesRemove(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NoticesRemoveMutationResult = NonNullable<Awaited<ReturnType<typeof noticesRemove>>>
+
+    export type NoticesRemoveMutationError = unknown
+    export type NoticesRemoveMutationVariables = {id: string}
+
+    /** @summary 공지 삭제 (soft delete, 작성자와 Super Admin) */
+export const useNoticesRemove = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof noticesRemove>>, TError,NoticesRemoveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof noticesRemove>>,
+        TError,
+        NoticesRemoveMutationVariables,
+        TContext
+      > => {
+      return useMutation(getNoticesRemoveMutationOptions(options), queryClient);
+    }
+
+export const getNoticesDismissUrl = (id: string,) => {
+
+
+
+
+  return `/notices/${id}/dismiss`
+}
+
+/**
+ * @summary 공지 닫기 (받은 사람, 닫기 전까지 목록 최상단에 고정)
+ */
+export const noticesDismiss = async (id: string, options?: Parameters<typeof http>[1]): Promise<NoticeDto> => {
+
+  return http<NoticeDto>(getNoticesDismissUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getNoticesDismissMutationKey = () => ['noticesDismiss'] as const;
+
+export const getNoticesDismissMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof noticesDismiss>>, TError,NoticesDismissMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof noticesDismiss>>, TError,NoticesDismissMutationVariables, TContext> => {
+
+const mutationKey = getNoticesDismissMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof noticesDismiss>>, NoticesDismissMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  noticesDismiss(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type NoticesDismissMutationResult = NonNullable<Awaited<ReturnType<typeof noticesDismiss>>>
+
+    export type NoticesDismissMutationError = unknown
+    export type NoticesDismissMutationVariables = {id: string}
+
+    /** @summary 공지 닫기 (받은 사람, 닫기 전까지 목록 최상단에 고정) */
+export const useNoticesDismiss = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof noticesDismiss>>, TError,NoticesDismissMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof noticesDismiss>>,
+        TError,
+        NoticesDismissMutationVariables,
+        TContext
+      > => {
+      return useMutation(getNoticesDismissMutationOptions(options), queryClient);
+    }
+
 export const getDocsSetVisibilityUrl = (eventId: string,
     docId: string,) => {
 
@@ -6007,6 +6342,194 @@ export const useDirectoryCreateClient = <TError = unknown,
         TContext
       > => {
       return useMutation(getDirectoryCreateClientMutationOptions(options), queryClient);
+    }
+
+export const getClientAccountsListUrl = () => {
+
+
+
+
+  return `/client-accounts`
+}
+
+/**
+ * @summary 승인된 Client 계정과 연결된 고객사 목록 (내부 직원)
+ */
+export const clientAccountsList = async ( options?: Parameters<typeof http>[1]): Promise<ClientAccountDto[]> => {
+
+  return http<ClientAccountDto[]>(getClientAccountsListUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getClientAccountsListQueryKey = () => {
+    return [
+    `/client-accounts`
+    ] as const;
+    }
+
+
+export const getClientAccountsListQueryOptions = <TData = Awaited<ReturnType<typeof clientAccountsList>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientAccountsList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getClientAccountsListQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof clientAccountsList>>> = ({ signal }) => clientAccountsList({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof clientAccountsList>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ClientAccountsListQueryResult = NonNullable<Awaited<ReturnType<typeof clientAccountsList>>>
+export type ClientAccountsListQueryError = unknown
+
+
+/** @summary 승인된 Client 계정과 연결된 고객사 목록 (내부 직원) */
+export function useClientAccountsList<TData = Awaited<ReturnType<typeof clientAccountsList>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientAccountsList>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof clientAccountsList>>,
+          TError,
+          Awaited<ReturnType<typeof clientAccountsList>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 승인된 Client 계정과 연결된 고객사 목록 (내부 직원) */
+export function useClientAccountsList<TData = Awaited<ReturnType<typeof clientAccountsList>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientAccountsList>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof clientAccountsList>>,
+          TError,
+          Awaited<ReturnType<typeof clientAccountsList>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 승인된 Client 계정과 연결된 고객사 목록 (내부 직원) */
+export function useClientAccountsList<TData = Awaited<ReturnType<typeof clientAccountsList>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientAccountsList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 승인된 Client 계정과 연결된 고객사 목록 (내부 직원) */
+export function useClientAccountsList<TData = Awaited<ReturnType<typeof clientAccountsList>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof clientAccountsList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getClientAccountsListQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getClientAccountsLinkUrl = (id: string,) => {
+
+
+
+
+  return `/client-accounts/${id}/client`
+}
+
+/**
+ * @summary Client 계정을 고객사에 연결·해제 (Super Admin, 감사 로그 대상, 명세 F-07)
+ */
+export const clientAccountsLink = async (id: string,
+    linkClientAccountBody: LinkClientAccountBody, options?: Parameters<typeof http>[1]): Promise<ClientAccountDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<ClientAccountDto>(getClientAccountsLinkUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(linkClientAccountBody)
+  }
+);}
+
+
+
+
+
+export const getClientAccountsLinkMutationKey = () => ['clientAccountsLink'] as const;
+
+export const getClientAccountsLinkMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clientAccountsLink>>, TError,ClientAccountsLinkMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof clientAccountsLink>>, TError,ClientAccountsLinkMutationVariables, TContext> => {
+
+const mutationKey = getClientAccountsLinkMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clientAccountsLink>>, ClientAccountsLinkMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  clientAccountsLink(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClientAccountsLinkMutationResult = NonNullable<Awaited<ReturnType<typeof clientAccountsLink>>>
+    export type ClientAccountsLinkMutationBody = LinkClientAccountBody
+    export type ClientAccountsLinkMutationError = unknown
+    export type ClientAccountsLinkMutationVariables = {id: string;data: LinkClientAccountBody}
+
+    /** @summary Client 계정을 고객사에 연결·해제 (Super Admin, 감사 로그 대상, 명세 F-07) */
+export const useClientAccountsLink = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clientAccountsLink>>, TError,ClientAccountsLinkMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof clientAccountsLink>>,
+        TError,
+        ClientAccountsLinkMutationVariables,
+        TContext
+      > => {
+      return useMutation(getClientAccountsLinkMutationOptions(options), queryClient);
     }
 
 export const getImportExcelUploadUrl = () => {

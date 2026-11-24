@@ -10,6 +10,7 @@ export const realtimeEmitBody = z.discriminatedUnion('type', [
   z.object({ type: z.literal('notification.new'), userId: z.uuid() }),
   z.object({ type: z.literal('member-access.granted'), eventId: z.uuid(), userId: z.uuid() }),
   z.object({ type: z.literal('member-access.revoked'), eventId: z.uuid(), userId: z.uuid() }),
+  z.object({ type: z.literal('notice.new'), eventId: z.uuid().nullable() }),
 ]);
 export type RealtimeEmitBody = z.infer<typeof realtimeEmitBody>;
 
