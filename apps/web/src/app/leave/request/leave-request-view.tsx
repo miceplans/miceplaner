@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DatePicker, FlowTopbar, PageFrame, Select, Textarea, toast } from '@miceplans/ui';
 import { LEAVE_KINDS, LEAVE_TODAY, LEAVE_ME, remainingOf, type LeaveEmployee, type LeaveKind } from '../data';
 import { useWorkCheck } from '../use-work-check';
@@ -62,18 +62,15 @@ export function LeaveRequestView() {
   const isComp = kind === 'comp';
   const perDay = LEAVE_KINDS.find((k) => k.kind === kind)?.days ?? 1;
   const multiDay = perDay === 1;
-  const days = multiDay ? weekdaysBetween(start, end) : perDay;
+  // 날짜 범위를 도는 계산은 입력이 바뀔 때만 실행한다.
+  const days = useMemo(() => (multiDay ? weekdaysBetween(start, end) : perDay), [multiDay, start, end, perDay]);
   const remaining = isComp ? compRemaining : remainingOf(ME) - submittedDays;
-  const error =
-    days <= 0
-      ? '[400] 사용 일수가 0일입니다. 날짜를 확인해 주세요.'
-      : isComp && compEarned === 0
-        ? '[400] 주말 근무를 체크하면 대휴 1일이 발생합니다.'
-        : days > remaining
-          ? isComp
-            ? '[400] 잔여 대휴를 초과했습니다.'
-            : '[400] 잔여 연차를 초과했습니다.'
-          : null;
+  const error = useMemo(() => {
+    if (days <= 0) return '[400] 사용 일수가 0일입니다. 날짜를 확인해 주세요.';
+    if (isComp && compEarned === 0) return '[400] 주말 근무를 체크하면 대휴 1일이 발생합니다.';
+    if (days > remaining) return isComp ? '[400] 잔여 대휴를 초과했습니다.' : '[400] 잔여 연차를 초과했습니다.';
+    return null;
+  }, [days, isComp, compEarned, remaining]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();

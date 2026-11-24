@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { getLocalStore } from '../../../lib/local-store';
 
 type Grid = string[][];
 
@@ -51,37 +52,36 @@ async function readFile(file: File): Promise<Grid> {
   return rows.map((r) => r.map((v) => (v == null ? '' : v instanceof Date ? v.toISOString().slice(0, 10) : String(v))));
 }
 
-function load(eventId: string): Grid {
-  try {
-    const raw = window.localStorage.getItem(lsKey(eventId));
-    if (raw) return normalize(JSON.parse(raw) as Grid);
-  } catch {
-    // 저장소 접근 불가 시 빈 표로 시작함
-  }
-  return normalize([]);
+function validGrid(raw: unknown): Grid | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.map((row) => (Array.isArray(row) ? row.map((cell) => String(cell ?? '')) : []));
 }
 
-/** 엑셀로 올린 행사 정보를 엑셀 모양 표에서 바로 고친다. 편집 즉시 저장된다. */
+/** 엑셀로 올린 행사 정보를 엑셀 모양 표에서 바로 고친다. 편집은 잠시 멈추면 저장된다. */
 export function EventInfoSheet({ eventId, canEdit = true }: { eventId: string; canEdit?: boolean }) {
+  const store = getLocalStore<Grid>({ key: lsKey(eventId), fallback: normalize([]), validate: validGrid });
   const [grid, setGrid] = useState<Grid>(() => normalize([]));
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const refs = useRef(new Map<string, HTMLInputElement>());
 
+  // 저장값은 hydration 이후에 적용해 서버 렌더 결과와 맞춘다. 행사 id가 없으면 저장 자체를 건드리지 않는다.
   useEffect(() => {
-    setGrid(load(eventId));
-    setReady(true);
-  }, [eventId]);
-
-  useEffect(() => {
-    if (!ready) return;
-    try {
-      window.localStorage.setItem(lsKey(eventId), JSON.stringify(grid));
-    } catch {
-      // 저장 실패해도 화면 편집은 계속됨
+    if (!eventId) {
+      setGrid(normalize([]));
+      setReady(false);
+      return;
     }
-  }, [grid, ready, eventId]);
+    setGrid(normalize(store.get()));
+    setReady(true);
+  }, [store, eventId]);
+
+  // 키 입력마다 디스크를 직접 쓰지 않고 저장소에 맡겨 지연 저장·pagehide 비우기를 쓴다.
+  useEffect(() => {
+    if (!ready || !eventId) return;
+    store.set(grid);
+  }, [grid, ready, store, eventId]);
 
   const set = (r: number, c: number, v: string) =>
     setGrid((g) => g.map((row, ri) => (ri === r ? row.map((x, ci) => (ci === c ? v : x)) : row)));
@@ -138,7 +138,7 @@ export function EventInfoSheet({ eventId, canEdit = true }: { eventId: string; c
   return (
     <div className="mt-[24px] flex w-full flex-col gap-[12px]">
       <div className="flex items-center gap-[8px]">
-        <p className="m-0 mr-auto text-sm text-fg-secondary">셀을 눌러 바로 편집. 엑셀에서 복사한 내용 붙여넣기 가능. 편집 즉시 저장됨.</p>
+        <p className="m-0 mr-auto text-sm text-fg-secondary">셀을 눌러 바로 편집. 엑셀에서 복사한 내용 붙여넣기 가능. 입력을 멈추면 자동 저장됨.</p>
         {canEdit && (
           <>
             <input ref={input} type="file" accept=".xlsx,.csv" className="hidden" onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} />

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SidebarRecentProvider, SidebarUserProvider } from '@miceplans/ui/sidebar';
+import { SidebarRecentProvider, SidebarUserProvider, type SidebarUser } from '@miceplans/ui/sidebar';
 import { ApiError, getToken } from '../lib/api';
 import { useEventsList, useGetMe } from '../lib/api/generated/endpoints';
 import { DesktopNotifications } from './desktop-notifications';
@@ -14,7 +14,12 @@ import { DesktopNotifications } from './desktop-notifications';
 /** 로그인한 경우에만 내 정보를 조회해 사이드바 프로필에 전달한다. */
 function SidebarUser({ children }: { children: ReactNode }) {
   const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
-  return <SidebarUserProvider value={me.data ? { name: me.data.name, email: me.data.email, jobTitle: me.data.jobTitle, team: me.data.team, subTeam: me.data.subTeam, role: me.data.role } : null}>{children}</SidebarUserProvider>;
+  // value를 매번 새로 만들면 사이드바를 쓰는 컴포넌트가 매번 다시 렌더링된다.
+  const value = useMemo<SidebarUser | null>(
+    () => (me.data ? { name: me.data.name, email: me.data.email, jobTitle: me.data.jobTitle, team: me.data.team, subTeam: me.data.subTeam, role: me.data.role } : null),
+    [me.data],
+  );
+  return <SidebarUserProvider value={value}>{children}</SidebarUserProvider>;
 }
 
 const RECENT_DOTS = ['dot-pink', 'dot-red'];

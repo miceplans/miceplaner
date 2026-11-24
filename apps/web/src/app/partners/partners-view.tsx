@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlowTopbar, Input, PageFrame, Select, Textarea } from '@miceplans/ui';
 import { PARTNER_FIELDS, PARTNER_FIELD_BADGE, PARTNERS, type Partner, type PartnerField } from '../../data/partners';
 
@@ -39,15 +39,39 @@ export function PartnersView() {
     setLoaded(true);
   }, []);
 
-  useEffect(() => {
-    if (!loaded) return;
+  // 타이핑·셀 수정마다 디스크에 쓰지 않도록 마지막 변경만 잠시 뒤에 저장하고, 페이지를 떠날 때 즉시 비운다.
+  const pendingSave = useRef<{ timer: number; fields: PartnerField[]; partners: Partner[] } | null>(null);
+  const flush = useCallback(() => {
+    const pending = pendingSave.current;
+    if (!pending) return;
+    window.clearTimeout(pending.timer);
+    pendingSave.current = null;
     try {
-      window.localStorage.setItem(FIELDS_KEY, JSON.stringify(fields));
-      window.localStorage.setItem(LIST_KEY, JSON.stringify(partners));
+      window.localStorage.setItem(FIELDS_KEY, JSON.stringify(pending.fields));
+      window.localStorage.setItem(LIST_KEY, JSON.stringify(pending.partners));
     } catch {
       /* 저장 실패는 무시한다. */
     }
-  }, [fields, partners, loaded]);
+  }, []);
+  const persist = useCallback(
+    (nextFields: PartnerField[], nextPartners: Partner[]) => {
+      if (pendingSave.current) window.clearTimeout(pendingSave.current.timer);
+      pendingSave.current = { fields: nextFields, partners: nextPartners, timer: window.setTimeout(flush, 400) };
+    },
+    [flush],
+  );
+  useEffect(() => {
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, [flush]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    persist(fields, partners);
+  }, [fields, partners, loaded, persist]);
 
   const commit = () => {
     const name = draft.trim();

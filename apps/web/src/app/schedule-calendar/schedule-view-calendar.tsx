@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MonthCalendar, PERSONAL_TODOS } from '@miceplans/ui';
+import { MonthCalendar, usePersonalTodos } from '@miceplans/ui';
 import { getToken } from '../../lib/api';
 import { useGetMe } from '../../lib/api/generated/endpoints';
 import { useScheduleNoteStore } from './schedule-note-store';
 
 const LS_TODOS = 'miceplans:schedule-calendar:todo';
+const LS_CURSOR = 'miceplans.schedule-calendar.cursor';
 
 /** 저장된 내 할 일 표시 여부를 읽는다. 저장값이 없거나 깨지면 표시한다. */
 function loadTodoPref(): boolean {
@@ -17,6 +18,24 @@ function loadTodoPref(): boolean {
     // 깨진 저장값은 무시하고 기본값(표시)을 쓴다
   }
   return true;
+}
+
+/** 저장된 커서 월을 읽는다. 유효하지 않으면 이번 달을 쓴다. */
+function loadCursor(): { year: number; month: number } {
+  try {
+    const raw = window.localStorage.getItem(LS_CURSOR);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    if (parsed && typeof parsed === 'object') {
+      const { year, month } = parsed as { year?: unknown; month?: unknown };
+      if (typeof year === 'number' && Number.isInteger(year) && typeof month === 'number' && month >= 1 && month <= 12) {
+        return { year, month };
+      }
+    }
+  } catch {
+    // 깨진 저장값은 무시한다
+  }
+  const now = new Date();
+  return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 
 /**
@@ -50,9 +69,27 @@ export function ScheduleViewCalendar({
     }
   }, [todosOn]);
 
-  const todos = todosOn ? PERSONAL_TODOS : [];
+  // 이전/다음 달로 옮긴 커서 월을 저장해 새로고침 후에도 그 월을 보여준다.
+  // 첫 렌더는 서버 결과와 맞추고, hydration 뒤 저장값을 적용한다.
+  const [cursor, setCursor] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
+  useEffect(() => {
+    setCursor(loadCursor());
+  }, []);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(LS_CURSOR, JSON.stringify(cursor));
+    } catch {
+      // 저장 실패는 무시한다
+    }
+  }, [cursor]);
+
+  const personalTodos = usePersonalTodos();
+  const todos = todosOn ? personalTodos.todos : [];
   if (mine) {
-    return <MonthCalendar gridGap={gridGap} padX={padX} personal todos={todos} peekMembers={peekMembers} peekStore={peekStore} />;
+    return <MonthCalendar gridGap={gridGap} padX={padX} personal todos={todos} initialMonth={cursor} onMonthChange={setCursor} peekMembers={peekMembers} peekStore={peekStore} />;
   }
 
   return (
@@ -60,6 +97,8 @@ export function ScheduleViewCalendar({
       gridGap={gridGap}
       padX={padX}
       todos={todos}
+      initialMonth={cursor}
+      onMonthChange={setCursor}
       peekMembers={peekMembers}
       peekStore={peekStore}
       headerAddon={

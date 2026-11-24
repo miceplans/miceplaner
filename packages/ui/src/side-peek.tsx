@@ -559,6 +559,11 @@ export function SidePeekPanel({
   }, []);
 
   useEffect(() => {
+    window.addEventListener('pagehide', flush);
+    return () => window.removeEventListener('pagehide', flush);
+  }, [flush]);
+
+  useEffect(() => {
     if (!store) {
       setContent(EMPTY_CONTENT);
       setLoadState('ready');

@@ -7,8 +7,45 @@ import { EMPTY_ATTR, type EventAttrType, useEventAttrs } from './event-attrs';
 
 const A = '/assets/schedule';
 
-// 오늘 기준 D-day 계산에 사용한다.
-const TODAY = new Date(new Date().setHours(0, 0, 0, 0));
+const DEFAULT_COLS: ColKey[] = ['period', 'client', 'pm', 'am', 'design', 'status', 'place'];
+
+const COLS_KEY = 'miceplans.event-table.cols';
+const ORDER_KEY = 'miceplans.event-table.order';
+
+/** 저장된 열 순서를 읽는다. 알 수 없는 열은 버리고 빠진 기본 열은 뒤에 채운다. */
+function loadCols(): ColKey[] {
+  try {
+    const raw = window.localStorage.getItem(COLS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) {
+        const valid = parsed.filter((key): key is ColKey => key in COL_DEFS);
+        return [...valid, ...DEFAULT_COLS.filter((key) => !valid.includes(key))];
+      }
+    }
+  } catch {
+    /* 저장값이 깨져 있으면 기본 순서로 돌아간다. */
+  }
+  return DEFAULT_COLS;
+}
+
+function loadOrder(): string[] {
+  try {
+    const raw = window.localStorage.getItem(ORDER_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(parsed)) return parsed.filter((id): id is string => typeof id === 'string');
+  } catch {
+    /* 동일 */
+  }
+  return [];
+}
+
+/** 저장된 id 순서를 행에 적용한다. 목록에 없는 id는 버리고, 저장에 없는 새 행은 뒤에 둔다. */
+function applyOrder<T extends { id: string }>(list: T[], ids: string[]): T[] {
+  const byId = new Map(list.map((item) => [item.id, item]));
+  const ordered = ids.map((id) => byId.get(id)).filter((item): item is T => !!item);
+  return [...ordered, ...list.filter((item) => !ids.includes(item.id))];
+}
 
 export type EventRow = { id: string; name: string; dot?: string; color?: string | null; startDate: string; endDate: string; priority?: boolean; client: string; pm: string; am: string; design: string; status: StatusKey; place: string; budget?: string };
 
@@ -53,7 +90,10 @@ function dDayBadge(startDate: string): { label: string; className: string } | nu
   if (!startDate) return null;
   const [y, m, d] = startDate.split('-').map(Number);
   if (!y || !m || !d) return null;
-  const diff = Math.round((new Date(y, m - 1, d).getTime() - TODAY.getTime()) / 86400000);
+  // 매번 계산해 자정을 지나도 D-day가 어긋나지 않게 한다.
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round((new Date(y, m - 1, d).getTime() - today.getTime()) / 86400000);
   if (diff < 0) return { label: '종료', className: 'bg-surface-chip text-fg-secondary' };
   if (diff === 0) return { label: 'D-Day', className: 'bg-brand text-fg-inverse' };
   return { label: `D-${diff}`, className: 'bg-brand-tint text-brand' };
@@ -64,8 +104,32 @@ const EMPTY_FORM = { name: '', start: '', end: '', client: '', pm: '', am: '', d
 export function EventTable({ initial, adding: controlledAdding, onAddingChange }: { initial: EventRow[]; adding?: boolean; onAddingChange?: (open: boolean) => void }) {
   const [rows, setRows] = useState(initial);
   // 부모가 나중에 불러온 데이터를 넘길 수 있어 prop이 바뀌면 행을 맞춘다.
-  useEffect(() => { setRows(initial); }, [initial]);
-  const [cols, setCols] = useState<ColKey[]>(['period', 'client', 'pm', 'am', 'design', 'status', 'place']);
+  // 이때 지금 행 순서를 재사용해 서버 목록이 갱신돼도 사용자가 정한 순서가 유지되게 한다.
+  useEffect(() => {
+    setRows((current) => {
+      const order = current.map((row) => row.id);
+      const kept = current.filter((row) => !initial.some((item) => item.id === row.id));
+      return [...applyOrder(initial, order), ...kept];
+    });
+  }, [initial]);
+  const [cols, setCols] = useState<ColKey[]>(DEFAULT_COLS);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  // 저장한 열·행 순서는 hydration 이후에 적용해 서버 렌더 결과와 맞춘다.
+  useEffect(() => {
+    setCols(loadCols());
+    const savedOrder = loadOrder();
+    if (savedOrder.length) setRows((current) => applyOrder(current, savedOrder));
+    setPrefsLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    try {
+      window.localStorage.setItem(COLS_KEY, JSON.stringify(cols));
+      window.localStorage.setItem(ORDER_KEY, JSON.stringify(rows.map((row) => row.id)));
+    } catch {
+      /* 저장할 수 없는 환경에서는 현재 화면에만 적용한다. */
+    }
+  }, [cols, rows, prefsLoaded]);
   const [rowDrag, setRowDrag] = useState<{ from: number; over: number } | null>(null);
   const [colDrag, setColDrag] = useState<{ from: ColKey; over: ColKey } | null>(null);
   const [uncontrolledAdding, setUncontrolledAdding] = useState(false);

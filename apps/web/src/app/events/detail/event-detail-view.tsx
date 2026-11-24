@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { Checkbox, Dialog, Input, Select, SidePeekPanel, SegmentControl, StatusPill, TextTabs, Toggle, toast, type StatusKey } from '@miceplans/ui';
 import { ItemAccessContext, normalizeTree, resolveOwners, type CheckItem } from './event-checklist';
@@ -332,33 +332,65 @@ export function EventDetailView() {
   const [calEvents, setCalEvents] = useState<CalEvent[]>([]);
   const [calDialog, setCalDialog] = useState(false);
   const access = useMemo(() => ({ me: CURRENT_USER.name, members: assignable }), [assignable]);
-  const [listsLoaded, setListsLoaded] = useState(false);
-  const listsKey = `miceplans.event-lists.${eventId}`;
+  // 저장값은 행사 키가 바뀔 때만 읽는다. eventId가 빈 값(첫 렌더)이면 저장 자체를 건드리지 않고,
+  // 담당자 정보가 늦게 도착해도 읽기를 반복하지 않아 편집 중인 상태를 덮지 않는다.
+  const listsKey = eventId ? `miceplans.event-lists.${eventId}` : null;
+  const [listsLoadedKey, setListsLoadedKey] = useState<string | null>(null);
+  const assignableRef = useRef(assignable);
+  assignableRef.current = assignable;
 
   // 서버 연결 전까지 체크 상태는 브라우저에 저장한다.
   useEffect(() => {
+    if (!listsKey) return;
     try {
       const raw = window.localStorage.getItem(listsKey);
       if (raw) {
         const saved = JSON.parse(raw) as { schedule?: CheckItem[]; calEvents?: CalEvent[] };
-        if (saved.schedule) setSchedule(normalizeTree(resolveOwners(saved.schedule, assignable)));
+        if (saved.schedule) setSchedule(normalizeTree(resolveOwners(saved.schedule, assignableRef.current)));
         if (Array.isArray((saved as { products?: RequestRow[] }).products)) setProducts((saved as { products: RequestRow[] }).products);
         if (Array.isArray(saved.calEvents)) setCalEvents(saved.calEvents);
+      } else {
+        // 저장값이 없으면 이전 행사 데이터가 새 키로 흘러가지 않게 비운다.
+        setSchedule(resolveOwners(INITIAL_SCHEDULE, assignableRef.current));
+        setProducts([]);
+        setCalEvents([]);
       }
     } catch {
       // 저장소를 쓸 수 없으면 기본 데이터로 시작한다.
     }
-    setListsLoaded(true);
-  }, [listsKey, assignable]);
+    setListsLoadedKey(listsKey);
+  }, [listsKey]);
 
+  // 멤버 정보가 늦게 확인되면 저장값을 다시 읽지 않고 지금 트리의 소유자만 다시 맞춘다.
   useEffect(() => {
-    if (!listsLoaded) return;
+    setSchedule((current) => resolveOwners(current, assignable));
+  }, [assignable]);
+
+  // 타이핑·드래그마다 디스크에 쓰지 않도록 마지막 변경만 잠시 뒤에 저장하고, 페이지를 떠날 때 즉시 비운다.
+  const pendingLists = useRef<{ key: string; timer: number; schedule: CheckItem[]; products: RequestRow[]; calEvents: CalEvent[] } | null>(null);
+  const flushLists = useCallback(() => {
+    const pending = pendingLists.current;
+    if (!pending) return;
+    window.clearTimeout(pending.timer);
+    pendingLists.current = null;
     try {
-      window.localStorage.setItem(listsKey, JSON.stringify({ schedule, products, calEvents }));
+      window.localStorage.setItem(pending.key, JSON.stringify({ schedule: pending.schedule, products: pending.products, calEvents: pending.calEvents }));
     } catch {
       // 저장 실패는 화면 상태에만 영향을 주므로 무시한다.
     }
-  }, [schedule, products, calEvents, listsLoaded, listsKey]);
+  }, []);
+  useEffect(() => {
+    if (!listsKey || listsLoadedKey !== listsKey) return;
+    if (pendingLists.current) window.clearTimeout(pendingLists.current.timer);
+    pendingLists.current = { key: listsKey, schedule, products, calEvents, timer: window.setTimeout(flushLists, 400) };
+  }, [schedule, products, calEvents, listsKey, listsLoadedKey, flushLists]);
+  useEffect(() => {
+    window.addEventListener('pagehide', flushLists);
+    return () => {
+      window.removeEventListener('pagehide', flushLists);
+      flushLists();
+    };
+  }, [flushLists]);
   // '할 일' 카드: 행사 항목 중 상위 할 일을 마감일 순으로 보여주고, 체크하면 완료 처리한다.
   const eventItems = useEventItemsList(eventId, undefined, { query: { enabled: eventId !== '' && getToken() !== null } });
   const updateItem = useItemsUpdate();
@@ -381,6 +413,38 @@ export function EventDetailView() {
   };
   // 캘린더가 가리키는 날(BASE_MONDAY 기준 일수). Day/Week/Month 모두 이 날을 기준으로 표시 구간을 정한다.
   const [anchor, setAnchor] = useState(TODAY_INDEX);
+  // 보기와 기준 날짜를 저장해 새로고침 후에도 유지한다. 기준 날짜는 YYYY-MM-DD 절대 날짜로 저장해 주가 바뀌어도 어긋나지 않게 한다.
+  const CAL_PREFS_KEY = 'miceplans.event-detail.calendar';
+  const [calPrefsLoaded, setCalPrefsLoaded] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(CAL_PREFS_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      if (parsed && typeof parsed === 'object') {
+        const prefs = parsed as { view?: unknown; anchorDate?: unknown };
+        if (prefs.view === 'Day' || prefs.view === 'Week' || prefs.view === 'Month') setCalView(prefs.view);
+        if (typeof prefs.anchorDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(prefs.anchorDate)) {
+          const [y, m, d] = prefs.anchorDate.split('-').map(Number);
+          setAnchor(absOf(new Date(y!, m! - 1, d!)));
+        }
+      }
+    } catch {
+      /* 저장값이 깨져 있으면 기본값으로 둔다. */
+    }
+    setCalPrefsLoaded(true);
+  }, []);
+  const anchorIsoOf = (abs: number) => {
+    const date = dateOf(abs);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+  useEffect(() => {
+    if (!calPrefsLoaded) return;
+    try {
+      window.localStorage.setItem(CAL_PREFS_KEY, JSON.stringify({ view: calView, anchorDate: anchorIsoOf(anchor) }));
+    } catch {
+      /* 저장 실패는 화면 상태에만 영향을 주므로 무시한다. */
+    }
+  }, [calView, anchor, calPrefsLoaded]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [peekId, setPeekId] = useState<string | null>(null);
