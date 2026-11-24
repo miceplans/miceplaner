@@ -307,10 +307,15 @@ export function TaskBoard() {
   const failToast = (error: unknown, fallback: string) =>
     toast.error(error instanceof ApiError ? error.message : fallback);
 
-  const inEvent = (task: Task) => event === ALL || task.event === event;
-  const boardColumns = useMemo(() => columns.map((c) => ({ ...c, tasks: tasks.filter((t) => t.status === c.id && inEvent(t)) })), [columns, tasks, event]);
+  const boardColumns = useMemo(
+    () => columns.map((c) => ({ ...c, tasks: tasks.filter((t) => t.status === c.id && (event === ALL || t.event === event)) })),
+    [columns, tasks, event],
+  );
   const visibleTasks = useMemo(
-    () => (tab === 'mine' ? tasks.filter((task) => task.createdById === meId) : tasks.filter(inEvent)),
+    () =>
+      tab === 'mine'
+        ? tasks.filter((task) => task.createdById === meId)
+        : tasks.filter((task) => event === ALL || task.event === event),
     [tasks, tab, meId, event],
   );
   /** 마감일 없는 항목은 어느 방향이든 맨 뒤로. 기본은 현행 순서 유지(안정 정렬). */
