@@ -120,7 +120,6 @@ export function NotificationsView() {
             <img alt="" src={`${A}/mark-icon.svg`} className="size-[13px]" />
             <span className="whitespace-nowrap text-base font-medium text-fg-secondary">모두 읽음 처리</span>
           </button>
-          <DesktopNotificationToggle />
           <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setSettingsOpen(false); }}>
             <button
               type="button"
