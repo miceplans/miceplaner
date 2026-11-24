@@ -1,4 +1,4 @@
-import type { PortalEventDto, PortalProgramDto } from '@miceplans/contracts/portal';
+import type { PortalEventDto, PortalProgramDto, PublicEventDto } from '@miceplans/contracts/portal';
 
 /** Client 포털 화면이 쓰는 날짜·상태 도출 로직. 입력 날짜는 모두 YYYY-MM-DD 문자열이다. */
 
@@ -132,4 +132,10 @@ export function chipsByDay(programs: PortalProgramDto[], year: number, month: nu
     list.sort((a, b) => a.title.localeCompare(b.title, 'ko'));
   }
   return byDay;
+}
+
+/** 비로그인 공개 캘린더: 공개 행사를 행사 기간 전체에 걸친 칩으로 나눈다. 칩 키는 행사 ID다. */
+export function publicEventChipsByDay(events: PublicEventDto[], year: number, month: number, today: string): Map<number, DayChip[]> {
+  const asPrograms = events.map((e) => ({ eventId: e.eventId, programId: e.eventId, title: e.name, startsOn: e.startDate, dueOn: e.endDate }));
+  return chipsByDay(asPrograms, year, month, today);
 }

@@ -1,11 +1,15 @@
-import { Controller, Get, Inject } from '@nestjs/common';
+import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Public } from '../auth/public.decorator';
 import { Auth, type AuthUser } from '../common/auth';
+import { config } from '../config';
+import { RateLimit, RateLimitGuard } from '../common/rate-limit';
 import { Returns } from '../common/openapi';
 import { PortalService } from './portal.service';
 
 @ApiTags('portal')
 @Controller('portal')
+@UseGuards(RateLimitGuard)
 export class PortalController {
   constructor(@Inject(PortalService) private readonly portal: PortalService) {}
 
@@ -21,5 +25,14 @@ export class PortalController {
   @Returns('PortalProgramDto', { array: true })
   programs(@Auth() user: AuthUser) {
     return this.portal.programs(user);
+  }
+
+  @Public()
+  @Get('public-events')
+  @RateLimit({ scope: 'public-events', get ipPerWindow() { return config.publicCalendarIpLimit; }, windowSeconds: 600 })
+  @ApiOperation({ summary: '비로그인 공개 캘린더: 공개 표시한 행사의 행사명·기간 (명세 F-07)', operationId: 'portalPublicEvents' })
+  @Returns('PublicEventDto', { array: true })
+  publicEvents() {
+    return this.portal.publicEvents();
   }
 }

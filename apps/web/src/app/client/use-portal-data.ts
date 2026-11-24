@@ -16,9 +16,10 @@ const message = (e: unknown): string => (e instanceof Error && e.message ? e.mes
  * 지정된 행사와 공개 Program 일정을 함께 조회한다 (명세 F-07).
  * TanStack Query 캐시를 써서 포털 페이지를 오갈 때 같은 요청을 반복하지 않는다.
  */
-export function usePortalData(): PortalData {
-  const eventsQuery = usePortalEvents();
-  const programsQuery = usePortalPrograms();
+export function usePortalData({ enabled = true }: { enabled?: boolean } = {}): PortalData {
+  // 비로그인 공개 캘린더에서는 세션이 없으므로 조회하지 않는다.
+  const eventsQuery = usePortalEvents({ query: { enabled } });
+  const programsQuery = usePortalPrograms({ query: { enabled } });
   // 조회 실패는 빈 목록으로 대신해 화면이 로딩 표시에 머무르지 않게 한다.
   const events = eventsQuery.data ?? (eventsQuery.isError ? [] : null);
   const programs = programsQuery.data ?? (programsQuery.isError ? [] : null);

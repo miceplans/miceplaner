@@ -84,6 +84,10 @@ export const config = {
   get clientApplicationIpLimit(): number {
     return Number(process.env.CLIENT_APPLICATION_RATE_LIMIT_IP ?? 5);
   },
+  /** 비로그인 공개 캘린더 조회의 IP당 10분 한도. 익명 조회의 DB 부하·비용을 제한한다. */
+  get publicCalendarIpLimit(): number {
+    return Number(process.env.PUBLIC_CALENDAR_RATE_LIMIT_IP ?? 120);
+  },
   /** 사용자당 분당 AI 질의 한도. LLM 비용을 제한한다. 카운터는 PostgreSQL(hit_rate_limit)에 두어 서버리스 인스턴스 사이에서 공유한다. */
   get aiRequestsPerMinute(): number {
     const configured = Number(process.env.AI_REQUESTS_PER_MINUTE);

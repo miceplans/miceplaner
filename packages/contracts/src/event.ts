@@ -15,6 +15,8 @@ export const eventDto = z.object({
   priority: z.boolean(),
   color: z.string().nullable(),
   budget: z.number().int().nonnegative().nullable(),
+  /** 비로그인 공개 캘린더 노출 여부. 기본값은 비공개다 (명세 F-07). */
+  publicVisible: z.boolean(),
   version: z.number().int().positive(),
   createdAt: isoDateTime,
   updatedAt: isoDateTime,
@@ -65,6 +67,10 @@ export const updateEventBody = z
   .partial()
   .refine(dateRange, { message: '종료일은 시작일 이후여야 한다', path: ['endDate'] });
 export type UpdateEventBody = z.infer<typeof updateEventBody>;
+
+/** 공개 상태는 버전 검사 대상이다. 화면이 본 version과 다르면 409로 막는다 (명세 3.2). */
+export const setEventPublicVisibilityBody = z.object({ publicVisible: z.boolean(), version: z.number().int().positive() });
+export type SetEventPublicVisibilityBody = z.infer<typeof setEventPublicVisibilityBody>;
 
 export const listEventsQuery = z.object({
   year: z.coerce.number().int().min(2000).max(2100).optional(),

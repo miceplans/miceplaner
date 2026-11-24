@@ -11,6 +11,7 @@ import {
   inclusiveDays,
   nearestEvent,
   programState,
+  publicEventChipsByDay,
   sortPrograms,
   todayIso,
 } from './portal';
@@ -168,5 +169,22 @@ describe('chipsByDay', () => {
 
   it('날짜가 없는 Program은 표시하지 않는다', () => {
     expect(chipsByDay([program('p1', '미정', null, null)], 2026, 11, T).size).toBe(0);
+  });
+});
+
+describe('publicEventChipsByDay', () => {
+  it('공개 행사를 기간 내 모든 날에 행사명 칩으로 표시하고 월 범위로 자른다', () => {
+    const chips = publicEventChipsByDay(
+      [
+        { eventId: 'a', name: '국제 컨퍼런스', startDate: '2026-10-30', endDate: '2026-11-02' },
+        { eventId: 'b', name: '전시회', startDate: '2026-11-18', endDate: '2026-11-18' },
+      ],
+      2026,
+      11,
+      T,
+    );
+    expect([...chips.keys()].sort((x, y) => x - y)).toEqual([1, 2, 18]);
+    expect(chips.get(1)).toEqual([{ programId: 'a', title: '국제 컨퍼런스', state: '완료' }]);
+    expect(chips.get(18)).toEqual([{ programId: 'b', title: '전시회', state: '진행중' }]);
   });
 });

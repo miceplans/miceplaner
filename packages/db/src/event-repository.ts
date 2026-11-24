@@ -4,17 +4,17 @@ import { isRole, type EventStatus, type Role } from '@miceplans/domain';
 
 export type EventRow = {
   id: string; clientId: string; name: string; startDate: string; endDate: string; place: string; status: EventStatus;
-  priority: boolean; color: string | null; budget: number | null; version: number; createdBy: string | null; createdAt: string; updatedAt: string;
+  priority: boolean; color: string | null; budget: number | null; publicVisible: boolean; version: number; createdBy: string | null; createdAt: string; updatedAt: string;
   clientName: string; pmName: string | null; amName: string | null;
 };
 
 const COLUMNS = `id, client_id AS "clientId", name, to_char(start_date, 'YYYY-MM-DD') AS "startDate", to_char(end_date, 'YYYY-MM-DD') AS "endDate",
-  place, status, priority, color, budget::float8 AS budget, version, created_by AS "createdBy", ${isoTs('created_at', 'createdAt')}, ${isoTs('updated_at', 'updatedAt')}`;
+  place, status, priority, color, budget::float8 AS budget, public_visible AS "publicVisible", version, created_by AS "createdBy", ${isoTs('created_at', 'createdAt')}, ${isoTs('updated_at', 'updatedAt')}`;
 
 // 목록·상세는 고객사 이름과 PM·AM 이름까지 함께 보여 준다. 고객사는 삭제돼도 행사가
 // 사라지지 않게 LEFT JOIN으로 건다(삭제된 고객사는 RLS로 이름이 null이 된다).
 const SELECT_COLUMNS = `e.id, e.client_id AS "clientId", e.name, to_char(e.start_date, 'YYYY-MM-DD') AS "startDate", to_char(e.end_date, 'YYYY-MM-DD') AS "endDate",
-  e.place, e.status, e.priority, e.color, e.budget::float8 AS budget, e.version, e.created_by AS "createdBy", ${isoTs('e.created_at', 'createdAt')}, ${isoTs('e.updated_at', 'updatedAt')},
+  e.place, e.status, e.priority, e.color, e.budget::float8 AS budget, e.public_visible AS "publicVisible", e.version, e.created_by AS "createdBy", ${isoTs('e.created_at', 'createdAt')}, ${isoTs('e.updated_at', 'updatedAt')},
   c.name AS "clientName",
   (SELECT string_agg(u.name, ', ' ORDER BY u.name) FROM event_members m JOIN users u ON u.id = m.user_id WHERE m.event_id = e.id AND m.role = 'pm') AS "pmName",
   (SELECT string_agg(u.name, ', ' ORDER BY u.name) FROM event_members m JOIN users u ON u.id = m.user_id WHERE m.event_id = e.id AND m.role = 'am') AS "amName"`;
@@ -78,6 +78,26 @@ export async function updateEvent(client: PoolClient, id: string, patch: EventPa
   vals.push(id);
   const { rows } = await client.query<EventRow>(`UPDATE events SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING ${COLUMNS}`, vals);
   return rows[0];
+}
+
+/**
+ * 공개 상태는 버전 검사 대상이다 (명세 3.2). version이 다르면 'conflict', 대상이 없거나 권한 밖이면 undefined다.
+ * PM·AM 제한은 트리거(events_guard_public_visible)가 DB에서도 강제한다. 변경은 감사 로그에 남긴다.
+ */
+export async function setEventPublicVisibility(
+  client: PoolClient, actorId: string, id: string, publicVisible: boolean, version: number,
+): Promise<EventRow | 'conflict' | undefined> {
+  const { rows } = await client.query<EventRow>(
+    `UPDATE events SET public_visible = $2, version = version + 1, updated_at = now() WHERE id = $1 AND version = $3 AND deleted_at IS NULL RETURNING ${COLUMNS}`,
+    [id, publicVisible, version],
+  );
+  const row = rows[0];
+  if (!row) {
+    const exists = await client.query(`SELECT 1 FROM events WHERE id = $1 AND deleted_at IS NULL`, [id]);
+    return exists.rowCount ? 'conflict' : undefined;
+  }
+  await client.query(`INSERT INTO audit_log (event_id, actor_id, action, detail) VALUES ($1, $2, 'event.public_visibility.change', $3)`, [id, actorId, JSON.stringify({ publicVisible })]);
+  return row;
 }
 
 /** 현재 주체의 행사 안 역할. 비멤버 내외 직원은 staff다 (RLS 함수와 같은 규칙). */

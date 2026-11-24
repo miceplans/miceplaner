@@ -30,6 +30,9 @@ export const canEditEventItems = (role: Role): boolean => ITEM_EDITORS.includes(
 /** 멤버 추가·삭제는 PM·AM과 Super Admin. */
 export const canManageMembers = (role: Role): boolean => MEMBER_MANAGERS.includes(role);
 
+/** 비로그인 공개 캘린더 노출(공개 상태) 변경은 PM·AM과 Super Admin (명세 F-07, 감사 로그 대상). */
+export const canChangeEventPublicVisibility = (role: Role): boolean => MEMBER_MANAGERS.includes(role);
+
 /** 행사 삭제는 PM과 Super Admin. */
 export const canDeleteEvent = (role: Role): boolean => role === 'super_admin' || role === 'pm';
 

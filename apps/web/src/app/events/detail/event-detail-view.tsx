@@ -23,6 +23,7 @@ import {
   useEventsClients,
   useEventsGet,
   useEventsMembers,
+  useEventsSetPublicVisibility,
   useEventsUnassignClient,
   useGetMe,
   useItemsUpdate,
@@ -277,6 +278,29 @@ export function EventDetailView() {
       if (accountId === assignedClientId) return;
       assignClient.mutate({ id: eventId, userId: accountId }, { onSuccess: refreshClients, onError: fail });
     }
+  };
+  // 비로그인 공개 캘린더 노출. 실제 행사에서 PM·AM만 바꾸며, 서버가 version을 검사하고 감사 로그를 남긴다 (명세 F-07).
+  const setPublicVisibility = useEventsSetPublicVisibility();
+  const changePublicVisible = (next: boolean) => {
+    if (!real) return;
+    if (!canManageClients) {
+      toast.error('공개 캘린더 노출은 PM·AM만 바꿀 수 있습니다.');
+      return;
+    }
+    setPublicVisibility.mutate(
+      { id: real.id, data: { publicVisible: next, version: real.version } },
+      {
+        onSuccess: refreshClients,
+        onError: (error) => {
+          if (error instanceof ApiError && error.status === 409) {
+            toast.error('다른 사람이 먼저 행사를 바꿨습니다. 최신 상태를 불러왔으니 다시 확인해 주세요.');
+            refreshClients();
+            return;
+          }
+          toast.error(error instanceof ApiError ? error.message : '[500] 공개 상태 변경에 실패했습니다.');
+        },
+      },
+    );
   };
   // TODO: 팀 구분 기준(역할·소속)이 확정되면 인증 정보에서 가져온다. 그전에는 ?team=design 으로 디자인팀 화면을 본다.
   const [team, setTeam] = useState<Team>('planning');
@@ -733,6 +757,13 @@ export function EventDetailView() {
               >
                 + 멤버 초대
               </button>
+            )}
+            {real && (
+              <>
+                <span className="whitespace-nowrap text-base text-fg-secondary" title="로그인하지 않은 방문자에게 고객 포털 캘린더에서 행사명과 기간을 보여 줍니다">공개 캘린더</span>
+                <Toggle checked={real.publicVisible} onChange={changePublicVisible} ariaLabel="비로그인 공개 캘린더 노출 변경" />
+                <span aria-hidden className="mx-[4px] h-[16px] w-px bg-border-strong" />
+              </>
             )}
             <span className="whitespace-nowrap text-base text-fg-secondary">Client에게 공개</span>
             <Toggle checked={isPublic} onChange={setIsPublic} ariaLabel="Client 공개 상태 변경" />
