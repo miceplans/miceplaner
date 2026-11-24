@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChatEvent, ProposalDto } from '@miceplans/contracts';
 import { Input, toast } from '@miceplans/ui';
 import { ApiError, streamChat } from '@/lib/api';
@@ -10,9 +10,39 @@ import { eventIdFrom, getEventItems, getEventTab } from './event-context';
 const A = '/assets/ai-chat';
 
 const CHIPS = ['다음 주 일정', '지연된 Task 보여줘'];
+/** 패널을 닫거나 화면을 이동핤 대화를 잃지 않도록 세션에 둔다. */
+const TURNS_KEY = 'miceplans.ai-chat.turns';
 
 type Source = Extract<ChatEvent, { type: 'sources' }>['sources'][number];
 type Turn = { role: 'user' | 'assistant'; content: string; sources?: Source[]; proposals?: ProposalDto[] };
+
+/** 세션 저장값에서 유효한 대화만 골라낸다. */
+function validTurns(raw: unknown): Turn[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((turn): turn is Turn => {
+    if (!turn || typeof turn !== 'object') return false;
+    const candidate = turn as Turn;
+    return (candidate.role === 'user' || candidate.role === 'assistant') && typeof candidate.content === 'string';
+  });
+}
+
+function loadTurns(): Turn[] {
+  try {
+    const raw = window.sessionStorage.getItem(TURNS_KEY);
+    if (raw) return validTurns(JSON.parse(raw));
+  } catch {
+    /* 저장값을 읽을 수 없으면 새 대화로 시작한다. */
+  }
+  return [];
+}
+
+function saveTurns(turns: Turn[]) {
+  try {
+    window.sessionStorage.setItem(TURNS_KEY, JSON.stringify(turns));
+  } catch {
+    /* 저장할 수 없는 환경에서는 화면에만 둔다. */
+  }
+}
 
 const KIND_LABEL: Record<ProposalDto['kind'], string> = { task_drafts: 'Task 초안', notification: '알림', wiki_edit: '위키 수정' };
 const DECISION_LABEL: Record<ProposalDto['status'], string> = { pending: '승인 대기', approved: '승인됨', rejected: '반려됨' };
@@ -21,15 +51,66 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
   const [open, setOpen] = useState(true);
   const [draft, setDraft] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
+  // 화면에 그리는 turns와 저장·스트리밍용 참조를 같이 둔다.
+  const turnsRef = useRef<Turn[]>([]);
+  const frameRef = useRef<number | null>(null);
   const [busy, setBusy] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const sending = useRef(false);
   const approve = useApproveProposal();
   const reject = useRejectProposal();
 
+  // 패널이 언마운트돼도 대화가 사라지지 않게 세션 저장값을 복원한다.
+  useEffect(() => {
+    const saved = loadTurns();
+    turnsRef.current = saved;
+    setTurns(saved);
+  }, []);
+
+  // 스트리밍 중 토큰마다 전체 배열을 새로 만들지 않고 프레임 단위로 묶는다.
+  const commitFrame = useCallback(() => {
+    frameRef.current = null;
+    setTurns([...turnsRef.current]);
+    saveTurns(turnsRef.current);
+  }, []);
+  const scheduleFrame = useCallback(() => {
+    if (frameRef.current === null) frameRef.current = requestAnimationFrame(commitFrame);
+  }, [commitFrame]);
+
+  // 언마운트·탭 종료 때 프레임에 묶인 마지막 변경까지 저장한다.
+  useEffect(() => {
+    const flush = () => {
+      if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+      saveTurns(turnsRef.current);
+    };
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, []);
+
   if (!open) return null;
 
-  const patchLast = (fn: (t: Turn) => Turn) => setTurns((prev) => prev.map((t, i) => (i === prev.length - 1 ? fn(t) : t)));
+  /** 즉시 반영이 필요한 변경(전송·승인 등)은 프레임을 기다리지 않는다. */
+  const commitNow = (next: Turn[]) => {
+    if (frameRef.current !== null) {
+      window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+    turnsRef.current = next;
+    setTurns([...next]);
+    saveTurns(next);
+  };
+
+  const patchLast = (fn: (t: Turn) => Turn) => {
+    const current = turnsRef.current;
+    turnsRef.current = current.map((t, i) => (i === current.length - 1 ? fn(t) : t));
+    scheduleFrame();
+  };
 
   const handle = (e: ChatEvent) => {
     if (e.type === 'text') patchLast((t) => ({ ...t, content: t.content + e.delta }));
@@ -42,8 +123,8 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
     const content = text.trim();
     if (!content || busy || sending.current) return;
     sending.current = true;
-    const history = [...turns, { role: 'user' as const, content }].filter((t) => t.content).map(({ role, content: c }) => ({ role, content: c }));
-    setTurns((prev) => [...prev, { role: 'user', content }, { role: 'assistant', content: '' }]);
+    const history = [...turnsRef.current, { role: 'user' as const, content }].filter((t) => t.content).map(({ role, content: c }) => ({ role, content: c }));
+    commitNow([...turnsRef.current, { role: 'user', content }, { role: 'assistant', content: '' }]);
     setDraft('');
     setBusy(true);
     abort.current = new AbortController();
@@ -63,7 +144,7 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
   const decide = async (turnIndex: number, proposal: ProposalDto, action: 'approve' | 'reject') => {
     try {
       const updated = await (action === 'approve' ? approve : reject).mutateAsync({ id: proposal.id });
-      setTurns((prev) => prev.map((t, i) => (i === turnIndex ? { ...t, proposals: t.proposals?.map((p) => (p.id === updated.id ? updated : p)) } : t)));
+      commitNow(turnsRef.current.map((t, i) => (i === turnIndex ? { ...t, proposals: t.proposals?.map((p) => (p.id === updated.id ? updated : p)) } : t)));
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : '[500] 처리하지 못했습니다.');
     }
