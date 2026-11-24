@@ -79,7 +79,7 @@ Client 포털은 API만 호출한다. 협업 서버는 Client 연결을 받지 �
 
 ### 임베딩 서빙
 
-TEI(BGE-M3)는 `infra/`의 전용 EC2(`EmbedHost`, 기본 `t4g.medium`, Amazon Linux 2023 arm64)에서 systemd 서비스로 상시 실행한다. 이미지는 다이제스트, 모델은 리비전으로 고정하며 모델을 바꾸면 기존 벡터와 호환되지 않으므로 전체 백필이 필요하다. 질의 임베딩은 Vercel API가, 문서 임베딩은 worker가 하므로 같은 CloudFront 배포(HTTPS 전용)로 열고, 보안 그룹은 CloudFront 원본 접두사 목록의 8080만 허용한다. 공개 주소이므로 TEI `--api-key`를 쓰며 키는 SSM SecureString `TEI_API_KEY`(인스턴스 역할은 이 키 하나만 읽는다)와 Vercel API 환경 변수에만 둔다. 주소 `TEI_URL`은 스택이 SSM에 등록한다. 질의 임베딩은 3초, 문서 임베딩은 60초에서 끊으며 실패하면 검색은 lexical로, 임베딩 작업은 pg-boss 재시도로 넘어간다. GPU·자동 확장은 문서량이나 지연이 문제가 될 때 다시 검토한다.
+TEI(BGE-M3)는 `infra/`의 전용 EC2(`EmbedHost`, 기본 `t4g.medium`, Amazon Linux 2023 arm64)에서 systemd 서비스로 상시 실행한다. 이미지는 다이제스트, 모델은 리비전으로 고정하며 모델을 바꾸면 기존 벡터와 호환되지 않으므로 전체 백필이 필요하다. 질의 임베딩은 Vercel API가, 문서 임베딩은 worker가 하므로 같은 CloudFront 배포(HTTPS 전용)로 열고, 보안 그룹은 CloudFront 원본 접두사 목록의 8080만 허용한다. 공개 주소이므로 TEI `--api-key`를 쓰며 키는 SSM SecureString `TEI_API_KEY`(인스턴스 역할은 이 키 하나만 읽는다)와 Vercel API 환경 변수에만 둔다. 주소 `TEI_URL`은 스택이 SSM에 등록한다. CPU라 800자 청크 하나에 2~4초가 걸리므로(2026-11-24 실측, 질의 임베딩은 서버 기준 50~200ms) worker는 요청당 4개씩 보내고 TEI는 `--max-batch-tokens 4096`으로 띄운다(기본값은 워밍업에서 메모리 부족으로 죽는다). 상주 메모리가 약 3.5GB로 여유가 적어, 문서가 늘어 지연·메모리가 문제가 되면 `t4g.large`로 올린다. 질의 임베딩은 3초, 문서 임베딩은 55초에서 끊으며 실패하면 검색은 lexical로, 임베딩 작업은 pg-boss 재시도로 넘어간다. GPU·자동 확장은 문서량이나 지연이 문제가 될 때 다시 검토한다.
 
 ### 저장과 실시간
 

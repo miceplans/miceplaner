@@ -192,6 +192,7 @@ EOF`,
       // 모델 적재 순간의 메모리 여유를 위해 스왑 2GB를 둔다.
       'fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo "/swapfile none swap sw 0 0" >> /etc/fstab',
       'mkdir -p /opt/tei/data && chmod 700 /opt/tei',
+      // --max-batch-tokens 기본값(16384)은 워밍업에서 4GB를 넘겨 OOM(137)으로 죽는다. 4096이면 상주 약 3.5GB로 뜬다(2026-11-24 실측).
       // 시작할 때마다 SSM에서 키를 읽는다. 키가 아직 없으면 systemd가 30초 뒤 다시 시도하므로 스택 배포와 키 등록 순서가 자유롭다.
       `cat > /opt/tei/start.sh <<'EOF'
 #!/usr/bin/env bash
@@ -204,7 +205,7 @@ printf 'API_KEY=%s\\n' "$key" > /opt/tei/env
 docker rm -f tei >/dev/null 2>&1 || true
 exec docker run --rm --name tei --env-file /opt/tei/env -p ${EMBED_PORT}:80 -v /opt/tei/data:/data --memory 3584m \\
   ${TEI_IMAGE} \\
-  --model-id BAAI/bge-m3 --revision ${BGE_M3_REVISION} --max-client-batch-size 32
+  --model-id BAAI/bge-m3 --revision ${BGE_M3_REVISION} --max-client-batch-size 32 --max-batch-tokens 4096
 EOF`,
       'chmod 700 /opt/tei/start.sh',
       `cat > /etc/systemd/system/tei.service <<'EOF'

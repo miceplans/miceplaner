@@ -91,6 +91,9 @@ describe('teiEmbedder', () => {
     const out = await teiEmbedder('http://tei/', { fetch: fake })(Array.from({ length: 70 }, (_, i) => `t${i}`));
     expect(calls).toEqual([32, 32, 6]);
     expect(out).toHaveLength(70);
+    calls.length = 0;
+    await teiEmbedder('http://tei/', { fetch: fake, batchSize: 4 })(Array.from({ length: 9 }, (_, i) => `t${i}`));
+    expect(calls).toEqual([4, 4, 1]);
   });
 
   it('API 키가 있으면 Bearer로 보내고 제한 시간을 건다', async () => {
