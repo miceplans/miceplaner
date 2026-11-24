@@ -163,6 +163,8 @@ export type WeekBar = {
   name: string;
   startDate: string;
   endDate: string;
+  /** 행사에 지정된 대표색. 없으면 화면에서 행사 ID로 정한 기본색을 쓴다. */
+  color: string | null;
   state: ScheduleState;
   col: number;
   span: number;
@@ -196,6 +198,7 @@ export function eventWeekBars(events: PublicEventDto[], year: number, month: num
         name: e.name,
         startDate: e.startDate,
         endDate: e.endDate,
+        color: e.color ?? null,
         state: eventState(e.startDate, e.endDate, today),
         col,
         span: endCol - col + 1,

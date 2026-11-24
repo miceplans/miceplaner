@@ -174,7 +174,7 @@ describe('chipsByDay', () => {
   });
 });
 
-const pub = (eventId: string, name: string, startDate: string, endDate: string) => ({ eventId, name, startDate, endDate });
+const pub = (eventId: string, name: string, startDate: string, endDate: string, color: string | null = null) => ({ eventId, name, startDate, endDate, color });
 
 describe('shortRange', () => {
   it('하루·같은 해·해 넘김을 구분해 짧게 적는다', () => {

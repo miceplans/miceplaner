@@ -4,18 +4,12 @@ import { useMemo, useState } from 'react';
 import type { PublicEventDto } from '@miceplans/contracts/portal';
 import { ClientHeader } from '@miceplans/ui';
 import { usePortalPublicEvents } from '../../../lib/api/generated/endpoints';
-import { calendarWeeks, eventState, eventsInMonth, eventWeekBars, formatRange, inclusiveDays, shortRange, todayIso, type ScheduleState, type WeekBar } from '../portal';
+import { eventColor } from '../../../lib/event-color';
+import { calendarWeeks, eventsInMonth, eventWeekBars, formatRange, inclusiveDays, shortRange, todayIso, type WeekBar } from '../portal';
 
 const A = '/assets/client/calendar-view';
 
-const TONE: Record<ScheduleState, { bg: string; fg: string; dot: string }> = {
-  예정: { bg: 'bg-info-bg', fg: 'text-brand-blue', dot: 'dot6' },
-  진행중: { bg: 'bg-notice-bg', fg: 'text-notice', dot: 'dot7' },
-  완료: { bg: 'bg-surface-chip', fg: 'text-fg-secondary', dot: 'dot4' },
-};
-
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-const LEGEND: ScheduleState[] = ['진행중', '예정', '완료'];
 
 /** 주 행: 날짜 줄 아래에 기간 막대를 줄(lane)마다 쌓는다. */
 const BAR_TOP = 34;
@@ -28,7 +22,7 @@ const NO_EVENTS: PublicEventDto[] = [];
 
 /**
  * 공개 캘린더 (명세 F-07). 로그인 여부와 관계없이 누구나 열 수 있고,
- * 내부 행사 상세에서 `공개 캘린더`를 켠 행사의 행사명·기간만 보여 준다.
+ * 내부 행사 상세에서 `공개 캘린더`를 켠 행사의 행사명·기간을 행사마다 지정된 대표색으로 보여 준다.
  */
 export default function ClientCalendarPage() {
   const query = usePortalPublicEvents({ query: { staleTime: 60_000 } });
@@ -54,13 +48,16 @@ export default function ClientCalendarPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-surface-sunken">
-      <ClientHeader active="calendar" />
+      <ClientHeader
+        action={
+          <a href="/client/login" className="flex h-[34px] items-center rounded-sm bg-brand px-[14px] text-sm font-medium text-fg-inverse no-underline hover:opacity-90">
+            로그인
+          </a>
+        }
+      />
       <main className="relative flex min-h-px flex-1 flex-col items-start bg-surface px-[32px] max-md:px-0">
-        <div className="flex min-h-[52px] w-full shrink-0 flex-wrap items-center gap-[8px] px-[24px] py-[8px]">
-          <h1 className="text-lg font-semibold text-fg">행사 일정</h1>
-          <p className="text-sm text-fg-tertiary">마이스 플랜즈가 진행하는 행사 일정입니다.</p>
-        </div>
-        <div className="flex min-h-[44px] w-full shrink-0 flex-wrap items-center gap-[10px] px-[24px]">
+        <h1 className="w-full shrink-0 px-[24px] pt-[20px] text-lg font-semibold text-fg">행사 일정</h1>
+        <div className="flex min-h-[44px] w-full shrink-0 flex-wrap items-center gap-[10px] px-[24px] py-[8px]">
           <button type="button" aria-label="이전 달" onClick={() => shiftMonth(-1)} className="cursor-pointer border-0 bg-transparent p-0">
             <img alt="" src={`${A}/nav-icon.svg`} className="size-[15px]" />
           </button>
@@ -68,20 +65,9 @@ export default function ClientCalendarPage() {
           <button type="button" aria-label="다음 달" onClick={() => shiftMonth(1)} className="cursor-pointer border-0 bg-transparent p-0">
             <img alt="" src={`${A}/nav-icon1.svg`} className="size-[15px]" />
           </button>
-          {!isCurrentMonth ? (
-            <button type="button" onClick={goToday} className="h-[26px] cursor-pointer rounded-sm border border-solid border-border bg-surface px-[10px] text-xs text-fg-secondary hover:bg-surface-chip">
-              오늘
-            </button>
-          ) : null}
-          <div className="h-px min-w-px flex-1" />
-          <ul className="flex h-full items-center gap-[14px]">
-            {LEGEND.map((state) => (
-              <li key={state} className="flex h-full items-center gap-[5px]">
-                <img alt="" src={`${A}/${TONE[state].dot}.svg`} className="size-[7px]" />
-                <span className="whitespace-nowrap text-xs text-fg-secondary">{state}</span>
-              </li>
-            ))}
-          </ul>
+          <button type="button" onClick={goToday} className="h-[26px] cursor-pointer rounded-sm border-0 bg-brand px-[10px] text-xs font-medium text-fg-inverse hover:opacity-90">
+            Today
+          </button>
         </div>
         <div className="flex w-full flex-1 flex-col gap-[24px] px-[24px] pb-[24px]">
           <div className="w-full overflow-x-auto">
@@ -109,14 +95,9 @@ export default function ClientCalendarPage() {
                           } ${day ? 'bg-surface' : 'bg-surface-subtle'}`}
                         >
                           {isToday ? (
-                            <span className="flex shrink-0 items-center gap-[4px]">
-                              <span className="flex size-[22px] items-center justify-center rounded-lg bg-brand text-xs font-semibold text-fg-inverse">{day}</span>
-                              <span className="text-2xs font-medium text-fg-tertiary">({WEEKDAYS[i]})</span>
-                            </span>
+                            <span className="flex size-[22px] shrink-0 items-center justify-center rounded-lg bg-brand text-xs font-semibold text-fg-inverse">{day}</span>
                           ) : day ? (
-                            <p className="shrink-0 whitespace-nowrap text-sm text-fg-secondary">
-                              {day} <span className="text-2xs text-fg-tertiary">({WEEKDAYS[i]})</span>
-                            </p>
+                            <p className="shrink-0 whitespace-nowrap text-sm text-fg-secondary">{day}</p>
                           ) : null}
                         </div>
                       );
@@ -139,11 +120,10 @@ export default function ClientCalendarPage() {
               <h2 className="text-base font-semibold text-fg">{cursor.month}월 행사</h2>
               <ul className="flex w-full flex-col divide-y divide-border-soft rounded-md border border-solid border-border-soft bg-surface">
                 {monthEvents.map((e) => {
-                  const t = TONE[eventState(e.startDate, e.endDate, today)];
                   return (
                     <li key={e.eventId} className="flex items-center gap-[10px] px-[16px] py-[12px] max-md:flex-col max-md:items-start max-md:gap-[4px]">
                       <span className="flex min-w-0 flex-1 items-center gap-[8px]">
-                        <img alt="" src={`${A}/${t.dot}.svg`} className="size-[7px] shrink-0" />
+                        <span aria-hidden style={{ backgroundColor: eventColor(e.color, e.eventId) }} className="size-[8px] shrink-0 rounded-full" />
                         <span className="truncate text-sm font-medium text-fg">{e.name}</span>
                       </span>
                       <span className="whitespace-nowrap text-sm text-fg-secondary">
@@ -156,34 +136,25 @@ export default function ClientCalendarPage() {
             </section>
           ) : null}
 
-          {error ? (
-            <p role="alert" className="flex w-full justify-center text-sm text-error-delay">{error}</p>
-          ) : events !== null && monthEvents.length === 0 ? (
-            <p className="flex w-full justify-center text-sm text-fg-tertiary">이 달에 공개된 행사가 없습니다</p>
-          ) : null}
+          {error ? <p role="alert" className="flex w-full justify-center text-sm text-error-delay">{error}</p> : null}
         </div>
       </main>
     </div>
   );
 }
 
-/** 행사 기간 막대. 이 주 밖으로 이어지는 쪽은 모서리를 펴서 이어짐을 보여 준다. 막대 안에 행사명과 기간을 적는다. */
+/** 행사 기간 막대. 행사에 지정된 대표색으로 칠하고, 이 주 밖으로 이어지는 쪽은 모서리를 펴서 이어짐을 보여 준다. */
 function EventBar({ bar }: { bar: WeekBar }) {
-  const t = TONE[bar.state];
   return (
     <div
       title={`${bar.name} · ${formatRange(bar.startDate, bar.endDate)}`}
-      className={`pointer-events-auto mx-[2px] flex min-w-0 items-center gap-[4px] px-[6px] ${t.bg} ${bar.continuesBefore ? 'rounded-l-none' : 'rounded-l-xs'} ${
+      className={`pointer-events-auto mx-[2px] flex min-w-0 items-center gap-[4px] px-[6px] text-fg-inverse ${bar.continuesBefore ? 'rounded-l-none' : 'rounded-l-xs'} ${
         bar.continuesAfter ? 'rounded-r-none' : 'rounded-r-xs'
       }`}
-      style={{ gridColumn: `${bar.col + 1} / span ${bar.span}`, gridRow: bar.lane + 1 }}
+      style={{ gridColumn: `${bar.col + 1} / span ${bar.span}`, gridRow: bar.lane + 1, backgroundColor: eventColor(bar.color, bar.eventId) }}
     >
-      {!bar.continuesBefore ? <img alt="" src={`${A}/${t.dot}.svg`} className="size-[5px] shrink-0" /> : null}
-      <span className={`truncate text-2xs font-medium ${t.fg}`}>
-        {bar.continuesBefore ? '← ' : ''}
-        {bar.name}
-      </span>
-      <span className={`shrink-0 whitespace-nowrap text-2xs opacity-80 ${t.fg}`}>{shortRange(bar.startDate, bar.endDate)}</span>
+      <span className="truncate text-2xs font-semibold">{bar.name}</span>
+      <span className="shrink-0 whitespace-nowrap text-2xs opacity-90">{shortRange(bar.startDate, bar.endDate)}</span>
     </div>
   );
 }

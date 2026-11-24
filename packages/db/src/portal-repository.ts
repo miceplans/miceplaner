@@ -16,12 +16,12 @@ export async function portalPrograms(client: PoolClient): Promise<PortalProgramR
   return rows;
 }
 
-export type PublicEventRow = { eventId: string; name: string; startDate: string; endDate: string };
+export type PublicEventRow = { eventId: string; name: string; startDate: string; endDate: string; color: string | null };
 
-/** 로그인 전 공개 캘린더. 공개 표시한 행사의 이름과 기간만 공개 전용 함수로 읽는다. */
+/** 로그인 전 공개 캘린더. 공개 표시한 행사의 이름·기간·대표색만 공개 전용 함수로 읽는다. */
 export async function publicEvents(client: PoolClient): Promise<PublicEventRow[]> {
   const { rows } = await client.query<PublicEventRow>(
-    `SELECT event_id AS "eventId", name, to_char(start_date, 'YYYY-MM-DD') AS "startDate", to_char(end_date, 'YYYY-MM-DD') AS "endDate" FROM public_events()`,
+    `SELECT event_id AS "eventId", name, to_char(start_date, 'YYYY-MM-DD') AS "startDate", to_char(end_date, 'YYYY-MM-DD') AS "endDate", color FROM public_events()`,
   );
   return rows;
 }
