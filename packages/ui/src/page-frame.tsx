@@ -77,3 +77,21 @@ export function PageFrame({
     </div>
   );
 }
+
+/** 페이지 상단바(h56·px16·하단 보더): 좌측 페이지 제목, 우측 보조 동작. 고객사·알림 등 단순 화면의 표준 머리글. */
+export function PageTopbar({ title, children }: { title: ReactNode; children?: ReactNode }): ReactNode {
+  return (
+    <div className="flex h-[56px] w-full shrink-0 items-center gap-[12px] border-b border-solid border-border bg-surface px-[16px] leading-[normal]">
+      <div className="flex h-full min-w-0 items-center">
+        {typeof title === 'string' ? <h1 className="truncate whitespace-nowrap text-base font-medium text-fg">{title}</h1> : title}
+      </div>
+      <div className="h-px min-w-px flex-1" />
+      {children}
+    </div>
+  );
+}
+
+/** 페이지 본문 영역: 흰 배경 · px24 · py20 · 세로 간격 16. */
+export function PageBody({ className = '', children }: { className?: string; children: ReactNode }): ReactNode {
+  return <div className={`flex min-h-px w-full flex-1 flex-col items-start gap-[16px] bg-surface px-[24px] py-[20px] max-md:px-[16px] ${className}`}>{children}</div>;
+}

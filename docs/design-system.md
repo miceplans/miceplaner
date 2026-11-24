@@ -112,14 +112,18 @@ AI 기능은 브랜드 레드와 분리된 바이올렛 계열 액센트를 쓴�
 | --- | --- |
 | 기본 버튼(`Button`) | h32 · px 14 · gap 6 · rounded-sm · 라벨 13/500. primary=`bg-brand` 흰 텍스트, secondary=흰 배경 + `border-border` + `text-fg-secondary` |
 | 숫자 뱃지(`Badge`) | h18 · px 7 · rounded-full · `bg-brand` · 10.5/600 흰색 |
-| 상태 필(`StatusTag`) | h24 · px 8 · gap 4 · rounded-sm · 라벨 12/700 · 아이콘 12~14px |
+| 상태 필(`StatusTag`) | h24 · px 8 · gap 4 · rounded-sm · 라벨 12/700 · 아이콘 12~14px. `label`로 톤은 유지한 채 표기만 바꾼다(예: success 톤의 `완료`) |
+| D-day 칩(`DdayChip`) | h24 · px 8 · rounded-sm · `bg-ai-tint` · `text-ai` 12/700 |
 | 스케줄 칩 | h20 · px 6 · gap 4 · rounded-xs · `bg-surface-chip` · 도트 5px · 11/500 |
 | 아이콘 칩 | 34×34 · rounded-md · `bg-ai-tint` · 아이콘 `text-ai` |
 | 아바타 | 16(스택) / 24(사이드바, `bg-brand-tint`+`text-brand`) / 30(담당자) px |
 | View Header | h52 · px 16 · 하단 1px `border-border` |
-| Topbar | h56 · px 16 · gap 12 |
+| Topbar(`PageTopbar`) | h56 · px 16 · gap 12 · 하단 1px `border-border` · 좌측 제목 13/500, 우측 보조 동작 |
+| 본문(`PageBody`) | `bg-surface` · px 24(모바일 16) · py 20 · 세로 gap 16 |
 | 테이블 행 | 헤더 h36 · 스케줄 h44 · 목록 h48 |
-| 앱 프레임 | 폭 1440 · 사이드바 240 · 콘텐츠 카드 최대 760 |
+| 목록 표(`TableFrame`·`TableHeader`·`TableRow`·`TableMessage`) | 틀 rounded-lg + `border-border` · 헤더 h36 `bg-surface-sunken` 11/600 tracking 0.4px tertiary · 행 min-h48 px16 행 사이 `border-b` |
+| 사이드바(`SidebarLogo`·`SidebarNav`·`SidebarNavLink`) | 폭 240 · `bg-surface-sidebar` · 로고 행 h52 · 항목 h32 px10 rounded-sm, 활성 `bg-border` + 600 · 모바일은 상단 가로 막대 |
+| 앱 프레임 | 기준 폭 1440(Figma) · 사이드바 240 · 콘텐츠 카드 최대 760. 실제 화면은 폭 고정 없이 늘어난다 |
 | 토글(`Toggle`) | 트랙 h20·w34·rounded-full · 손잡이 16px · 켬 `bg-brand` |
 | 세그먼트(`SegmentControl`) | rounded-full 컨테이너 · 활성 항목 `bg-surface`+`shadow-segment` |
 | 텍스트 탭(`TextTabs`) | h44 · 활성 탭 `border-brand` 밑줄(아이콘 탭은 `ViewTabs`) |
@@ -130,4 +134,7 @@ AI 기능은 브랜드 레드와 분리된 바이올렛 계열 액센트를 쓴�
 1. 새 코드는 토큰 유틸리티만 쓴다. 토큰에 없는 색·크기가 필요하면 먼저 이 문서와 토큰에 추가한 뒤 사용한다.
 2. 상태 표기는 색 상수를 직접 쓰지 않고 `StatusTag`/`statusTones`로 통일한다.
 3. 브랜드(#ff3939)는 행동 유도(버튼·배지)에, AI 바이올렛은 AI 기능 식별에만 쓴다.
-4. 다크 모드는 미정의다. 토큰에 다크 팔레트를 추가할 때 `@theme` 확장으로만 반영한다.
+4. 화면 틀은 공통 컴포넌트로만 만든다. 내부 화면은 `AppShell`(사이드바+본문), Client 포털은 `ClientShell`(같은 사이드바 구성 요소 + `PageTopbar` + `PageBody`)을 쓴다. 페이지별로 헤더·사이드바·표 틀을 새로 그리지 않는다.
+5. 페이지 폭·높이를 픽셀로 고정하지 않는다(`min-w-[1440px]`, `w-[1361px]` 등 금지). 본문은 화면 폭에 맞춰 늘어나고 768px 미만에서는 한 열로 쌓이며, 넓은 달력·표만 자체 가로 스크롤을 둔다.
+6. Client 포털의 상태 표기는 `PortalStateTag`(진행중=progress, 예정=scheduled, 완료=success 톤), 달력 칩 색은 `portalStateTone`을 쓴다.
+7. 다크 모드는 미정의다. 토큰에 다크 팔레트를 추가할 때 `@theme` 확장으로만 반영한다.

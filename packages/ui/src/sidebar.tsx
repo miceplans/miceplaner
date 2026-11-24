@@ -84,6 +84,72 @@ function readNavOrder(): SidebarKey[] {
   }
 }
 
+/* ---------- 사이드바 구성 요소(내부 앱·Client 포털 공용) ---------- */
+
+/** 사이드바 틀: 폭 240, bg-surface-sidebar. 모바일에서는 상단 가로 막대가 된다. */
+export const SIDEBAR_FRAME =
+  'flex h-full w-[240px] shrink-0 flex-col overflow-hidden bg-surface-sidebar leading-[normal] max-md:h-auto max-md:w-full max-md:border-b max-md:border-border';
+
+/** 사이드바 상단 로고 행(h52). */
+export function SidebarLogo({ href }: { href?: string }): ReactNode {
+  const logo = (
+    <div className="flex items-center gap-[7px]">
+      <img alt="mice planner" src="/assets/mice-planner-logo.png" className="block h-[11px] w-[116px] object-contain brightness-0" />
+      <img alt="" src={`${A}/group5.svg`} className="block h-[26.758px] w-[21px]" />
+    </div>
+  );
+  return (
+    <div className="flex h-[52px] shrink-0 items-center pl-[12px] pr-[14px] max-md:hidden">
+      {href ? <a href={href}>{logo}</a> : logo}
+    </div>
+  );
+}
+
+/** 사이드바 내비 목록. 모바일에서는 가로 스크롤 탭 막대로 바뀐다. */
+export function SidebarNav({ children }: { children: ReactNode }): ReactNode {
+  return (
+    <nav className="flex min-h-0 shrink-0 flex-col gap-[2px] overflow-y-auto px-[10px] max-md:h-[52px] max-md:flex-row max-md:items-center max-md:gap-0 max-md:overflow-x-auto max-md:px-[8px]">
+      {children}
+    </nav>
+  );
+}
+
+/** 사이드바 내비 항목: h32·px10·rounded-sm, 활성 bg-border + 600. */
+export function SidebarNavLink({
+  href,
+  icon,
+  iconSize = 16,
+  label,
+  active,
+  badge,
+}: {
+  href: string;
+  icon: string;
+  iconSize?: number;
+  label: string;
+  active: boolean;
+  badge?: number;
+}): ReactNode {
+  return (
+    <a
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      className={`flex h-[32px] items-center gap-[10px] rounded-sm px-[10px] text-base max-md:shrink-0 ${
+        active ? 'bg-border font-semibold text-fg-strong' : 'text-fg'
+      }`}
+    >
+      <img alt="" src={icon} style={{ width: iconSize, height: iconSize }} />
+      <span className="whitespace-nowrap">{label}</span>
+      {badge ? (
+        <>
+          <span className="flex-1" />
+          <span className="flex h-[18px] items-center justify-center rounded-md bg-brand px-[7px] text-2xs font-semibold text-fg-inverse">{badge}</span>
+        </>
+      ) : null}
+    </a>
+  );
+}
+
 export function Sidebar({ active, className = '' }: { active: SidebarKey; className?: string }): ReactNode {
   const [navOrder, setNavOrder] = useState<SidebarKey[]>(NAV.map((n) => n.key));
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -173,35 +239,13 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
   };
 
   return (
-    <aside className={`flex h-full w-[240px] shrink-0 flex-col overflow-hidden bg-surface-sidebar leading-[normal] max-md:h-auto max-md:w-full max-md:border-b max-md:border-border ${className}`} data-name="Sidebar">
-      <div className="flex h-[52px] shrink-0 items-center pl-[12px] pr-[14px] max-md:hidden">
-        <div className="flex items-center gap-[7px]">
-          <img alt="mice planner" src="/assets/mice-planner-logo.png" className="block h-[11px] w-[116px] object-contain brightness-0" />
-          <img alt="" src={`${A}/group5.svg`} className="block h-[26.758px] w-[21px]" />
-        </div>
-      </div>
-      <nav className="flex min-h-0 shrink-0 flex-col gap-[2px] overflow-y-auto px-[10px] max-md:h-[52px] max-md:flex-row max-md:items-center max-md:gap-0 max-md:overflow-x-auto max-md:px-[8px]">
+    <aside className={`${SIDEBAR_FRAME} ${className}`} data-name="Sidebar">
+      <SidebarLogo />
+      <SidebarNav>
         {visibleNav.map((n) => (
-          <a
-            key={n.key}
-            href={n.href}
-            className={`flex h-[32px] items-center gap-[10px] rounded-sm px-[10px] text-base max-md:shrink-0 ${
-              n.key === active ? 'bg-border font-semibold text-fg-strong' : 'text-fg'
-            }`}
-          >
-            <img alt="" src={`${A}/${n.icon}.svg`} style={{ width: n.size, height: n.size }} />
-            <span className="whitespace-nowrap">{n.label}</span>
-            {n.badge ? (
-              <>
-                <span className="flex-1" />
-                <span className="flex h-[18px] items-center justify-center rounded-md bg-brand px-[7px] text-2xs font-semibold text-fg-inverse">
-                  {n.badge}
-                </span>
-              </>
-            ) : null}
-          </a>
+          <SidebarNavLink key={n.key} href={n.href} icon={`${A}/${n.icon}.svg`} iconSize={n.size} label={n.label} active={n.key === active} badge={n.badge} />
         ))}
-      </nav>
+      </SidebarNav>
       <div className="hidden shrink-0 border-t border-border px-[8px] py-[6px] max-md:flex">
         <button
           type="button"
