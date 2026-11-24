@@ -2,14 +2,31 @@
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
-import { Checkbox, SidePeekPanel, SegmentControl, StatusPill, TextTabs, Toggle, type StatusKey } from '@miceplans/ui';
+import { Checkbox, Dialog, Input, Select, SidePeekPanel, SegmentControl, StatusPill, TextTabs, Toggle, toast, type StatusKey } from '@miceplans/ui';
 import { ItemAccessContext, normalizeTree, resolveOwners, type CheckItem } from './event-checklist';
 import type { Invitee, InviteRole } from './invite-dialog';
 import type { RequestRow, Team } from './event-products';
 import { PART_FILTERS, type PartFilter } from './event-parts';
 import { CURRENT_USER, getAssignableNames, isEventMember } from './event-members';
-import { getToken } from '../../../lib/api';
-import { getEventsGetQueryKey, getEventsListQueryKey, useEventsGet, useEventsMembers, useGetMe } from '../../../lib/api/generated/endpoints';
+import { getToken, ApiError } from '../../../lib/api';
+import {
+  getEventItemsListQueryKey,
+  getEventsClientsQueryKey,
+  getEventsListQueryKey,
+  getEventsMembersQueryKey,
+  getEventsGetQueryKey,
+  useClientAccountsList,
+  useDirectoryUsers,
+  useEventItemsList,
+  useEventsAddMember,
+  useEventsAssignClient,
+  useEventsClients,
+  useEventsGet,
+  useEventsMembers,
+  useEventsUnassignClient,
+  useGetMe,
+  useItemsUpdate,
+} from '../../../lib/api/generated/endpoints';
 import { useQueryClient } from '@tanstack/react-query';
 import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event-filter';
 import { PmTransfer } from './pm-transfer';
@@ -54,10 +71,17 @@ const EVENTS: Record<string, EventInfo> = {};
 /** 목업 데이터가 비어 있을 때(정적 프리렌더 포함) 보여 줄 빈 값이다. */
 const FALLBACK_EVENT: EventInfo = { name: '행사', period: '', client: '', pm: '', am: '', design: '', place: '', status: '진행중', dday: '', color: '#9aa0a6' };
 
-/** 행사 정보를 불러오기 전(또는 없을 때) 쓰는 빈 값. */
-const CLIENTS: string[] = [];
-
-function ClientSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/** 행사에 지정할 Client 계정 선택창. 목록은 Client 계정 API에서 가져온다. */
+function ClientSelect({
+  value,
+  accounts,
+  onChange,
+}: {
+  /** 현재 표시 이름(지정된 Client가 없으면 빈 값). */
+  value: string;
+  accounts: { id: string; name: string; companyName: string | null }[];
+  onChange: (accountId: string | null) => void;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}>
@@ -72,17 +96,29 @@ function ClientSelect({ value, onChange }: { value: string; onChange: (v: string
       </button>
       {open && (
         <ul role="listbox" className="absolute left-0 top-full z-20 m-0 mt-[4px] flex max-h-[240px] min-w-[200px] list-none flex-col overflow-auto rounded-xl bg-surface p-[4px] shadow-card">
-          {CLIENTS.map((c) => (
-            <li key={c} role="option" aria-selected={c === value}>
+          {value ? (
+            <li role="option" aria-selected={false}>
               <button
                 type="button"
-                onClick={() => { onChange(c); setOpen(false); }}
-                className={`w-full rounded-md px-[10px] py-[6px] text-left text-base hover:bg-surface-subtle ${c === value ? 'font-medium text-brand' : 'text-fg'}`}
+                onClick={() => { onChange(null); setOpen(false); }}
+                className="w-full rounded-md px-[10px] py-[6px] text-left text-base text-fg-tertiary hover:bg-surface-subtle"
               >
-                {c}
+                지정 안 함
+              </button>
+            </li>
+          ) : null}
+          {accounts.map((c) => (
+            <li key={c.id} role="option" aria-selected={false}>
+              <button
+                type="button"
+                onClick={() => { onChange(c.id); setOpen(false); }}
+                className={`w-full rounded-md px-[10px] py-[6px] text-left text-base hover:bg-surface-subtle ${c.name === value ? 'font-medium text-brand' : 'text-fg'}`}
+              >
+                {c.companyName || c.name}
               </button>
             </li>
           ))}
+          {!accounts.length && <li className="px-[10px] py-[6px] text-base text-fg-tertiary">등록된 Client 계정이 없습니다.</li>}
         </ul>
       )}
     </div>
@@ -101,8 +137,6 @@ type TabName = (typeof TABS_BY_TEAM)['planning'][number];
 const MEMBER_TABS: TabName[] = ['인력'];
 const DEFAULT_TAB: Record<Team, TabName> = { planning: '제작물', design: '스케줄' };
 const PART_OPTIONS = PART_FILTERS.map((p) => ({ value: p, label: p }));
-
-const TODOS: string[] = [];
 
 const CAL_VIEWS = [
   { value: 'Day', label: 'Day' },
@@ -139,7 +173,7 @@ type CalEvent = { id: string; eventId: string; day: number; title: string; start
 const OTHER_EVENT_OPACITY = 0.3;
 
 // day: BASE_MONDAY 기준 일수, start/end: 9시 기준 시간(h)
-const INITIAL_EVENTS: CalEvent[] = [];
+// 블록은 서버 일정이 아니라 화면 상태로 두고, 표와 같이 브라우저 저장소에 기억한다.
 
 function formatClock(h: number) {
   const total = DAY_START + h;
@@ -213,9 +247,37 @@ export function EventDetailView() {
   const roleResolved = members.isSuccess;
   const event: EventInfo = useMemo(() => (real ? toEventInfo(real) : EVENTS[eventId] ?? FALLBACK_EVENT), [real, eventId]);
   const [isPublic, setIsPublic] = useState(true);
-  const [client, setClient] = useState(event.client);
-  // 실제 행사가 늦게 도착하면 선택 값도 그에 맞춘다.
-  useEffect(() => { setClient(event.client); }, [event.client]);
+  // Client 지정·해제는 감사 로그 대상 API를 쓴다. 지정된 Client 계정과 전체 Client 계정 목록으로 선택창을 채운다.
+  const canManageClients = roleResolved ? myRole === 'pm' || myRole === 'am' : event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name;
+  const clientAccounts = useClientAccountsList({ query: { enabled: getToken() !== null } });
+  const assignedClients = useEventsClients(eventId, { query: { enabled: eventId !== '' && canManageClients && getToken() !== null } });
+  const assignedClientId = assignedClients.data?.[0] ?? null;
+  const clientLabel = (() => {
+    const account = (clientAccounts.data ?? []).find((a) => a.id === assignedClientId);
+    return account ? account.companyName || account.name : event.client;
+  })();
+  const assignClient = useEventsAssignClient();
+  const unassignClient = useEventsUnassignClient();
+  const refreshClients = () => {
+    void queryClient.invalidateQueries({ queryKey: getEventsClientsQueryKey(eventId) });
+    void queryClient.invalidateQueries({ queryKey: getEventsListQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getEventsGetQueryKey(eventId) });
+  };
+  const changeClient = (accountId: string | null) => {
+    if (!eventId) return;
+    if (!canManageClients) {
+      toast.error('Client 지정은 PM·AM만 할 수 있습니다.');
+      return;
+    }
+    const fail = (error: unknown) => toast.error(error instanceof ApiError ? error.message : '[500] Client 지정에 실패했습니다.');
+    if (accountId === null) {
+      if (!assignedClientId) return;
+      unassignClient.mutate({ id: eventId, userId: assignedClientId }, { onSuccess: refreshClients, onError: fail });
+    } else {
+      if (accountId === assignedClientId) return;
+      assignClient.mutate({ id: eventId, userId: accountId }, { onSuccess: refreshClients, onError: fail });
+    }
+  };
   // TODO: 팀 구분 기준(역할·소속)이 확정되면 인증 정보에서 가져온다. 그전에는 ?team=design 으로 디자인팀 화면을 본다.
   const [team, setTeam] = useState<Team>('planning');
   const [tab, setTab] = useState<TabName>(DEFAULT_TAB.planning);
@@ -251,7 +313,14 @@ export function EventDetailView() {
   useEffect(() => {
     if (!(visibleTabs as readonly string[]).includes(tab)) setTab(DEFAULT_TAB[team]);
   }, [visibleTabs, tab, team]);
-  const assignable = useMemo(() => getAssignableNames({ pm: event.pm, am: event.am, design: event.design }, eventId), [event.pm, event.am, event.design, eventId]);
+  const users = useDirectoryUsers({ query: { enabled: getToken() !== null, staleTime: 60_000 } });
+  // 업무 담당자 후보: 담당 인력(PM·AM·디자인)과 멤버 API로 확인된 행사 멤버.
+  const assignable = useMemo(() => {
+    const memberNames = (members.data ?? [])
+      .map((m) => (users.data ?? []).find((u) => u.id === m.userId)?.name)
+      .filter((name): name is string => !!name);
+    return [...new Set([...getAssignableNames({ pm: event.pm, am: event.am, design: event.design }, eventId), ...memberNames])];
+  }, [members.data, users.data, event.pm, event.am, event.design, eventId]);
   const [schedule, setSchedule] = useState(() => resolveOwners(INITIAL_SCHEDULE, assignable));
   const [products, setProducts] = useState<RequestRow[]>([]);
   // AI 에이전트가 화면의 스케줄·할 일(브라우저에만 저장)을 볼 수 있게 한다.
@@ -259,6 +328,9 @@ export function EventDetailView() {
     setEventItems(schedule);
     return () => setEventItems(undefined);
   }, [schedule]);
+  const [calView, setCalView] = useState<'Day' | 'Week' | 'Month'>('Week');
+  const [calEvents, setCalEvents] = useState<CalEvent[]>([]);
+  const [calDialog, setCalDialog] = useState(false);
   const access = useMemo(() => ({ me: CURRENT_USER.name, members: assignable }), [assignable]);
   const [listsLoaded, setListsLoaded] = useState(false);
   const listsKey = `miceplans.event-lists.${eventId}`;
@@ -268,9 +340,10 @@ export function EventDetailView() {
     try {
       const raw = window.localStorage.getItem(listsKey);
       if (raw) {
-        const saved = JSON.parse(raw) as { schedule?: CheckItem[] };
+        const saved = JSON.parse(raw) as { schedule?: CheckItem[]; calEvents?: CalEvent[] };
         if (saved.schedule) setSchedule(normalizeTree(resolveOwners(saved.schedule, assignable)));
         if (Array.isArray((saved as { products?: RequestRow[] }).products)) setProducts((saved as { products: RequestRow[] }).products);
+        if (Array.isArray(saved.calEvents)) setCalEvents(saved.calEvents);
       }
     } catch {
       // 저장소를 쓸 수 없으면 기본 데이터로 시작한다.
@@ -281,14 +354,31 @@ export function EventDetailView() {
   useEffect(() => {
     if (!listsLoaded) return;
     try {
-      window.localStorage.setItem(listsKey, JSON.stringify({ schedule, products }));
+      window.localStorage.setItem(listsKey, JSON.stringify({ schedule, products, calEvents }));
     } catch {
       // 저장 실패는 화면 상태에만 영향을 주므로 무시한다.
     }
-  }, [schedule, products, listsLoaded, listsKey]);
-  const [todos, setTodos] = useState(TODOS.map(() => false));
-  const [calView, setCalView] = useState<'Day' | 'Week' | 'Month'>('Week');
-  const [calEvents, setCalEvents] = useState(INITIAL_EVENTS);
+  }, [schedule, products, calEvents, listsLoaded, listsKey]);
+  // '할 일' 카드: 행사 항목 중 상위 할 일을 마감일 순으로 보여주고, 체크하면 완료 처리한다.
+  const eventItems = useEventItemsList(eventId, undefined, { query: { enabled: eventId !== '' && getToken() !== null } });
+  const updateItem = useItemsUpdate();
+  const openTodos = useMemo(
+    () =>
+      (eventItems.data ?? [])
+        .filter((it) => it.kind === 'task' && it.status !== '완료' && it.status !== '취소')
+        .sort((a, b) => (a.dueOn ?? '9999-12-31').localeCompare(b.dueOn ?? '9999-12-31'))
+        .slice(0, 8),
+    [eventItems.data],
+  );
+  const completeTodo = (itemId: string) => {
+    updateItem.mutate(
+      { id: itemId, data: { status: '완료' } },
+      {
+        onSuccess: () => void queryClient.invalidateQueries({ queryKey: getEventItemsListQueryKey(eventId) }),
+        onError: (error) => toast.error(error instanceof ApiError ? error.message : '[500] 완료 처리에 실패했습니다.'),
+      },
+    );
+  };
   // 캘린더가 가리키는 날(BASE_MONDAY 기준 일수). Day/Week/Month 모두 이 날을 기준으로 표시 구간을 정한다.
   const [anchor, setAnchor] = useState(TODAY_INDEX);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -297,6 +387,32 @@ export function EventDetailView() {
   const peekStore = useScheduleNoteStore(eventId || null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [invited, setInvited] = useState<(Invitee & { as: InviteRole })[]>([]);
+  const addMember = useEventsAddMember();
+  // 초대 확정: 고른 사람을 행사 멤버로 등록한다(AM·스태프). 성공하면 멤버 목록을 다시 받는다.
+  const inviteMembers = (people: Invitee[], role: InviteRole) => {
+    if (!eventId || !people.length) return;
+    const bodyRole = role === 'AM' ? 'am' : 'member';
+    let remaining = people.length;
+    const settle = () => {
+      remaining -= 1;
+      if (remaining === 0) void queryClient.invalidateQueries({ queryKey: getEventsMembersQueryKey(eventId) });
+    };
+    for (const p of people) {
+      addMember.mutate(
+        { id: eventId, data: { userId: p.id, role: bodyRole } },
+        {
+          onSuccess: () => {
+            settle();
+            toast.info(`${p.name} 님을 초대했습니다.`);
+          },
+          onError: (error) => {
+            settle();
+            toast.error(error instanceof ApiError ? error.message : `[500] ${p.name} 님 초대에 실패했습니다.`);
+          },
+        },
+      );
+    }
+  };
   const canInvite = roleResolved ? myRole === 'pm' : CURRENT_USER.name === event.pm;
   const gridRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; x: number; y: number; origin: CalEvent; moved: boolean } | null>(null);
@@ -361,6 +477,14 @@ export function EventDetailView() {
     else if (calView === 'Week') setAnchor((a) => a + dir * 7);
     else setAnchor(absOf(new Date(anchorDate.getFullYear(), anchorDate.getMonth() + dir, 1)));
   };
+  // 다른 행사 블록의 색은 알 수 없으니 회색으로 두고, 지금 행사만 대표색을 쓴다.
+  const calColorOf = (e: CalEvent) => (e.eventId === eventId ? event.color : '#9aa0a6');
+  const addCalEvent = (title: string, date: string, start: number, end: number) => {
+    const day = absOf(new Date(`${date}T00:00:00`));
+    setCalEvents((list) => [...list, { id: `n${Date.now()}`, eventId, day, title, start, end }]);
+    setAnchor(day);
+    setCalDialog(false);
+  };
 
   const scheduleCalendar = (
   <section className={`mt-[16px] flex w-full flex-col gap-[12px] p-[16px] ${CARD}`}>
@@ -369,6 +493,10 @@ export function EventDetailView() {
       <h3 className="m-0 text-lg font-semibold text-fg">{calLabel}</h3>
       <button type="button" aria-label={`다음 ${unitLabel}`} onClick={() => moveCalendar(1)} className="flex size-[24px] items-center justify-center rounded-md hover:bg-surface-chip"><img alt="" src={`${A}/cal-next.svg`} className="size-[14px]" /></button>
       <button type="button" onClick={() => setAnchor(TODAY_INDEX)} className="h-[24px] rounded-md border border-solid border-border px-[8px] text-xs text-fg-secondary hover:bg-surface-sunken">오늘</button>
+      <button type="button" onClick={() => setCalDialog(true)} className="flex h-[24px] items-center gap-[4px] rounded-md bg-brand px-[8px] text-xs font-semibold text-fg-inverse hover:opacity-90">
+        <img alt="" src={`${A}/add.svg`} className="size-[12px]" />
+        일정 추가
+      </button>
       <span className="flex-1" />
       <SegmentControl options={CAL_VIEWS} value={calView} onChange={setCalView} size="sm" />
     </div>
@@ -405,7 +533,7 @@ export function EventDetailView() {
                   {dayEvents.slice(0, 3).map((e) => (
                     <span
                       key={e.id}
-                      style={{ backgroundColor: EVENTS[e.eventId]?.color, opacity: e.eventId === eventId ? 1 : OTHER_EVENT_OPACITY }}
+                      style={{ backgroundColor: calColorOf(e), opacity: e.eventId === eventId ? 1 : OTHER_EVENT_OPACITY }}
                       className="truncate rounded-sm px-[4px] text-[10px] font-semibold leading-[16px] text-fg-inverse"
                     >
                       {e.title}
@@ -501,7 +629,7 @@ export function EventDetailView() {
                       }));
                     }}
                     style={{
-                      backgroundColor: EVENTS[e.eventId]?.color,
+                      backgroundColor: calColorOf(e),
                       opacity: dragging ? 0.9 : e.eventId === eventId ? 1 : OTHER_EVENT_OPACITY,
                       left: `calc(${(di / cols) * 100}% + 3px)`,
                       width: `calc(${100 / cols}% - 6px)`,
@@ -549,7 +677,7 @@ export function EventDetailView() {
 
         <div className="flex w-full flex-col py-[16px]">
           <Prop icon="prop-tag" label="상태"><StatusPill status={event.status} /></Prop>
-          <Prop icon="prop-client" label="고객사"><ClientSelect value={client} onChange={setClient} /></Prop>
+          <Prop icon="prop-client" label="고객사"><ClientSelect value={clientLabel} accounts={clientAccounts.data ?? []} onChange={changeClient} /></Prop>
           <Prop icon="prop-person" label="PM">{event.pm}</Prop>
           <Prop icon="prop-person" label="AM">{event.am}</Prop>
           <Prop icon="prop-person" label="디자인">{event.design}</Prop>
@@ -584,7 +712,7 @@ export function EventDetailView() {
 
         {team === 'design' && (
           <div className="flex w-full flex-col gap-[16px] pb-[8px]">
-            <ProgressTable team="design" part={part} eventId={eventId} />
+            <ProgressTable team="design" part={part} eventId={eventId} rows={products} />
             <DesignRequestTable team="design" part={part} eventId={eventId} eventName={event.name} rows={products} onRowsChange={setProducts} />
             <VideoSection eventId={eventId} />
           </div>
@@ -604,7 +732,7 @@ export function EventDetailView() {
         {tab === '통계' && <EventStats schedule={schedule} tasks={schedule.flatMap((s) => s.children ?? [])} />}
         {tab === '제작물' && (
           <div className="mt-[24px] flex w-full flex-col gap-[24px]">
-            <ProgressTable team="planning" part={part} eventId={eventId} />
+            <ProgressTable team="planning" part={part} eventId={eventId} rows={products} />
             <DesignRequestTable team="planning" part={part} eventId={eventId} eventName={event.name} rows={products} onRowsChange={setProducts} />
             <VideoSection eventId={eventId} />
           </div>
@@ -636,30 +764,39 @@ export function EventDetailView() {
         <section className={`flex min-w-0 flex-1 flex-col gap-[24px] p-[24px] ${CARD} rounded-lg`}>
           <h2 className="m-0 text-xl font-semibold text-black">할 일</h2>
           <div className="flex flex-col gap-[8px]">
-            {TODOS.map((todo, i) => (
-              <label key={i} className="flex h-[37px] cursor-pointer items-center gap-[8px] rounded-md bg-surface-muted px-[11px]">
+            {openTodos.map((todo) => (
+              <label key={todo.id} className="flex h-[37px] cursor-pointer items-center gap-[8px] rounded-md bg-surface-muted px-[11px]">
                 <Checkbox
                   className="size-[17px]!"
-                  checked={todos[i]}
-                  onChange={() => setTodos((v) => v.map((x, j) => (j === i ? !x : x)))}
+                  checked={false}
+                  onChange={() => completeTodo(todo.id)}
                 />
-                <span className={`text-sm font-semibold ${todos[i] ? 'text-fg-tertiary line-through' : 'text-fg'}`}>{todo}</span>
+                <span className="text-sm font-semibold text-fg">{todo.title}</span>
                 <span className="flex-1" />
-                <span className="text-[10.5px] text-fg-muted">~10/24</span>
+                {todo.dueOn ? <span className="text-[10.5px] text-fg-muted">~{todo.dueOn.slice(5).replace('-', '/')}</span> : null}
               </label>
             ))}
+            {!openTodos.length && (
+              <p className="m-0 px-[4px] py-[8px] text-sm text-fg-tertiary">
+                {eventItems.isPending ? '할 일을 불러오는 중입니다.' : '남은 할 일이 없습니다.'}
+              </p>
+            )}
           </div>
         </section>
       </div>
 
       {scheduleCalendar}
 
+      {calDialog && <CalEventDialog defaultDate={dateOf(anchor)} onClose={() => setCalDialog(false)} onSubmit={addCalEvent} />}
+
       {inviteOpen && (
         <InviteDialog
           eventName={event.name}
+          excludeIds={[...(members.data ?? []).map((m) => m.userId), ...(meId ? [meId] : [])]}
           onClose={() => setInviteOpen(false)}
           onInvite={(people, role) => {
             setInvited((v) => [...v, ...people.filter((p) => !v.some((x) => x.id === p.id)).map((p) => ({ ...p, as: role }))]);
+            inviteMembers(people, role);
             setInviteOpen(false);
           }}
         />
@@ -678,5 +815,81 @@ export function EventDetailView() {
         />
       )}
     </div>
+  );
+}
+
+const toYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** 주간 캘린더에 표시할 시간 일정을 추가하는 다이얼로그. */
+function CalEventDialog({
+  defaultDate,
+  onClose,
+  onSubmit,
+}: {
+  defaultDate: Date;
+  onClose: () => void;
+  onSubmit: (title: string, date: string, start: number, end: number) => void;
+}) {
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState(() => toYMD(defaultDate));
+  const [start, setStart] = useState(0);
+  const [end, setEnd] = useState(1);
+  const label = 'flex flex-col gap-[4px] text-sm text-fg-secondary';
+  const timeOptions = (from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) => from + i).map((h) => {
+      const t = formatClock(h);
+      return { value: String(h), label: `${t.text} ${t.ampm}` };
+    });
+  return (
+    <Dialog onClose={onClose}>
+      <form
+        role="dialog"
+        aria-label="일정 추가"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!title.trim() || end <= start) return;
+          onSubmit(title.trim(), date, start, end);
+        }}
+        className="flex w-[400px] max-w-full flex-col gap-[14px] rounded-lg bg-surface p-[20px] shadow-card"
+      >
+        <h2 className="m-0 text-lg font-semibold text-fg">일정 추가</h2>
+        <label className={label}>
+          제목
+          <Input autoFocus required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 리헤설" className="w-full" />
+        </label>
+        <label className={label}>
+          날짜
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full" />
+        </label>
+        <div className="flex gap-[12px]">
+          <label className={`${label} flex-1`}>
+            시작
+            <Select
+              value={String(start)}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setStart(next);
+                if (end <= next) setEnd(next + 1);
+              }}
+              className="w-full"
+              options={timeOptions(0, DAY_SPAN - 1)}
+            />
+          </label>
+          <label className={`${label} flex-1`}>
+            종료
+            <Select value={String(end)} onChange={(e) => setEnd(Number(e.target.value))} className="w-full" options={timeOptions(start + 1, DAY_SPAN)} />
+          </label>
+        </div>
+        <div className="flex justify-end gap-[8px]">
+          <button type="button" onClick={onClose} className="h-[32px] rounded-md border border-solid border-border px-[12px] text-base font-medium text-fg-secondary">
+            취소
+          </button>
+          <button type="submit" className="h-[32px] rounded-md bg-brand px-[12px] text-base font-semibold text-fg-inverse disabled:opacity-50" disabled={!title.trim()}>
+            추가
+          </button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

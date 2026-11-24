@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 
-import { Checkbox, ConfirmDialog, Input, Select, StatusPill, Textarea, type StatusKey } from '@miceplans/ui';
+import { Checkbox, ConfirmDialog, Input, Select, StatusPill, Textarea, toast, type StatusKey } from '@miceplans/ui';
 import { AddPropertyButton, PROP_COL_WIDTH, PropCell, PropHeaderCell, useCustomProps } from './custom-props';
 import { ProductNameCombobox } from './product-name-combobox';
 import { matchPart, type PartFilter, type ProductPart } from './event-parts';
@@ -59,7 +59,38 @@ type ProgressRow = {
   note: string;
 };
 
-const PROGRESS_ROWS: ProgressRow[] = [];
+/** 디자인 요청 상태를 진행상황 표의 상태로 옮긴다. */
+const PROGRESS_STATUS: Record<RequestStatus, StatusKey> = {
+  draft: '진행중',
+  pending: '확인중',
+  reject: '보류중',
+  success: '성공',
+};
+
+const fmtMMDD = (d: string) => (d ? `${d.slice(5, 7)}.${d.slice(8, 10)}` : '');
+
+/** 디자인 요청 행을 진행상황 표 행으로 바꾼다. 완료일은 아직 별도 데이터가 없어 승인 완료된 요청의 마감일을 대신 쓴다. */
+function toProgressRow(r: RequestRow): ProgressRow {
+  const due = fmtMMDD(r.due);
+  return {
+    id: r.id,
+    name: r.name,
+    part: r.part,
+    due,
+    doneAt: r.status === 'success' ? due || '완료' : null,
+    size: r.size,
+    qty: r.qty,
+    status: PROGRESS_STATUS[r.status],
+    owner: '',
+    material: r.material,
+    vendor: r.vendor,
+    contact: r.contact,
+    note: r.note,
+  };
+}
+
+/** 디자인팀이 본 의견을 행별로 기억하는 로컬 저장 키. 서버 의견 API가 생기면 대체한다. */
+const progressCommentKey = (eventId: string) => `miceplans.progress-comments.${eventId}`;
 
 type ProgressSort = '완료일순' | '마감일순' | '상태순';
 
@@ -71,7 +102,7 @@ const SORT_OPTIONS: { value: ProgressSort; label: string }[] = [
 
 const STATUS_ORDER: Record<StatusKey, number> = { 진행중: 0, 제출: 1, 확인중: 2, 보류중: 3, 만료: 4, 성공: 5 };
 
-/** 기본 정렬은 완료일(없으면 마감일) 빠른 순, 날짜가 없는 행은 뒤로 볂는다. */
+/** 기본 정렬은 완료일(없으면 마감일) 빠른 순, 날짜가 없는 행은 뒤로 내는다. */
 function sortProgress(rows: ProgressRow[], sort: ProgressSort): ProgressRow[] {
   const key = (r: ProgressRow) => (sort === '완료일순' ? r.doneAt ?? r.due : r.due);
   return [...rows].sort((a, b) => {
@@ -85,19 +116,28 @@ function sortProgress(rows: ProgressRow[], sort: ProgressSort): ProgressRow[] {
   });
 }
 
-/** 진행상황: 행사 전체 제작물의 현재 상태를 보여준다. 디자인팀은 행마다 의견을 별낼 수 있다. */
-export function ProgressTable({ team, part = '전체', eventId = 'default' }: { team: Team; part?: PartFilter; eventId?: string }) {
+/** 진행상황: 행사 전체 제작물의 현재 상태를 보여준다. 디자인팀은 행마다 의견을 보낼 수 있다. */
+export function ProgressTable({ team, part = '전체', eventId = 'default', rows: requestRows = [] }: { team: Team; part?: PartFilter; eventId?: string; rows?: RequestRow[] }) {
   const design = team === 'design';
   const cp = useCustomProps(`${eventId}:progress`);
   const [sort, setSort] = useState<ProgressSort>('완료일순');
   const [commentFor, setCommentFor] = useState<string | null>(null);
   const [comment, setComment] = useState('');
 
-  const rows = sortProgress(matchPart(PROGRESS_ROWS, part), sort);
+  const rows = sortProgress(matchPart(requestRows.map(toProgressRow), part), sort);
 
-  // TODO: 의견 전송 API·데이터 모델이 확정되면 연결한다. 지금은 입력창만 닫는다.
+  // TODO: 의견 전송 API·데이터 모델이 확정되면 서버에 보낸다. 지금은 행별로 로컬에 저장해 화면이 잃어버리지 않게 한다.
   const send = () => {
-    if (!comment.trim()) return;
+    const text = comment.trim();
+    if (!text || !commentFor) return;
+    try {
+      const key = progressCommentKey(eventId);
+      const saved = JSON.parse(window.localStorage.getItem(key) ?? '{}') as Record<string, unknown>;
+      window.localStorage.setItem(key, JSON.stringify({ ...saved, [commentFor]: { text, at: new Date().toISOString() } }));
+    } catch {
+      // 저장 실패는 무시하고 전송 피드백만 준다.
+    }
+    toast.info('의견을 보냈습니다.');
     setComment('');
     setCommentFor(null);
   };
