@@ -1,28 +1,41 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Button, Checkbox, Dialog, Input, Select } from '@miceplans/ui';
+import { getToken } from '../../../lib/api';
+import { useDirectoryUsers } from '../../../lib/api/generated/endpoints';
 
 export const ROLES = ['AM', '스태프'] as const;
 export type InviteRole = (typeof ROLES)[number];
 export type Invitee = { id: string; name: string; role: string };
 
-/** PM이 행사에 초대할 수 있는 내부 사용자 후보. */
-export const INVITEES: Invitee[] = [];
-
 export function InviteDialog({
   eventName,
+  excludeIds = [],
   onClose,
   onInvite,
 }: {
   eventName: string;
+  /** 이미 행사 멤버라서 목록에서 뺄 사용자 ID. */
+  excludeIds?: string[];
   onClose: () => void;
   onInvite: (people: Invitee[], role: InviteRole) => void;
 }) {
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<string[]>([]);
   const [role, setRole] = useState<InviteRole>('스태프');
+
+  const users = useDirectoryUsers({ query: { enabled: getToken() !== null, staleTime: 60_000 } });
+  /** PM이 행사에 초대할 수 있는 낮은 사용자 후보. Client 계정과 이미 멤버인 사람은 빼고, 이름순으로 보여준다. */
+  const invitees: Invitee[] = useMemo(
+    () =>
+      (users.data ?? [])
+        .filter((u) => u.role !== 'client' && !excludeIds.includes(u.id))
+        .map((u) => ({ id: u.id, name: u.name, role: u.jobTitle }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+    [users.data, excludeIds],
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -33,7 +46,7 @@ export function InviteDialog({
   }, [onClose]);
 
   const q = query.trim().toLowerCase();
-  const list = INVITEES.filter((p) => !q || p.name.toLowerCase().includes(q));
+  const list = invitees.filter((p) => !q || p.name.toLowerCase().includes(q));
   const toggle = (id: string) => setPicked((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]));
 
   return (
@@ -46,7 +59,7 @@ export function InviteDialog({
         onSubmit={(e) => {
           e.preventDefault();
           if (!picked.length) return;
-          onInvite(INVITEES.filter((p) => picked.includes(p.id)), role);
+          onInvite(invitees.filter((p) => picked.includes(p.id)), role);
         }}
         className="flex w-[440px] max-w-full flex-col gap-[14px] rounded-lg bg-surface p-[20px] shadow-card"
       >
@@ -78,7 +91,7 @@ export function InviteDialog({
               </li>
             );
           })}
-          {!list.length && <li className="px-[8px] py-[12px] text-sm text-fg-tertiary">검색 결과가 없어요</li>}
+          {!list.length && <li className="px-[8px] py-[12px] text-sm text-fg-tertiary">{users.isPending ? '직원 목록을 불러오는 중입니다.' : '검색 결과가 없어요'}</li>}
         </ul>
 
         <label className="flex flex-col gap-[4px] text-sm text-fg-secondary">

@@ -1,6 +1,9 @@
 'use client';
 
+import { useMemo } from 'react';
 import { avatarPalette } from '@miceplans/ui';
+import { getToken } from '../../../lib/api';
+import { useDirectoryUsers, useEventsMembers } from '../../../lib/api/generated/endpoints';
 
 // TODO: 인증·인사 연동 전까지 빈 값으로 둔다. 연동되면 인증 정보에서 현재 사용자를 채운다.
 export const CURRENT_USER = { name: '', role: 'PM' } as const;
@@ -88,19 +91,33 @@ function MemberGroup({ title, members, fallback }: { title: string; members: Mem
 
 /** 행사 인력: 담당 인력(PM·AM·디자인)과 지원 인력(스태프) 명단을 한 탭에 보여준다. */
 export function EventMembers({ event, eventId }: { event: EventLeads; eventId: string }) {
+  const members = useEventsMembers(eventId, { query: { enabled: eventId !== '' && getToken() !== null } });
+  const users = useDirectoryUsers({ query: { enabled: getToken() !== null, staleTime: 60_000 } });
+  const userById = useMemo(() => new Map((users.data ?? []).map((u) => [u.id, u])), [users.data]);
+
   const leads: MemberInfo[] = [
     { name: event.pm, role: 'PM', phone: '', email: '' },
     { name: event.am, role: 'AM', phone: '', email: '' },
     { name: event.design, role: '디자인', phone: '', email: '' },
   ];
-  const staff = getEventStaff(eventId);
+  // 멤버 API로 확인된 스태프 명단. 인적 정보는 사용자 목록에서 채운다.
+  const staff: MemberInfo[] = useMemo(
+    () =>
+      (members.data ?? [])
+        .filter((m) => m.role === 'member')
+        .map((m) => {
+          const user = userById.get(m.userId);
+          return { name: user?.name ?? '알 수 없음', role: '스태프', phone: '', email: user?.email ?? '' };
+        }),
+    [members.data, userById],
+  );
   return (
     <div className="flex w-full flex-col gap-[6px] py-[12px]">
       <MemberGroup title="담당 인력" members={leads} />
       <MemberGroup
         title="지원 인력"
         members={staff}
-        fallback="배정된 지원 인력이 없습니다. 상단의 &lsquo;+ 멤버 초대&rsquo;로 스태프를 초대해 보세요."
+        fallback={members.isPending ? '스태프 명단을 불러오는 중입니다.' : "배정된 지원 인력이 없습니다. 상단의 '+ 멤버 초대'로 스태프를 초대해 보세요."}
       />
     </div>
   );
