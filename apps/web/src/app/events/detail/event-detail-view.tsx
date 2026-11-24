@@ -310,10 +310,8 @@ export function EventDetailView() {
   const tabs = TABS_BY_TEAM[team];
   const [part, setPart] = useState<PartFilter>('전체');
   const [filter, setFilter] = useState<ItemFilter>(DEFAULT_FILTER);
-  // TODO: 개발용 — '권한 없는 사용자로 미리보기'를 켜면 비멤버 화면(인력 탭 숨김)을 확인할 수 있다.
-  const [previewNoAccess, setPreviewNoAccess] = useState(false);
   // 실데이터에서 멤버십이 확인되면 그 결과를 쓰고, 목업 행사에서는 기존 목업 판정을 쓴다.
-  const isMember = !previewNoAccess && (roleResolved ? myRole !== null : isEventMember(event, eventId, CURRENT_USER.name));
+  const isMember = roleResolved ? myRole !== null : isEventMember(event, eventId, CURRENT_USER.name);
   // AI 에이전트가 사용자가 보고 있는 탭을 맥락으로 쓰게 한다.
   useEffect(() => {
     setEventTab(tab);
@@ -331,7 +329,7 @@ export function EventDetailView() {
       return next;
     });
   }, [myTeam]);
-  // 멤버 탭을 보고 있을 때 권한이 사라지면(미리보기 토글 등) 기본 탭으로 돌아간다.
+  // 멤버 탭을 보고 있을 때 권한이 사라지면 기본 탭으로 돌아간다.
   useEffect(() => {
     if (!isMember && tab === '인력') setTab(DEFAULT_TAB[team]);
   }, [isMember, tab, team]);
@@ -802,15 +800,6 @@ export function EventDetailView() {
         <div className="flex w-full items-center gap-[10px] pb-[4px]">
           <span className="text-sm font-medium text-fg-secondary">파트</span>
           <SegmentControl options={PART_OPTIONS} value={part} onChange={setPart} size="sm" />
-          <span className="flex-1" />
-          <label className="flex cursor-pointer items-center gap-[6px] text-xs text-fg-tertiary">
-            <Checkbox
-              size="sm"
-              checked={previewNoAccess}
-              onChange={(e) => setPreviewNoAccess(e.target.checked)}
-            />
-            권한 없는 사용자로 미리보기
-          </label>
         </div>
 
         {team === 'design' && (
