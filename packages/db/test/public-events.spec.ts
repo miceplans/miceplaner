@@ -67,6 +67,14 @@ describe('비로그인 공개 캘린더 (F-07)', () => {
     expect(row).toMatchObject({ publicVisible: true, place: '바뀐 장소' });
   });
 
+  it('행사 상태는 PM·AM만 바꾸고 일반 멤버는 막는다 (DB 트리거)', async () => {
+    await expect(withContext(app, as.member, (db) => updateEvent(db, EVENT, { status: '성공' }))).rejects.toMatchObject({ code: '42501' });
+    // 같은 값을 다시 저장하는 것은 변경이 아니라 허용한다.
+    expect(await withContext(app, as.member, (db) => updateEvent(db, EVENT, { status: '진행중' }))).toMatchObject({ status: '진행중' });
+    expect(await withContext(app, as.am, (db) => updateEvent(db, EVENT, { status: '확인중' }))).toMatchObject({ status: '확인중' });
+    expect(await withContext(app, as.pm, (db) => updateEvent(db, EVENT, { status: '성공' }))).toMatchObject({ status: '성공' });
+  });
+
   it('Client 컨텍스트로도 공개 행사만 보이며, 삭제된 행사는 사라진다', async () => {
     expect(mine(await withContext(app, as.client, (db) => publicEvents(db))).map((r) => r.eventId)).toEqual([EVENT]);
     expect(await withContext(app, as.pm, (db) => softDeleteEvent(db, U.pm, EVENT))).toBe(true);

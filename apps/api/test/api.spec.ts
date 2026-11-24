@@ -190,6 +190,14 @@ describe('행사 관리 (F-02)', () => {
     expect(res.body).toMatchObject({ name: '개막 행사', priority: true });
     expect(res.body.version).toBe(2);
   });
+  it('행사 상태는 PM·AM만 바꾸고 일반 멤버는 403이다', async () => {
+    await api().patch(`/events/${EVENT}`).set(as('member')).send({ status: '성공' }).expect(403);
+    const res = await api().patch(`/events/${EVENT}`).set(as('pm')).send({ status: '확인중' }).expect(200);
+    expect(res.body.status).toBe('확인중');
+    // 같은 값을 함께 보내는 일반 수정은 막지 않는다.
+    await api().patch(`/events/${EVENT}`).set(as('member')).send({ status: '확인중', place: '코엑스' }).expect(200);
+    await api().patch(`/events/${EVENT}`).set(as('pm')).send({ status: '진행중' }).expect(200);
+  });
   it('비멤버 낮은 직원은 수정할 수 없다', async () => {
     await api().patch(`/events/${EVENT}`).set(as('outsider')).send({ name: 'x' }).expect(403);
   });
