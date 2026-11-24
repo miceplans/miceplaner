@@ -22,6 +22,9 @@ const SELECT_COLUMNS = `e.id, e.client_id AS "clientId", e.name, to_char(e.start
 
 const FROM = `FROM events e LEFT JOIN clients c ON c.id = e.client_id`;
 
+const EVENT_COLOR_PALETTE = ['#f567a5', '#4a8cff', '#2ebd85', '#ffaf20', '#8e6de8', '#31b8c6'] as const;
+const randomEventColor = () => EVENT_COLOR_PALETTE[Math.floor(Math.random() * EVENT_COLOR_PALETTE.length)]!;
+
 /** 조회 필터는 날짜·고객사·상태다. 권한 밖 행사는 RLS가 걸러낸다. */
 export async function listEvents(client: PoolClient, filter: { year?: number; clientId?: string; status?: string }): Promise<EventRow[]> {
   const cond: string[] = [];
@@ -56,7 +59,7 @@ export type NewEvent = {
 export async function createEvent(client: PoolClient, event: NewEvent): Promise<EventRow> {
   const { rows } = await client.query<{ id: string }>(
     `SELECT create_event_with_pm($1, $2, $3, $4, $5, $6, $7, $8, $9) AS id`,
-    [event.clientId, event.name, event.startDate, event.endDate, event.place ?? '', event.status ?? '진행중', event.priority ?? false, event.color ?? null, event.budget ?? null],
+    [event.clientId, event.name, event.startDate, event.endDate, event.place ?? '', event.status ?? '진행중', event.priority ?? false, event.color ?? randomEventColor(), event.budget ?? null],
   );
   const row = await getEvent(client, rows[0]!.id);
   if (!row) throw new Error('행사 생성 후 조회에 실패했다');

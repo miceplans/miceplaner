@@ -68,6 +68,7 @@ describe('행사 생성', () => {
   it('예산은 비울 수 있다', async () => {
     const res = await api().post('/events').set(as('creator')).send(base).expect(201);
     expect(res.body.budget).toBeNull();
+    expect(res.body.color).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
   it('예산을 수정할 수 있다', async () => {

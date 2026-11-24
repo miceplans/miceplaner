@@ -15,7 +15,7 @@ const A = '/assets/notifications';
 /** 알림 조회 파라미터. 쿼리 키(cache 갱신 포함)를 안정적으로 맞추려 한곳에 둔다. */
 const LIST_PARAMS: NotificationsListParams = { limit: 50 };
 
-type Item = { id: string; title: string; time: string; at: string; unread?: boolean; mention?: boolean; invite?: boolean };
+type Item = { id: string; title: string; time: string; at: string; unread?: boolean; mention?: boolean; invite?: boolean; approved?: boolean };
 type Group = { label: string; chip?: string; items: Item[] };
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -62,7 +62,7 @@ export function NotificationsView() {
         onSuccess: () => {
           // 알림 목록 캐시에서 해당 알림만 읽음으로 바꾼다.
           queryClient.setQueryData<NotificationDto[]>(getNotificationsListQueryKey(LIST_PARAMS), (items) =>
-            items?.map((item) => (item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item)),
+            items?.map((item) => (item.id === notification.id ? { ...item, readAt: new Date().toISOString(), actionStatus: 'approved' } : item)),
           );
           toast.info('Client 신청을 승인했습니다.');
         },
@@ -76,7 +76,9 @@ export function NotificationsView() {
 
   const apiGroups: Group[] = apiItems.length ? [{ label: '최근 알림', items: apiItems.map((item) => ({
     id: item.id.toString(), title: item.title.replace(/\s*\[[0-9a-f-]{36}\]$/i, ''), time: item.kind === 'client_application' ? 'Client 가입 신청' : item.kind,
-    at: item.createdAt.replace(/\.\d{3}Z$/, '').replace('Z', ''), unread: !item.readAt, invite: item.kind === 'client_application' && !item.readAt,
+    at: item.createdAt.replace(/\.\d{3}Z$/, '').replace('Z', ''), unread: !item.readAt,
+    invite: item.kind === 'client_application' && item.actionStatus === 'pending',
+    approved: item.kind === 'client_application' && item.actionStatus === 'approved',
   })) }] : GROUPS;
 
   const visible = (i: Item) => (tab === 'unread' ? i.unread && !readIds.has(i.id) : tab === 'mention' ? i.mention : true);
@@ -175,6 +177,9 @@ export function NotificationsView() {
                             if (notification) void approve(notification);
                           }} className="flex h-[26px] items-center justify-center rounded-sm bg-brand px-[10px] text-xs font-medium text-fg-inverse disabled:opacity-50">{approving === it.id ? '승인 중…' : '승인'}</button>
                         </div>
+                      ) : null}
+                      {it.approved ? (
+                        <span className="flex h-[26px] items-center justify-center rounded-sm bg-bg-secondary px-[10px] text-xs font-medium text-fg-secondary">승인 완료</span>
                       ) : null}
                       {unread ? <img alt="" src={`${A}/unread-dot.svg`} className="size-[7px] shrink-0" /> : null}
                     </div>

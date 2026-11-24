@@ -108,13 +108,20 @@ async function notify(client: PoolClient, row: EventItemRow, kind: 'assigned' | 
   await client.query(`INSERT INTO notifications (recipient_id, event_id, item_id, kind, title) VALUES ($1, $2, $3, $4, $5)`, [row.assigneeId, row.eventId, row.id, kind, row.title]);
 }
 
-export type NotificationRow = { id: number; eventId: string | null; itemId: string | null; kind: string; title: string; createdAt: string; readAt: string | null };
+export type NotificationRow = { id: number; eventId: string | null; itemId: string | null; kind: string; title: string; createdAt: string; readAt: string | null; actionStatus: 'pending' | 'approved' | 'rejected' | null };
 
 export async function listNotifications(client: PoolClient, opts: { limit?: number; unread?: boolean } = {}): Promise<NotificationRow[]> {
   const cond: string[] = [];
-  if (opts.unread) cond.push('read_at IS NULL');
+  if (opts.unread) cond.push('n.read_at IS NULL');
   const { rows } = await client.query<NotificationRow>(
-    `SELECT id::int, event_id AS "eventId", item_id AS "itemId", kind, title, ${isoTs('created_at', 'createdAt')}, ${isoTs('read_at', 'readAt')} FROM notifications ${cond.length ? `WHERE ${cond.join(' AND ')}` : ''} ORDER BY created_at DESC, id DESC LIMIT $1`,
+    `SELECT n.id::int, n.event_id AS "eventId", n.item_id AS "itemId", n.kind, n.title,
+       ${isoTs('n.created_at', 'createdAt')}, ${isoTs('n.read_at', 'readAt')}, a.status AS "actionStatus"
+     FROM notifications n
+     LEFT JOIN client_applications a
+       ON n.kind = 'client_application'
+      AND a.id = substring(n.title FROM '\\[([0-9a-fA-F-]{36})\\]$')::uuid
+     ${cond.length ? `WHERE ${cond.join(' AND ')}` : ''}
+     ORDER BY n.created_at DESC, n.id DESC LIMIT $1`,
     [opts.limit ?? 50],
   );
   return rows;
@@ -123,4 +130,13 @@ export async function listNotifications(client: PoolClient, opts: { limit?: numb
 export async function markNotificationsRead(client: PoolClient, ids: number[]): Promise<number> {
   const { rowCount } = await client.query(`UPDATE notifications SET read_at = now() WHERE id = ANY($1::bigint[]) AND read_at IS NULL`, [ids]);
   return rowCount ?? 0;
+}
+
+/** 승인한 관리자의 Client 신청 알림을 같은 트랜잭션에서 읽음 처리한다. */
+export async function markClientApplicationNotificationRead(client: PoolClient, recipientId: string, applicationId: string): Promise<void> {
+  await client.query(
+    `UPDATE notifications SET read_at = COALESCE(read_at, now())
+     WHERE recipient_id = $1 AND kind = 'client_application' AND title LIKE $2`,
+    [recipientId, `%[${applicationId}]`],
+  );
 }
