@@ -62,7 +62,7 @@ const COL_DEFS: Record<ColKey, { label: string; icon: string; w: string }> = {
   place: { label: '장소', icon: '7bb84', w: 'min-w-px flex-1' },
 };
 
-const STATUSES: StatusKey[] = ['진행중', '성공', '확인중', '만료', '제출', '보류중'];
+const STATUSES: StatusKey[] = ['진행중', '성공', '확인중', '실패', '만료', '보류중', '제출', '반려', '종료'];
 
 const ATTR_TYPES: { value: EventAttrType; label: string; mark: string }[] = [
   { value: 'text', label: '텍스트', mark: 'Aa' },

@@ -75,6 +75,13 @@ describe('비로그인 공개 캘린더 (F-07)', () => {
     expect(await withContext(app, as.pm, (db) => updateEvent(db, EVENT, { status: '성공' }))).toMatchObject({ status: '성공' });
   });
 
+  it('실패·반려·종료 상태도 저장된다 (0025)', async () => {
+    for (const status of ['실패', '반려', '종료'] as const) {
+      expect(await withContext(app, as.pm, (db) => updateEvent(db, EVENT, { status }))).toMatchObject({ status });
+    }
+    await withContext(app, as.pm, (db) => updateEvent(db, EVENT, { status: '성공' }));
+  });
+
   it('Client 컨텍스트로도 공개 행사만 보이며, 삭제된 행사는 사라진다', async () => {
     expect(mine(await withContext(app, as.client, (db) => publicEvents(db))).map((r) => r.eventId)).toEqual([EVENT]);
     expect(await withContext(app, as.pm, (db) => softDeleteEvent(db, U.pm, EVENT))).toBe(true);

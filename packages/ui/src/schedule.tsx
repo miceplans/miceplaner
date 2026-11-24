@@ -11,15 +11,18 @@ const A = '/assets/schedule';
 
 /* ---------- 상태 pill ---------- */
 
-export type StatusKey = '진행중' | '성공' | '확인중' | '만료' | '제출' | '보류중';
+export type StatusKey = '진행중' | '성공' | '확인중' | '실패' | '만료' | '보류중' | '제출' | '반려' | '종료';
 
 const TONE_OF: Record<StatusKey, StatusToneKey> = {
   진행중: 'progress',
   성공: 'success',
   확인중: 'review',
+  실패: 'error',
   만료: 'expired',
-  제출: 'submit',
   보류중: 'hold',
+  제출: 'submit',
+  반려: 'reject',
+  종료: 'closed',
 };
 
 function StatusIcon({ status }: { status: StatusKey }): ReactNode {
@@ -36,8 +39,14 @@ function StatusIcon({ status }: { status: StatusKey }): ReactNode {
       return <img alt="" src={`${A}/6bb8d.svg`} className="block size-[14.333px] shrink-0" />;
     case '확인중':
       return <img alt="" src={`${A}/698cb.svg`} className="block h-[11.828px] w-[12px] shrink-0" />;
+    case '실패':
+      return <img alt="" src={`${A}/032f3.svg`} className="block size-[14.167px] shrink-0" />;
     case '만료':
-      return <img alt="" src={`${A}/c7e29.svg`} className="block size-[14px] shrink-0" />;
+      return <img alt="" src={`${A}/9036d.svg`} className="block size-[14px] shrink-0" />;
+    case '반려':
+      return <img alt="" src={`${A}/414d1.svg`} className="block size-[14px] shrink-0" />;
+    case '종료':
+      return <img alt="" src={`${A}/45faa.svg`} className="block h-[7.755px] w-[15px] shrink-0" />;
     case '보류중':
       return <img alt="" src={`${A}/36f5f.svg`} className="block h-[11.046px] w-[12.596px] shrink-0" />;
     case '제출':

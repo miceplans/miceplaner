@@ -35,6 +35,7 @@ export type StatusToneKey =
   | 'submit'
   | 'error'
   | 'expired'
+  | 'closed'
   | 'scheduled'
   | 'reject';
 
@@ -46,7 +47,8 @@ export const statusTones: Record<StatusToneKey, { label: string; bg: string; fg:
   hold: { label: '보류중', bg: '#fff4ed', fg: '#f38817' },
   submit: { label: '제출', bg: '#f0eaff', fg: '#783dff' },
   error: { label: '실패', bg: '#ffeeee', fg: '#fe525c' },
-  expired: { label: '만료', bg: '#f1f1f1', fg: '#7b7b7b' },
+  expired: { label: '만료', bg: '#f6f1e2', fg: '#7d6d3f' },
+  closed: { label: '종료', bg: '#f1f1f1', fg: '#7b7b7b' },
   scheduled: { label: '예정', bg: '#e2f4ff', fg: '#2e5fd8' },
   reject: { label: '반려', bg: '#ffe4f0', fg: '#f53488' },
 };

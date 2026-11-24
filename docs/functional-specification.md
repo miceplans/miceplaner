@@ -197,7 +197,7 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 - 위키, 검색, 태스크, 첨부 메타데이터, 실시간 방, 협업 연결, AI 질의는 모두 거부된다.
 - 포털 화면(대시보드·행사 목록·행사 상세·캘린더)은 지정된 행사와 Program 일정 데이터로만 구성한다. 알림·문의 화면은 제공하지 않는다(F-06).
 - 공개 캘린더(2026-11-24 결정): 로그인하지 않은 방문자도 `/client/calendar`에서 회사 행사 일정을 본다. 행사별 `events.public_visible`을 켠 행사만 노출하며 기본값은 비공개다. 노출 필드는 행사명과 기간뿐이고 장소·고객사·Program·담당자·상태는 노출하지 않는다. 데이터는 공개 전용 함수 `public_events()`(SECURITY DEFINER, 함수 안에서 `public_visible`·삭제 여부 필터)로만 읽고, API는 로그인 전 익명 컨텍스트(`role=client`, 사용자 없음)로 `GET /portal/public-events`를 IP당 10분 120회(`PUBLIC_CALENDAR_RATE_LIMIT_IP`)로 제한해 제공한다. 로그인한 Client가 같은 화면을 열면 공개 캘린더 대신 지정된 행사의 Program 일정만 보여 준다.
-- 행사 상태(`진행중·성공·확인중·만료·제출·보류중`) 변경은 행사의 PM·AM과 Super Admin만 한다(2026-11-24 결정, `canChangeEventStatus`, DB 트리거 `events_guard_status`). 일반 멤버가 `PATCH /events/:id`로 다른 상태를 보내면 403이며, 같은 값을 함께 보내는 것은 변경이 아니라 허용한다. 상태는 일반 필드라 마지막 저장 우선이다. 내부 행사 상세의 `상태` 속성에서 PM·AM에게만 선택창을 보여 준다.
+- 행사 상태(`진행중·성공·확인중·실패·만료·보류중·제출·반려·종료`) 변경은 행사의 PM·AM과 Super Admin만 한다(2026-11-24 결정, `canChangeEventStatus`, DB 트리거 `events_guard_status`). 일반 멤버가 `PATCH /events/:id`로 다른 상태를 보내면 403이며, 같은 값을 함께 보내는 것은 변경이 아니라 허용한다. 상태는 일반 필드라 마지막 저장 우선이다. 내부 행사 상세의 `상태` 속성에서 PM·AM에게만 선택창을 보여 준다.
 - 공개 상태 변경은 행사의 PM·AM과 Super Admin만 한다(`canChangeEventPublicVisibility`, DB 트리거 `events_guard_public_visible`). `PUT /events/:id/public-visibility`로 version을 함께 보내며, 다르면 409(`VERSION_CONFLICT`)로 막고 감사 로그(`event.public_visibility.change`)를 남긴다. 내부 행사 상세 화면 상단의 `공개 캘린더` 토글로 바꾼다.
 - 포털 앱은 포털용 계약과 공용 UI만 사용하며 내부 도메인·소켓 계약을 참조하지 않는다.
 - 행사에 Client를 지정할 때는 대상 `users.role`이 반드시 `client`여야 한다. 애플리케이션의 사전 검증과 `event_clients` DB 트리거를 모두 적용한다.
@@ -374,7 +374,7 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 
 다음 항목은 제품 동작에 영향을 주므로 각 기능 구현 전에 별도 계약으로 확정한다.
 
-- 행사, Program, Task, Subtask, 알림의 필수 필드와 상태값. 현재 `packages/db/migrations/0002_core.sql`과 `packages/contracts`는 웹 목업에서 가져온 초안이다: 행사 상태 `진행중·성공·확인중·만료·제출·보류중`, 항목 상태 `할 일·진행 중·검토 대기·보류·취소·완료`, 제작 파트 `디자인·영상·3D`, 알림 종류 `assigned·schedule_changed·due_soon·member_changed·client_application`. 제작물·디자인 요청·표 속성은 모델이 미확정이라 스키마에 없다. 예산은 `events.budget`(원, null=미정)만 먼저 두었고 견적·마진은 미확정이다.
+- 행사, Program, Task, Subtask, 알림의 필수 필드와 상태값. 현재 `packages/db/migrations/0002_core.sql`과 `packages/contracts`는 웹 목업에서 가져온 초안이다: 행사 상태 `진행중·성공·확인중·실패·만료·보류중·제출·반려·종료`, 항목 상태 `할 일·진행 중·검토 대기·보류·취소·완료`, 제작 파트 `디자인·영상·3D`, 알림 종류 `assigned·schedule_changed·due_soon·member_changed·client_application`. 제작물·디자인 요청·표 속성은 모델이 미확정이라 스키마에 없다. 예산은 `events.budget`(원, null=미정)만 먼저 두었고 견적·마진은 미확정이다.
 - Program·Task·Subtask는 `event_items` 한 표에 `kind`와 `parent_id`로 저장하고 모든 행에 `event_id`를 유지한다. 삭제는 `soft_delete_event_item`·`soft_delete_event` 함수로 하며 하위 항목이 함께 삭제된다. 담당자는 행사 멤버만 지정할 수 있다.
 - Client 포털은 `portal_events()`·`portal_programs()`·`public_events()`만 사용한다. 앞의 둘은 지정된 행사의 `client_visible` Program에서 이름과 일정만, `public_events()`는 공개 표시한 행사의 이름과 기간만 돌려준다. 내부 표에는 Client 정책이 없다.
 - 클라이언트 행사 일정의 시간대, 취소 및 변경 표기
