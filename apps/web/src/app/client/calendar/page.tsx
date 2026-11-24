@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import type { PublicEventDto } from '@miceplans/contracts/portal';
 import { ClientHeader } from '@miceplans/ui';
-import { calendarWeeks, chipsByDay, todayIso, type ScheduleState } from '../portal';
-import { usePortalData } from '../use-portal-data';
+import { usePortalPublicEvents } from '../../../lib/api/generated/endpoints';
+import { calendarWeeks, eventState, eventsInMonth, eventWeekBars, formatRange, inclusiveDays, shortRange, todayIso, type ScheduleState, type WeekBar } from '../portal';
 
 const A = '/assets/client/calendar-view';
 
@@ -14,24 +15,32 @@ const TONE: Record<ScheduleState, { bg: string; fg: string; dot: string }> = {
 };
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-const LEGEND: [ScheduleState, string][] = [
-  ['진행중', '진행중'],
-  ['예정', '예정'],
-  ['완료', '완료'],
-];
+const LEGEND: ScheduleState[] = ['진행중', '예정', '완료'];
 
-/** 지정된 행사의 Program 일정을 달력으로 본다. 지연 상태는 Client에게 노출하지 않는다 (명세 F-07). */
+/** 주 행: 날짜 줄 아래에 기간 막대를 줄(lane)마다 쌓는다. */
+const BAR_TOP = 34;
+const BAR_H = 20;
+const BAR_GAP = 4;
+const ROW_MIN = 102;
+
+/** 조회 실패 시 쓰는 고정 빈 목록. 렌더마다 새 배열을 만들면 useMemo가 매번 다시 계산된다. */
+const NO_EVENTS: PublicEventDto[] = [];
+
+/**
+ * 공개 캘린더 (명세 F-07). 로그인 여부와 관계없이 누구나 열 수 있고,
+ * 내부 행사 상세에서 `공개 캘린더`를 켠 행사의 행사명·기간만 보여 준다.
+ */
 export default function ClientCalendarPage() {
-  const { programs, error } = usePortalData();
+  const query = usePortalPublicEvents({ query: { staleTime: 60_000 } });
+  const events = query.data ?? (query.isError ? NO_EVENTS : null);
+  const error = query.error ? (query.error instanceof Error && query.error.message) || '공개 일정을 불러오지 못했습니다.' : null;
   const today = todayIso();
   const [todayYear, todayMonth] = [Number(today.slice(0, 4)), Number(today.slice(5, 7))];
   const [cursor, setCursor] = useState({ year: todayYear, month: todayMonth });
 
   const weeks = useMemo(() => calendarWeeks(cursor.year, cursor.month), [cursor]);
-  const chips = useMemo(
-    () => chipsByDay(programs ?? [], cursor.year, cursor.month, today),
-    [programs, cursor, today],
-  );
+  const bars = useMemo(() => eventWeekBars(events ?? [], cursor.year, cursor.month, today), [events, cursor, today]);
+  const monthEvents = useMemo(() => eventsInMonth(events ?? [], cursor.year, cursor.month), [events, cursor]);
   const isCurrentMonth = cursor.year === todayYear && cursor.month === todayMonth;
   const todayDay = Number(today.slice(8, 10));
 
@@ -41,103 +50,140 @@ export default function ClientCalendarPage() {
       return { year: next.getFullYear(), month: next.getMonth() + 1 };
     });
   };
+  const goToday = () => setCursor({ year: todayYear, month: todayMonth });
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-surface-sunken">
       <ClientHeader active="calendar" />
       <main className="relative flex min-h-px flex-1 flex-col items-start bg-surface px-[32px] max-md:px-0">
-        <div className="flex h-[52px] w-full shrink-0 items-center px-[24px]">
-          <div className="flex h-full items-start gap-[2px]">
-            <a href="/client/events" className="flex h-full items-center gap-[7px] px-[12px]">
-              <img alt="" src={`${A}/tab-icon.svg`} className="size-[15px]" />
-              <span className="whitespace-nowrap text-base text-fg-secondary">행사 뷰</span>
-            </a>
-            <a href="/client/calendar" className="flex h-full items-center gap-[7px] px-[12px]">
-              <img alt="" src={`${A}/tab-icon1.svg`} className="size-[15px]" />
-              <span className="whitespace-nowrap text-base font-medium text-brand">캘린더 뷰</span>
-            </a>
-          </div>
+        <div className="flex min-h-[52px] w-full shrink-0 flex-wrap items-center gap-[8px] px-[24px] py-[8px]">
+          <h1 className="text-lg font-semibold text-fg">행사 일정</h1>
+          <p className="text-sm text-fg-tertiary">마이스 플랜즈가 진행하는 행사 일정입니다.</p>
         </div>
         <div className="flex min-h-[44px] w-full shrink-0 flex-wrap items-center gap-[10px] px-[24px]">
           <button type="button" aria-label="이전 달" onClick={() => shiftMonth(-1)} className="cursor-pointer border-0 bg-transparent p-0">
-            <img alt="이전 달" src={`${A}/nav-icon.svg`} className="size-[15px]" />
+            <img alt="" src={`${A}/nav-icon.svg`} className="size-[15px]" />
           </button>
           <p className="whitespace-nowrap text-lg font-semibold text-fg">{cursor.year}년 {cursor.month}월</p>
           <button type="button" aria-label="다음 달" onClick={() => shiftMonth(1)} className="cursor-pointer border-0 bg-transparent p-0">
-            <img alt="다음 달" src={`${A}/nav-icon1.svg`} className="size-[15px]" />
+            <img alt="" src={`${A}/nav-icon1.svg`} className="size-[15px]" />
           </button>
+          {!isCurrentMonth ? (
+            <button type="button" onClick={goToday} className="h-[26px] cursor-pointer rounded-sm border border-solid border-border bg-surface px-[10px] text-xs text-fg-secondary hover:bg-surface-chip">
+              오늘
+            </button>
+          ) : null}
           <div className="h-px min-w-px flex-1" />
           <ul className="flex h-full items-center gap-[14px]">
-            {LEGEND.map(([state, label]) => (
+            {LEGEND.map((state) => (
               <li key={state} className="flex h-full items-center gap-[5px]">
                 <img alt="" src={`${A}/${TONE[state].dot}.svg`} className="size-[7px]" />
-                <span className="whitespace-nowrap text-xs text-fg-secondary">{label}</span>
+                <span className="whitespace-nowrap text-xs text-fg-secondary">{state}</span>
               </li>
             ))}
           </ul>
         </div>
-        <div className="w-full flex-1 overflow-x-auto px-[24px] pb-[24px]">
-          <div className="flex min-w-[720px] flex-col items-start">
-          <div className="flex h-[32px] w-full shrink-0 items-start border-b border-solid border-border bg-surface">
-            {WEEKDAYS.map((d) => (
-              <div
-                key={d}
-                className={`flex h-full items-center justify-center min-w-px flex-1`}
-              >
-                <p className="whitespace-nowrap text-xs font-medium text-fg-tertiary">{d}</p>
+        <div className="flex w-full flex-1 flex-col gap-[24px] px-[24px] pb-[24px]">
+          <div className="w-full overflow-x-auto">
+            <div className="flex min-w-[720px] flex-col items-start">
+              <div className="grid h-[32px] w-full shrink-0 grid-cols-7 border-b border-solid border-border bg-surface">
+                {WEEKDAYS.map((d) => (
+                  <div key={d} className="flex h-full items-center justify-center">
+                    <p className="whitespace-nowrap text-xs font-medium text-fg-tertiary">{d}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          {weeks.map((week, w) => (
-            <div
-              key={w}
-              className={`flex h-[102px] w-full shrink-0 items-start border-solid border-border-strong ${w === weeks.length - 1 ? 'border' : 'border-b'}`}
-            >
-              {week.map((day, i) => {
-                const dayChips = day ? (chips.get(day) ?? []) : [];
-                const last = i === 6;
-                const isToday = isCurrentMonth && day === todayDay;
+              {weeks.map((week, w) => {
+                const weekBars = bars[w] ?? [];
+                const lanes = weekBars.reduce((n, b) => Math.max(n, b.lane + 1), 0);
+                const height = Math.max(ROW_MIN, BAR_TOP + lanes * (BAR_H + BAR_GAP) + 6);
                 return (
-                  <div
-                    key={i}
-                    className={`flex h-full flex-col items-start gap-[4px] overflow-hidden border-solid border-border-soft px-[8px] pb-[6px] pt-[8px] ${
-                      last ? 'min-w-px flex-1 border' : 'min-w-px flex-1 border-r'
-                    } ${day ? 'bg-surface' : 'bg-surface-subtle'}`}
-                  >
-                    {isToday ? (
-                      <span className="flex shrink-0 items-center gap-[4px]">
-                        <span className="flex size-[22px] items-center justify-center rounded-lg bg-brand text-xs font-semibold text-fg-inverse">
-                          {day}
-                        </span>
-                        <span className="text-2xs font-medium text-fg-tertiary">({WEEKDAYS[i]})</span>
-                      </span>
-                    ) : day ? (
-                      <p className="shrink-0 whitespace-nowrap text-sm text-fg-secondary">
-                        {day} <span className="text-2xs text-fg-tertiary">({WEEKDAYS[i]})</span>
-                      </p>
-                    ) : null}
-                    {dayChips.map((c) => {
-                      const t = TONE[c.state];
+                  <div key={w} style={{ height }} className="relative grid w-full shrink-0 grid-cols-7 border-b border-l border-solid border-border-strong">
+                    {week.map((day, i) => {
+                      const isToday = isCurrentMonth && day === todayDay;
                       return (
-                        <div key={c.programId} className={`flex h-[20px] max-w-full shrink-0 items-center gap-[4px] rounded-xs px-[6px] ${t.bg}`}>
-                          <img alt="" src={`${A}/${t.dot}.svg`} className="size-[5px] shrink-0" />
-                          <p className={`truncate whitespace-nowrap text-2xs font-medium ${t.fg}`}>{c.title}</p>
+                        <div
+                          key={i}
+                          className={`flex h-full min-w-0 flex-col items-start overflow-hidden border-r border-solid border-border-soft px-[8px] pt-[8px] ${
+                            i === 6 ? 'border-r-border-strong' : ''
+                          } ${day ? 'bg-surface' : 'bg-surface-subtle'}`}
+                        >
+                          {isToday ? (
+                            <span className="flex shrink-0 items-center gap-[4px]">
+                              <span className="flex size-[22px] items-center justify-center rounded-lg bg-brand text-xs font-semibold text-fg-inverse">{day}</span>
+                              <span className="text-2xs font-medium text-fg-tertiary">({WEEKDAYS[i]})</span>
+                            </span>
+                          ) : day ? (
+                            <p className="shrink-0 whitespace-nowrap text-sm text-fg-secondary">
+                              {day} <span className="text-2xs text-fg-tertiary">({WEEKDAYS[i]})</span>
+                            </p>
+                          ) : null}
                         </div>
                       );
                     })}
+                    {weekBars.length > 0 ? (
+                      <div className="pointer-events-none absolute inset-x-0 grid grid-cols-7 px-[2px]" style={{ top: BAR_TOP, gridAutoRows: BAR_H, rowGap: BAR_GAP }}>
+                        {weekBars.map((b) => (
+                          <EventBar key={b.eventId} bar={b} />
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}
             </div>
-          ))}
           </div>
+
+          {monthEvents.length > 0 ? (
+            <section className="flex w-full flex-col gap-[8px]">
+              <h2 className="text-base font-semibold text-fg">{cursor.month}월 행사</h2>
+              <ul className="flex w-full flex-col divide-y divide-border-soft rounded-md border border-solid border-border-soft bg-surface">
+                {monthEvents.map((e) => {
+                  const t = TONE[eventState(e.startDate, e.endDate, today)];
+                  return (
+                    <li key={e.eventId} className="flex items-center gap-[10px] px-[16px] py-[12px] max-md:flex-col max-md:items-start max-md:gap-[4px]">
+                      <span className="flex min-w-0 flex-1 items-center gap-[8px]">
+                        <img alt="" src={`${A}/${t.dot}.svg`} className="size-[7px] shrink-0" />
+                        <span className="truncate text-sm font-medium text-fg">{e.name}</span>
+                      </span>
+                      <span className="whitespace-nowrap text-sm text-fg-secondary">
+                        {formatRange(e.startDate, e.endDate)} <span className="text-xs text-fg-tertiary">({inclusiveDays(e.startDate, e.endDate)}일)</span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
+
           {error ? (
-            <p role="alert" className="flex w-full justify-center pt-[16px] text-sm text-error-delay">{error}</p>
-          ) : programs !== null && chips.size === 0 ? (
-            <p className="flex w-full justify-center pt-[16px] text-sm text-fg-tertiary">이 달에 공유된 일정이 없습니다</p>
+            <p role="alert" className="flex w-full justify-center text-sm text-error-delay">{error}</p>
+          ) : events !== null && monthEvents.length === 0 ? (
+            <p className="flex w-full justify-center text-sm text-fg-tertiary">이 달에 공개된 행사가 없습니다</p>
           ) : null}
         </div>
       </main>
+    </div>
+  );
+}
+
+/** 행사 기간 막대. 이 주 밖으로 이어지는 쪽은 모서리를 펴서 이어짐을 보여 준다. 막대 안에 행사명과 기간을 적는다. */
+function EventBar({ bar }: { bar: WeekBar }) {
+  const t = TONE[bar.state];
+  return (
+    <div
+      title={`${bar.name} · ${formatRange(bar.startDate, bar.endDate)}`}
+      className={`pointer-events-auto mx-[2px] flex min-w-0 items-center gap-[4px] px-[6px] ${t.bg} ${bar.continuesBefore ? 'rounded-l-none' : 'rounded-l-xs'} ${
+        bar.continuesAfter ? 'rounded-r-none' : 'rounded-r-xs'
+      }`}
+      style={{ gridColumn: `${bar.col + 1} / span ${bar.span}`, gridRow: bar.lane + 1 }}
+    >
+      {!bar.continuesBefore ? <img alt="" src={`${A}/${t.dot}.svg`} className="size-[5px] shrink-0" /> : null}
+      <span className={`truncate text-2xs font-medium ${t.fg}`}>
+        {bar.continuesBefore ? '← ' : ''}
+        {bar.name}
+      </span>
+      <span className={`shrink-0 whitespace-nowrap text-2xs opacity-80 ${t.fg}`}>{shortRange(bar.startDate, bar.endDate)}</span>
     </div>
   );
 }

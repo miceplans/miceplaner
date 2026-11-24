@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { getToken } from '../../lib/api';
 
-/** 로그인 없이 열리는 Client 포털 경로. 캘린더는 비로그인이면 공개 행사, 로그인하면 지정된 행사를 보여 준다 (명세 F-07). */
+/** 로그인 없이 열리는 Client 포털 경로. 캘린더는 누구나 공개 표시한 행사를 본다 (명세 F-07). */
 const OPEN = new Set(['/client/login', '/client/apply', '/client/calendar']);
 
 /**
