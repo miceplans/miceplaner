@@ -14,6 +14,7 @@ import { ImportModule } from './import/import.module';
 import { ItemsModule } from './items/items.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { LeaveModule } from './leave/leave.module';
+import { NoticesModule } from './notices/notices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PortalModule } from './portal/portal.module';
 import { RealtimeModule } from './realtime/realtime.module';
@@ -38,6 +39,7 @@ class HealthController {
     NotificationsModule,
     PortalModule,
     LeaveModule,
+    NoticesModule,
     DocsModule,
     KnowledgeModule,
     AiModule,

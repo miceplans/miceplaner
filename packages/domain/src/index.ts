@@ -4,3 +4,4 @@ export * from './dday';
 export * from './event-items';
 export * from './leave';
 export * from './knowledge';
+export * from './notice';

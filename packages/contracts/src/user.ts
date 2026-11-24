@@ -46,3 +46,17 @@ export type ClientDto = z.infer<typeof clientDto>;
 /** 행사 생성 화면의 '+ 고객사' 입력으로 새 고객사를 만든다. 생성은 낮은 권한 이상만 허용한다(명세 F-02, 가져오기와 같은 범위). */
 export const createClientBody = z.object({ name: z.string().trim().min(1).max(200) });
 export type CreateClientBody = z.infer<typeof createClientBody>;
+
+/** 승인된 Client 포털 계정과 연결된 고객사. `companyName`은 신청 때 적은 회사명이며 Super Admin에게만 채운다. */
+export const clientAccountDto = z.object({
+  id: uuid,
+  name: z.string(),
+  email: z.string(),
+  clientId: uuid.nullable(),
+  companyName: z.string().nullable(),
+});
+export type ClientAccountDto = z.infer<typeof clientAccountDto>;
+
+/** Client 계정을 고객사에 연결한다. null이면 연결을 해제한다 (Super Admin, 감사 로그 대상). */
+export const linkClientAccountBody = z.object({ clientId: uuid.nullable() });
+export type LinkClientAccountBody = z.infer<typeof linkClientAccountBody>;

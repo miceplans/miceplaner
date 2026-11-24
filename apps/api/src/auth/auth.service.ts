@@ -2,7 +2,7 @@ import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundExce
 import { authSessionDto, clientApplicationDto, userDto } from '@miceplans/contracts';
 import type { ChangePasswordBody, CreateClientApplicationBody, LoginBody, RegisterBody } from '@miceplans/contracts';
 import {
-  approveClientApplication, createClientApplication, findUserByEmail, getPasswordHash, getUserById, insertUser, setInitialPasswordHash, setPasswordHash, withContext, type UserRow,
+  approveClientApplication, createClientApplication, findClientIdByCompanyName, findUserByEmail, getPasswordHash, getUserById, insertUser, linkClientAccount, setInitialPasswordHash, setPasswordHash, withContext, type UserRow,
 } from '@miceplans/db';
 import { randomUUID } from 'node:crypto';
 import type { Pool } from '@miceplans/db';
@@ -103,7 +103,10 @@ export class AuthService {
     const application = await withContext(this.pool, user, async (db) => {
       const approved = await approveClientApplication(db, applicationId, user.userId);
       if (!approved) throw new NotFoundException('[404] 대기 중인 Client 신청을 찾을 수 없습니다.');
-      await insertUser(db, { id: randomUUID(), name: approved.applicantName, email: approved.email, passwordHash: approved.passwordHash, role: 'client' });
+      const clientUser = await insertUser(db, { id: randomUUID(), name: approved.applicantName, email: approved.email, passwordHash: approved.passwordHash, role: 'client' });
+      // 신청 회사명과 이름이 같은 고객사가 하나뿐이면 바로 연결한다. 없으면 고객사 화면에서 직접 연결한다.
+      const clientId = await findClientIdByCompanyName(db, approved.companyName);
+      if (clientId) await linkClientAccount(db, clientUser.id, clientId);
       await db.query(`INSERT INTO audit_log (actor_id, action, detail) VALUES ($1, 'client.application.approve', $2)`, [user.userId, JSON.stringify({ applicationId, email: approved.email, companyName: approved.companyName })]);
       return approved;
     }).catch((error: unknown) => {

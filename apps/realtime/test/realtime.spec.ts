@@ -77,6 +77,22 @@ describe('Socket.IO 서비스', () => {
     expect(pmGot).toHaveLength(1);
     expect(staffGot).toHaveLength(0);
   });
+  it('공지 푸시는 전체는 직원 전원에게, 행사 공지는 멤버에만 간다', async () => {
+    const pm = await open(tokens.pm!);
+    const member = await open(tokens.member!);
+    const staff = await open(tokens.staff!);
+    const pmGot = received(pm, 'notice.new');
+    const memberGot = received(member, 'notice.new');
+    const staffGot = received(staff, 'notice.new');
+    await settle();
+    await emit({ type: 'notice.new', eventId: null });
+    await emit({ type: 'notice.new', eventId: EVENT });
+    await settle();
+    expect(pmGot).toHaveLength(2);
+    expect(memberGot).toHaveLength(2);
+    // staff는 행사 멤버가 아니라 전체 공지만 받는다.
+    expect(staffGot).toHaveLength(1);
+  });
   it('권한 회수 푸시는 통지하고 멤버 방에서 내보낸다', async () => {
     const member = await open(tokens.member!);
     const revoked = received(member, 'event.member-access.revoked');

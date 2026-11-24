@@ -58,6 +58,10 @@ export function applyEmit(io: Server, body: RealtimeEmitBody): void {
       sockets.socketsLeave(`event-member:${body.eventId}`);
       return;
     }
+    case 'notice.new':
+      // 전체 공지는 내부 직원 전원의 방에, 행사 공지는 그 행사 멤버 방에만 보낸다.
+      io.to(body.eventId === null ? 'workspace' : `event-member:${body.eventId}`).emit('notice.new', { at: new Date().toISOString() });
+      return;
   }
 }
 
@@ -111,6 +115,8 @@ export function createRealtimeServer(pool: Pool): { http: HttpServer; io: Server
     if (socket.disconnected) return;
     socket.join(rooms.flat());
     socket.join(`user:${user.id}`);
+    // 전체 공지 방. 내부 직원만 이 방에 들어온다.
+    socket.join('workspace');
     socket.data.user = { userId: user.id, role: user.role };
   });
 

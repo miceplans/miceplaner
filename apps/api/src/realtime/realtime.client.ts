@@ -16,6 +16,8 @@ export interface Realtime {
   grantEventMemberAccess(eventId: string, userId: string): void;
   /** 행사 멤버 권한이 사라진 사용자를 멤버 전용 방에서 내보낸다. */
   revokeEventMemberAccess(eventId: string, userId: string): void;
+  /** 공지가 새로 올라왔다. eventId가 없으면 전체 공지다. */
+  noticeChanged(eventId: string | null): void;
 }
 
 const pending = new Set<Promise<void>>();
@@ -66,5 +68,9 @@ export class RealtimeClient implements Realtime {
 
   revokeEventMemberAccess(eventId: string, userId: string) {
     this.send({ type: 'member-access.revoked', eventId, userId });
+  }
+
+  noticeChanged(eventId: string | null) {
+    this.send({ type: 'notice.new', eventId });
   }
 }

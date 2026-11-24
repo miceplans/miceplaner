@@ -108,7 +108,7 @@ export function NewEventForm() {
             invalid={tried && missing.clientId}
             options={[{ value: '', label: loading ? '불러오는 중…' : '고객사 선택' }, ...(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))]}
             searchable
-            creatable="고객사"
+            creatable="고객"
             onCreate={registerClient}
             className="w-full"
           />
