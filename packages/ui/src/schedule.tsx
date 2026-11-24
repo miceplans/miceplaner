@@ -310,6 +310,7 @@ export function MonthCalendar({
   personal = false,
   todos = [],
   initialMonth,
+  onMonthChange,
   peekMembers = [],
   peekStore,
 }: {
@@ -327,6 +328,8 @@ export function MonthCalendar({
   todos?: PersonalTodo[];
   /** 처음에 표시할 월. 없으면 이번 달이다. 이전/다음 달 버튼으로 월을 옮긴다. */
   initialMonth?: { year: number; month: number };
+  /** 이전/다음 달로 월을 옮길 때마다 호출한다. 새로고침 후에도 커서 월을 유지하는 저장에 쓴다. */
+  onMonthChange?: (cursor: { year: number; month: number }) => void;
   /** 일정 상세 패널에서 담당자로 지정할 수 있는 인력 이름 */
   peekMembers?: string[];
   /** 일정 상세 패널 내용 저장소(서버). 없으면 저장하지 않는다. */
@@ -340,15 +343,21 @@ export function MonthCalendar({
   /** 날짜 패널은 day:YYYY-MM-DD, 그 날의 항목 패널은 뒤에 항목 제목을 붙인다. */
   const peekKey = (day: number, item?: string) =>
     `day:${cursor.year}-${String(cursor.month).padStart(2, '0')}-${String(day).padStart(2, '0')}${item ? `:${item}` : ''}`;
+  const moveMonth = (delta: number) =>
+    setCursor((current) => {
+      const next = shiftMonth(current, delta);
+      onMonthChange?.(next);
+      return next;
+    });
   return (
     <div className="flex w-full flex-col items-center" style={{ gap: gridGap }}>
       {peek ? <SidePeekPanel title={peek.title} date={peek.date} agenda={[]} members={peekMembers} storageKey={peek.key} store={peekStore} onClose={() => setPeek(null)} /> : null}
       <div className="flex shrink-0 items-center gap-[17.895px]">
-        <button type="button" aria-label="이전 달" onClick={() => setCursor((c) => shiftMonth(c, -1))} className="size-[26.842px] rounded-sm hover:bg-surface-chip">
+        <button type="button" aria-label="이전 달" onClick={() => moveMonth(-1)} className="size-[26.842px] rounded-sm hover:bg-surface-chip">
           <img alt="" src={`${A}/4f176.svg`} className="size-full" />
         </button>
         <p className="whitespace-nowrap text-3xl font-semibold text-fg">{title}</p>
-        <button type="button" aria-label="다음 달" onClick={() => setCursor((c) => shiftMonth(c, 1))} className="size-[26.842px] rounded-sm hover:bg-surface-chip">
+        <button type="button" aria-label="다음 달" onClick={() => moveMonth(1)} className="size-[26.842px] rounded-sm hover:bg-surface-chip">
           <img alt="" src={`${A}/2e379.svg`} className="size-full" />
         </button>
         {headerAddon}

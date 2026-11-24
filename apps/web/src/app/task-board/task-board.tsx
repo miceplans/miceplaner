@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { Button, ConfirmDialog, Dialog, DatePicker, FlowTopbar, Input, PageFrame, Select, ViewTabs, toast, type ViewTab } from '@miceplans/ui';
 import { getToken, ApiError } from '../../lib/api';
@@ -83,6 +83,27 @@ const TABS: (ViewTab & { key: TabKey })[] = [
 ];
 
 type SortMode = 'default' | 'due-asc' | 'due-desc';
+
+/** 선택한 행사 필터와 정렬을 저장해 새로고침 후에도 유지한다. */
+const PREFS_KEY = 'miceplans.task-board.prefs';
+type Prefs = { event?: string; sortMode?: SortMode };
+
+function loadPrefs(): Prefs {
+  try {
+    const raw = window.localStorage.getItem(PREFS_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    if (parsed && typeof parsed === 'object') {
+      const prefs = parsed as Prefs;
+      return {
+        event: typeof prefs.event === 'string' ? prefs.event : undefined,
+        sortMode: prefs.sortMode === 'due-asc' || prefs.sortMode === 'due-desc' ? prefs.sortMode : undefined,
+      };
+    }
+  } catch {
+    /* 저장값이 깨져 있으면 기본값으로 돌아간다. */
+  }
+  return {};
+}
 
 type TaskFormValues = { title: string; event: string; schedule: string; due: string | null; who: string; status: string };
 
@@ -179,6 +200,22 @@ export function TaskBoard() {
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('board');
   const [event, setEvent] = useState(ALL);
   const [sortMode, setSortMode] = useState<SortMode>('default');
+  // 저장한 필터·정렬은 hydration 이후에 적용해 서버 렌더 결과와 맞춘다.
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  useEffect(() => {
+    const prefs = loadPrefs();
+    if (prefs.event) setEvent(prefs.event);
+    if (prefs.sortMode) setSortMode(prefs.sortMode);
+    setPrefsLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    try {
+      window.localStorage.setItem(PREFS_KEY, JSON.stringify({ event, sortMode }));
+    } catch {
+      /* 저장할 수 없는 환경에서는 현재 화면에만 적용한다. */
+    }
+  }, [event, sortMode, prefsLoaded]);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [deleting, setDeleting] = useState<Task | null>(null);
 
@@ -271,16 +308,23 @@ export function TaskBoard() {
     toast.error(error instanceof ApiError ? error.message : fallback);
 
   const inEvent = (task: Task) => event === ALL || task.event === event;
-  const boardColumns = columns.map((c) => ({ ...c, tasks: tasks.filter((t) => t.status === c.id && inEvent(t)) }));
-  const visibleTasks = tab === 'mine' ? tasks.filter((task) => task.createdById === meId) : tasks.filter(inEvent);
+  const boardColumns = useMemo(() => columns.map((c) => ({ ...c, tasks: tasks.filter((t) => t.status === c.id && inEvent(t)) })), [columns, tasks, event]);
+  const visibleTasks = useMemo(
+    () => (tab === 'mine' ? tasks.filter((task) => task.createdById === meId) : tasks.filter(inEvent)),
+    [tasks, tab, meId, event],
+  );
   /** 마감일 없는 항목은 어느 방향이든 맨 뒤로. 기본은 현행 순서 유지(안정 정렬). */
-  const sortedTasks = [...visibleTasks].sort((a, b) => {
-    if (sortMode === 'default') return 0;
-    if (!a.due && !b.due) return 0;
-    if (!a.due) return 1;
-    if (!b.due) return -1;
-    return sortMode === 'due-asc' ? a.due.localeCompare(b.due) : b.due.localeCompare(a.due);
-  });
+  const sortedTasks = useMemo(
+    () =>
+      [...visibleTasks].sort((a, b) => {
+        if (sortMode === 'default') return 0;
+        if (!a.due && !b.due) return 0;
+        if (!a.due) return 1;
+        if (!b.due) return -1;
+        return sortMode === 'due-asc' ? a.due.localeCompare(b.due) : b.due.localeCompare(a.due);
+      }),
+    [visibleTasks, sortMode],
+  );
 
   let editTarget: { task: Task; status: string } | null = null;
   if (dialog?.mode === 'edit') {
