@@ -41,7 +41,7 @@ function toWire(messages: readonly ChatMsg[]): { system: string; messages: WireM
 export function anthropicCompatible({ baseUrl, apiKey, model, fetch: doFetch = fetch, temperature = 0.2, maxTokens = 4096, thinking = false }: AnthropicCompatOptions): LlmClient {
   return {
     model,
-    async *stream({ messages, tools, signal }) {
+    async *stream({ messages, tools, signal, onRetry }) {
       const wire = toWire(messages);
       const res = await fetchWithRetry(doFetch, `${baseUrl.replace(/\/$/, '')}/v1/messages`, {
         method: 'POST',
@@ -58,7 +58,7 @@ export function anthropicCompatible({ baseUrl, apiKey, model, fetch: doFetch = f
           ...(tools.length ? { tools: tools.map((t: ToolSpec) => ({ name: t.name, description: t.description, input_schema: t.parameters })) } : {}),
         }),
         signal,
-      });
+      }, { onRetry });
       if (!res.ok || !res.body) throw new Error(`LLM 요청 실패 (HTTP ${res.status})`);
 
       const pending = new Map<number, ToolCall>();

@@ -69,6 +69,11 @@ describe('AI 도구 계약 (명세 F-11)', () => {
   it('모든 도구 입력은 JSON Schema로 변환된다', () => {
     for (const t of Object.values(AGENT_TOOLS)) expect(z.toJSONSchema(t.input)).toMatchObject({ type: 'object' });
   });
+  it('query_events의 상태는 실제 행사 상태 값만 받는다', () => {
+    expect(AGENT_TOOLS.query_events.input.safeParse({ status: '보류중' }).success).toBe(true);
+    expect(AGENT_TOOLS.query_events.input.safeParse({ status: '보류' }).success).toBe(false);
+    expect(z.toJSONSchema(AGENT_TOOLS.query_events.input)).toMatchObject({ properties: { status: { enum: expect.arrayContaining(['보류중', '진행중']) } } });
+  });
   it('작업 초안은 부모를 요구하고 20개를 넘길 수 없다', () => {
     const id = '00000000-0000-4000-8000-000000000001';
     expect(proposeTaskDraftsInput.safeParse({ eventId: id, summary: 's', drafts: [{ kind: 'task', parentId: id, title: 't' }] }).success).toBe(true);

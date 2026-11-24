@@ -59,6 +59,8 @@ export const chatEvent = z.discriminatedUnion('type', [
   z.object({ type: z.literal('tool'), name: z.string(), ok: z.boolean() }),
   z.object({ type: z.literal('sources'), sources: z.array(searchHitDto.pick({ docId: true, title: true, heading: true, snippet: true })) }),
   z.object({ type: z.literal('proposal'), proposal: proposalDto }),
+  /** 답변 전 대기 상태 안내(예: LLM 과부하 재시도). 답변 본문에는 넣지 않는다. */
+  z.object({ type: z.literal('status'), message: z.string() }),
   z.object({ type: z.literal('done') }),
   z.object({ type: z.literal('error'), message: z.string() }),
 ]);

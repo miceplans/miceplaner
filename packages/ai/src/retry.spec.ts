@@ -11,6 +11,13 @@ describe('fetchWithRetry', () => {
     expect(f).toHaveBeenCalledTimes(2);
   });
 
+  it('재시도 직전에 onRetry로 시도 횟수·대기 시간·상태를 알린다', async () => {
+    const f = vi.fn().mockResolvedValueOnce(res(503)).mockResolvedValueOnce(res(529)).mockResolvedValueOnce(res(200));
+    const seen: unknown[] = [];
+    await fetchWithRetry(f as unknown as typeof fetch, 'http://x', {}, { baseDelayMs: 1, onRetry: (i) => seen.push(i) });
+    expect(seen).toEqual([{ attempt: 1, delayMs: 1, status: 503 }, { attempt: 2, delayMs: 2, status: 529 }]);
+  });
+
   it('잔액 부족(1113)은 재시도하지 않는다', async () => {
     const f = vi.fn().mockResolvedValue(res(429, '{"error":{"code":"1113"}}'));
     const r = await fetchWithRetry(f as unknown as typeof fetch, 'http://x', {}, { baseDelayMs: 1 });

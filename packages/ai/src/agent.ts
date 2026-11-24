@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AGENT_TOOLS, isAgentToolName, type AgentToolName } from '@miceplans/contracts';
 import type { ChatMsg, LlmClient, ToolCall, ToolSpec } from './llm';
+import type { RetryInfo } from './retry';
 
 /** 도구 구현이 던지면 메시지가 모델에 그대로 전달된다. 그 외 예외는 일반 오류로 가린다. */
 export class ToolError extends Error {}
@@ -16,6 +17,8 @@ export type AgentOptions = {
   handlers: ToolHandlers;
   onText?: (delta: string) => void;
   onTool?: (entry: ToolLogEntry) => void;
+  /** LLM이 과부하로 거절해 다시 시도하기 직전에 불린다. */
+  onRetry?: (info: RetryInfo) => void;
   maxSteps?: number;
   signal?: AbortSignal;
 };
@@ -29,7 +32,7 @@ export const toolSpecs: ToolSpec[] = Object.entries(AGENT_TOOLS).map(([name, t])
 }));
 
 /** 모델이 도구를 부르는 동안 반복하고, 도구 없이 답하면 끝난다. 쓰기 도구가 없으므로 어떤 호출도 데이터를 바꾸지 않는다. */
-export async function runAgent({ llm, messages, handlers, onText, onTool, maxSteps = 6, signal }: AgentOptions): Promise<AgentResult> {
+export async function runAgent({ llm, messages, handlers, onText, onTool, onRetry, maxSteps = 6, signal }: AgentOptions): Promise<AgentResult> {
   const history: ChatMsg[] = [...messages];
   const toolLog: ToolLogEntry[] = [];
   let promptTokens = 0;
@@ -39,7 +42,7 @@ export async function runAgent({ llm, messages, handlers, onText, onTool, maxSte
   for (let step = 0; step < maxSteps; step++) {
     let stepText = '';
     let calls: ToolCall[] = [];
-    for await (const chunk of llm.stream({ messages: history, tools: toolSpecs, signal })) {
+    for await (const chunk of llm.stream({ messages: history, tools: toolSpecs, signal, onRetry })) {
       if (chunk.type === 'text') {
         stepText += chunk.delta;
         onText?.(chunk.delta);
@@ -53,13 +56,15 @@ export async function runAgent({ llm, messages, handlers, onText, onTool, maxSte
     history.push({ role: 'assistant', content: stepText || null, ...(calls.length ? { toolCalls: calls } : {}) });
     if (calls.length === 0) return { text, toolLog, promptTokens, completionTokens, messages: history.slice(messages.length) };
 
-    for (const call of calls) {
-      const { ok, content } = await execute(call, handlers);
+    // 한 단계의 도구는 서로의 결과를 보지 않으므로 동시에 실행하고, 기록·모델 입력은 호출 순서대로 쌓는다.
+    const results = await Promise.all(calls.map((call) => execute(call, handlers)));
+    calls.forEach((call, i) => {
+      const { ok, content } = results[i]!;
       const entry = { name: call.name, arguments: call.arguments, ok };
       toolLog.push(entry);
       onTool?.(entry);
       history.push({ role: 'tool', toolCallId: call.id, content });
-    }
+    });
   }
 
   const notice = '\n\n(조회 단계 한도에 도달해 여기까지만 답합니다. 질문을 더 좁혀 주세요.)';

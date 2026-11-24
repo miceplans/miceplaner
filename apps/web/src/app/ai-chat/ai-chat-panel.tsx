@@ -55,6 +55,8 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
   const turnsRef = useRef<Turn[]>([]);
   const frameRef = useRef<number | null>(null);
   const [busy, setBusy] = useState(false);
+  /** 답변 글자가 오기 전 대기 안내. 대화 기록에는 저장하지 않는다. */
+  const [status, setStatus] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   const sending = useRef(false);
   const approve = useApproveProposal();
@@ -113,8 +115,11 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
   };
 
   const handle = (e: ChatEvent) => {
-    if (e.type === 'text') patchLast((t) => ({ ...t, content: t.content + e.delta }));
-    else if (e.type === 'sources') patchLast((t) => ({ ...t, sources: e.sources }));
+    if (e.type === 'status') setStatus(e.message);
+    else if (e.type === 'text') {
+      setStatus(null);
+      patchLast((t) => ({ ...t, content: t.content + e.delta }));
+    } else if (e.type === 'sources') patchLast((t) => ({ ...t, sources: e.sources }));
     else if (e.type === 'proposal') patchLast((t) => ({ ...t, proposals: [...(t.proposals ?? []), e.proposal] }));
     else if (e.type === 'error') toast.error(e.message);
   };
@@ -137,6 +142,7 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
       if (!(error instanceof DOMException && error.name === 'AbortError')) toast.error(error instanceof ApiError ? error.message : '[500] 답변을 받지 못했습니다.');
     } finally {
       sending.current = false;
+      setStatus(null);
       setBusy(false);
     }
   };
@@ -184,7 +190,8 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
             </div>
           ) : (
             <div key={i} className="flex w-full flex-col items-start gap-[8.337px]">
-              {t.content ? <p className="w-full whitespace-pre-wrap text-2xs leading-[1.5] text-fg">{t.content}</p> : busy && i === turns.length - 1 && <p className="text-2xs text-fg-secondary">생각하는 중…</p>}
+              {t.content ? <p className="w-full whitespace-pre-wrap text-2xs leading-[1.5] text-fg">{t.content}</p> : busy && i === turns.length - 1 && <p className="text-2xs text-fg-secondary">{status ?? '생각하는 중…'}</p>}
+              {t.content && status && busy && i === turns.length - 1 && <p className="text-2xs text-fg-secondary">{status}</p>}
               {t.sources && t.sources.length > 0 && (
                 <div className="flex w-full flex-col gap-[4px] rounded-md border-[0.834px] border-solid border-border p-[8.337px]">
                   <span className="text-2xs font-semibold text-fg">출처</span>

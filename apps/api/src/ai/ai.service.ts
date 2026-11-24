@@ -98,6 +98,7 @@ export class AiService {
           if (restored) send({ type: 'text', delta: restored });
         },
         onTool: (t) => send({ type: 'tool', name: t.name, ok: t.ok }),
+        onRetry: ({ delayMs }) => send({ type: 'status', message: `AI 서버가 혼잡해 ${Math.ceil(delayMs / 1000)}초 뒤 다시 시도합니다…` }),
       }), stop);
       const tail = restore.flush();
       if (tail) send({ type: 'text', delta: tail });
