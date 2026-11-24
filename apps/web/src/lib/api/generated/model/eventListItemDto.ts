@@ -28,6 +28,7 @@ export interface EventListItemDto {
      * @nullable
      */
   budget: number | null;
+  publicVisible: boolean;
   /**
      * @maximum 9007199254740991
      * @exclusiveMinimum 0

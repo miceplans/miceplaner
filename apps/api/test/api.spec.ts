@@ -361,6 +361,29 @@ describe('Client 포털 (F-07)', () => {
     expect((await api().get('/portal/events').set(as('client2')).expect(200)).body).toHaveLength(0);
     expect((await count()) - before).toBe(2); // 앞선 스펙의 지정 기록은 세지 않는다.
   });
+  it('비로그인 공개 캘린더는 PM·AM이 공개 표시한 행사의 행사명·기간만 보여 준다', async () => {
+    const mine = (body: { eventId: string }[]) => body.filter((e) => e.eventId === EVENT || e.eventId === OTHER_EVENT);
+    expect(mine((await api().get('/portal/public-events').expect(200)).body)).toEqual([]);
+
+    const { version } = (await api().get(`/events/${EVENT}`).set(as('pm')).expect(200)).body as { version: number };
+    await api().put(`/events/${EVENT}/public-visibility`).set(as('member')).send({ publicVisible: true, version }).expect(403);
+    await api().put(`/events/${EVENT}/public-visibility`).set(as('client')).send({ publicVisible: true, version }).expect(403);
+    const updated = await api().put(`/events/${EVENT}/public-visibility`).set(as('pm')).send({ publicVisible: true, version }).expect(200);
+    expect(updated.body).toMatchObject({ publicVisible: true, version: version + 1 });
+
+    // 이전 version으로 다시 바꾸려 하면 충돌이다.
+    const conflict = await api().put(`/events/${EVENT}/public-visibility`).set(as('pm')).send({ publicVisible: false, version }).expect(409);
+    expect(conflict.body).toMatchObject({ code: 'VERSION_CONFLICT', currentVersion: version + 1 });
+
+    const open = (await api().get('/portal/public-events').expect(200)).body as Record<string, unknown>[];
+    expect(mine(open as { eventId: string }[])).toEqual([{ eventId: EVENT, name: '개막 행사', startDate: expect.any(String), endDate: expect.any(String) }]);
+    expect(Object.keys(open[0]!).sort()).toEqual(['endDate', 'eventId', 'name', 'startDate']);
+    const log = await admin.query(`SELECT actor_id FROM audit_log WHERE action = 'event.public_visibility.change' AND event_id = $1`, [EVENT]);
+    expect(log.rows).toEqual([{ actor_id: U.pm }]);
+
+    await api().put(`/events/${EVENT}/public-visibility`).set(as('pm')).send({ publicVisible: false, version: version + 1 }).expect(200);
+    expect(mine((await api().get('/portal/public-events').expect(200)).body)).toEqual([]);
+  });
 });
 
 describe('휴가·연차 (F-12)', () => {

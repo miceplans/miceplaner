@@ -1,13 +1,13 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { eventDto, eventListItemDto, eventMemberDto, type CreateEventBody, type ListEventsQuery, type UpdateEventBody } from '@miceplans/contracts';
+import { eventDto, eventListItemDto, eventMemberDto, type CreateEventBody, type ListEventsQuery, type SetEventPublicVisibilityBody, type UpdateEventBody } from '@miceplans/contracts';
 import {
   addEventMember, changeEventMemberRole, createEvent, eventRole, getEvent, getUserById, listEventClients, listEventMembers, listEvents,
-  removeEventMember, setEventClient, softDeleteEvent, transferPm, updateEvent, withContext,
+  removeEventMember, setEventClient, setEventPublicVisibility, softDeleteEvent, transferPm, updateEvent, withContext,
 } from '@miceplans/db';
-import { canDeleteEvent, canEditEventItems, canManageMembers, canTransferPm } from '@miceplans/domain';
+import { canChangeEventPublicVisibility, canDeleteEvent, canEditEventItems, canManageMembers, canTransferPm } from '@miceplans/domain';
 import type { Pool, PoolClient } from '@miceplans/db';
 import { AuthUser, requireInternal } from '../common/auth';
-import { assertFound, assertOk, mapDbError } from '../common/http';
+import { assertFound, assertOk, mapDbError, versionConflictError } from '../common/http';
 import { DB_POOL } from '../tokens';
 import { REALTIME, type Realtime } from '../realtime/realtime.client';
 import { CollabClient } from '../knowledge/collab.client';
@@ -61,6 +61,20 @@ export class EventsService {
       await this.requireEvent(db, id);
       await this.requireRole(db, id, canEditEventItems, '[403] 행사 멤버만 수정할 수 있습니다.');
       return assertFound(await updateEvent(db, id, body), '행사');
+    });
+    this.rt.eventChanged(id);
+    return eventDto.parse(row);
+  }
+
+  /** 비로그인 공개 캘린더 노출. PM·AM만 바꾸고 version이 다르면 409로 막는다 (명세 3.2, F-07). 감사 로그 대상이다. */
+  async setPublicVisibility(user: AuthUser, id: string, body: SetEventPublicVisibilityBody) {
+    requireInternal(user);
+    const row = await this.run(user, async (db) => {
+      const current = await this.requireEvent(db, id);
+      await this.requireRole(db, id, canChangeEventPublicVisibility, '[403] 공개 상태는 PM·AM만 바꿀 수 있습니다.');
+      const result = await setEventPublicVisibility(db, user.userId, id, body.publicVisible, body.version);
+      if (result === 'conflict') throw versionConflictError((await getEvent(db, id))?.version ?? current.version);
+      return assertFound(result, '행사');
     });
     this.rt.eventChanged(id);
     return eventDto.parse(row);

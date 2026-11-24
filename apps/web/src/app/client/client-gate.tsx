@@ -4,8 +4,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { getToken } from '../../lib/api';
 
-/** 로그인 없이 열리는 Client 포털 경로. */
-const OPEN = new Set(['/client/login', '/client/apply']);
+/** 로그인 없이 열리는 Client 포털 경로. 캘린더는 비로그인이면 공개 행사, 로그인하면 지정된 행사를 보여 준다 (명세 F-07). */
+const OPEN = new Set(['/client/login', '/client/apply', '/client/calendar']);
 
 /**
  * 포털 화면은 Client 세션 토큰이 있어야 보인다. 토큰이 없으면 로그인으로 보낸다.

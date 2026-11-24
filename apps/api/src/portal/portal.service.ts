@@ -1,8 +1,9 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { portalEventDto, portalProgramDto } from '@miceplans/contracts/portal';
-import { portalEvents, portalPrograms, withContext } from '@miceplans/db';
+import { portalEventDto, portalProgramDto, publicEventDto } from '@miceplans/contracts/portal';
+import { portalEvents, portalPrograms, publicEvents, withContext } from '@miceplans/db';
 import type { Pool } from '@miceplans/db';
 import type { AuthUser } from '../common/auth';
+import { config } from '../config';
 import { mapDbError } from '../common/http';
 import { DB_POOL } from '../tokens';
 
@@ -25,5 +26,14 @@ export class PortalService {
     this.requireClient(user);
     const rows = await withContext(this.pool, user, (db) => portalPrograms(db)).catch((error) => mapDbError(error));
     return rows.map((r) => portalProgramDto.parse(r));
+  }
+
+  /**
+   * 로그인 전 공개 캘린더. 신원이 없으므로 최소 권한(client) 익명 컨텍스트로 공개 전용 함수만 호출한다.
+   * 공개 표시한 행사의 이름과 기간만 돌려준다 (명세 F-07, 2026-11-24 결정).
+   */
+  async publicEvents() {
+    const rows = await withContext(this.pool, { workspaceId: config.workspaceId, userId: '', role: 'client' }, (db) => publicEvents(db)).catch((error) => mapDbError(error));
+    return rows.map((r) => publicEventDto.parse(r));
   }
 }

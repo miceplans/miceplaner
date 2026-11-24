@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canDeleteEvent, canEditEventItems, canManageMembers, canTransferPm } from './event-items';
+import { canChangeEventPublicVisibility, canDeleteEvent, canEditEventItems, canManageMembers, canTransferPm } from './event-items';
 
 describe('행사 권한 (명세 2.2)', () => {
   it('Program 이하 편집은 행사 멤버까지', () => {
@@ -8,6 +8,9 @@ describe('행사 권한 (명세 2.2)', () => {
   it('멤버 관리는 PM·AM', () => {
     expect(canManageMembers('member')).toBe(false);
     expect(canManageMembers('am')).toBe(true);
+  });
+  it('공개 캘린더 노출 변경은 PM·AM·Super Admin만', () => {
+    expect((['super_admin', 'pm', 'am', 'member', 'staff', 'client'] as const).map(canChangeEventPublicVisibility)).toEqual([true, true, true, false, false, false]);
   });
   it('행사 삭제는 PM만', () => {
     expect(canDeleteEvent('pm')).toBe(true);

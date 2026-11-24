@@ -1,8 +1,8 @@
 import { Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
-  addEventMemberBody, changeEventMemberRoleBody, createEventBody, listEventsQuery, transferPmBody, updateEventBody,
-  type AddEventMemberBody, type CreateEventBody, type ListEventsQuery, type TransferPmBody, type UpdateEventBody,
+  addEventMemberBody, changeEventMemberRoleBody, createEventBody, listEventsQuery, setEventPublicVisibilityBody, transferPmBody, updateEventBody,
+  type AddEventMemberBody, type CreateEventBody, type ListEventsQuery, type SetEventPublicVisibilityBody, type TransferPmBody, type UpdateEventBody,
 } from '@miceplans/contracts';
 import { Auth, type AuthUser } from '../common/auth';
 import { Returns } from '../common/openapi';
@@ -40,6 +40,13 @@ export class EventsController {
   @Returns('EventDto')
   update(@Auth() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @ZodBody(updateEventBody) body: UpdateEventBody) {
     return this.events.update(user, id, body);
+  }
+
+  @Put(':id/public-visibility')
+  @ApiOperation({ summary: '비로그인 공개 캘린더 노출 변경 (PM·AM, 버전 검사, 감사 로그 대상, 명세 F-07)' })
+  @Returns('EventDto')
+  setPublicVisibility(@Auth() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @ZodBody(setEventPublicVisibilityBody) body: SetEventPublicVisibilityBody) {
+    return this.events.setPublicVisibility(user, id, body);
   }
 
   @Delete(':id')
