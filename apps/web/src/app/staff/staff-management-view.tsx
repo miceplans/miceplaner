@@ -48,13 +48,14 @@ export function StaffManagementView() {
           <div className="rounded-lg border border-border bg-surface p-[18px]"><p className="m-0 text-sm text-fg-secondary">재직 직원</p><p className="m-0 mt-[6px] text-2xl font-bold text-fg">{activeCount}명</p></div>
           <div className="rounded-lg border border-border bg-surface p-[18px]"><p className="m-0 text-sm text-fg-secondary">대표 관리자</p><p className="m-0 mt-[6px] text-2xl font-bold text-fg">{adminCount}명</p></div>
         </section>
-        <section className="overflow-hidden rounded-lg border border-border bg-surface">
-          <div className="flex flex-wrap items-center gap-[10px] border-b border-border p-[14px]">
+        <div className="flex flex-col gap-[12px]">
+          <div className="flex flex-wrap items-center gap-[10px]">
             <label className="min-w-[220px] flex-1"><span className="sr-only">직원 검색</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="이름, 이메일, 직급 검색" className="h-[36px] w-full rounded-sm border border-border bg-surface px-[12px] text-base text-fg outline-none focus:border-brand" /></label>
             <div className="flex rounded-sm bg-surface-chip p-[3px]">
               {([['active', '재직'], ['departed', '퇴사'], ['all', '전체']] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-sm px-[12px] py-[6px] text-sm ${filter === value ? 'bg-surface font-semibold text-fg shadow-sm' : 'text-fg-secondary'}`}>{label}</button>)}
             </div>
           </div>
+          <section className="overflow-hidden rounded-lg border border-border bg-surface">
           {message ? <p role="status" className="m-0 border-b border-border bg-brand-tint px-[16px] py-[9px] text-sm text-fg">{message}</p> : null}
           <div className="mobile-table-scroll overflow-x-auto">
             <table className="w-full min-w-[780px] border-collapse text-left">
@@ -77,7 +78,8 @@ export function StaffManagementView() {
               </tbody>
             </table>
           </div>
-        </section>
+          </section>
+        </div>
       </main>
     </div>
   );
