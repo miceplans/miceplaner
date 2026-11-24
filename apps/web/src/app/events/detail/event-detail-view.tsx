@@ -169,7 +169,7 @@ const DAY_START = 9;
 const DAY_SPAN = HOURS.length - 1; // 9시 ~ 20시 중 표시 구간(시간)
 const DRAG_THRESHOLD = 4;
 
-type CalEvent = { id: string; eventId: string; day: number; title: string; start: number; end: number };
+type CalEvent = { id: string; eventId: string; day: number; title: string; start: number; end: number; source?: 'calendar' | 'schedule' };
 
 // 캘린더에는 여러 행사의 일정이 함께 보이며, 블록 색은 소속 행사의 대표색이다.
 // 현재 보고 있는 행사가 아닌 블록은 흐리게 처리한다.
@@ -506,6 +506,10 @@ export function EventDetailView() {
   const dragRef = useRef<{ id: string; x: number; y: number; origin: CalEvent; moved: boolean } | null>(null);
 
   const onEventPointerDown = (e: ReactPointerEvent<HTMLDivElement>, ev: CalEvent) => {
+    if (ev.source === 'schedule') {
+      setSelectedId(ev.id);
+      return;
+    }
     e.currentTarget.setPointerCapture(e.pointerId);
     dragRef.current = { id: ev.id, x: e.clientX, y: e.clientY, origin: ev, moved: false };
     setSelectedId(ev.id);
@@ -537,7 +541,25 @@ export function EventDetailView() {
     setDraggingId(null);
   };
 
-  const peekEvent = calEvents.find((x) => x.id === peekId) ?? null;
+  const scheduleCalEvents = useMemo<CalEvent[]>(
+    () => schedule.flatMap((item) => {
+      if (!item.date) return [];
+      const [year, month, day] = item.date.split('-').map(Number);
+      if (!year || !month || !day) return [];
+      return [{
+        id: `schedule:${item.id}`,
+        eventId,
+        day: absOf(new Date(year, month - 1, day)),
+        title: item.title,
+        start: item.start ?? 0,
+        end: item.end ?? 1,
+        source: 'schedule' as const,
+      }];
+    }),
+    [schedule, eventId],
+  );
+  const calendarEvents = useMemo(() => [...calEvents, ...scheduleCalEvents], [calEvents, scheduleCalEvents]);
+  const peekEvent = calendarEvents.find((x) => x.id === peekId) ?? null;
   const weekStartAbs = weekStartOf(anchor);
   const visibleDays = calView === 'Day' ? [anchor] : Array.from({ length: 7 }, (_, i) => weekStartAbs + i);
   const rangeStart = visibleDays[0]!;
@@ -600,7 +622,7 @@ export function EventDetailView() {
           <div className="grid grid-cols-7 border-0 border-l border-t border-solid border-border-soft">
             {monthGridDays.map((abs, i) => {
               const inMonth = abs >= monthFirstAbs && abs <= monthLastAbs;
-              const dayEvents = calEvents.filter((e) => e.day === abs).sort((a, b) => a.start - b.start);
+              const dayEvents = calendarEvents.filter((e) => e.day === abs).sort((a, b) => a.start - b.start);
               return (
                 <button
                   key={abs}
@@ -683,7 +705,7 @@ export function EventDetailView() {
               );
             })}
 
-            {calEvents
+            {calendarEvents
               .filter((e) => e.day >= rangeStart && e.day <= rangeEnd)
               .map((e) => {
                 const di = e.day - rangeStart;
@@ -698,12 +720,13 @@ export function EventDetailView() {
                     aria-label={`${e.title} ${formatRange(e.start, e.end)}`}
                     aria-pressed={selected}
                     onPointerDown={(ev) => { ev.stopPropagation(); onEventPointerDown(ev, e); }}
-                    onPointerMove={onEventPointerMove}
-                    onPointerUp={endDrag}
-                    onPointerCancel={endDrag}
+                    onPointerMove={e.source === 'schedule' ? undefined : onEventPointerMove}
+                    onPointerUp={e.source === 'schedule' ? undefined : endDrag}
+                    onPointerCancel={e.source === 'schedule' ? undefined : endDrag}
                     onDoubleClick={() => { endDrag(); setSelectedId(e.id); setPeekId(e.id); }}
                     onKeyDown={(ev) => {
                       if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setSelectedId(e.id); setPeekId(e.id); }
+                      if (e.source === 'schedule') return;
                       const step = ev.key === 'ArrowDown' ? SNAP : ev.key === 'ArrowUp' ? -SNAP : 0;
                       const dayStep = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0;
                       if (!step && !dayStep) return;
@@ -725,7 +748,7 @@ export function EventDetailView() {
                       height: (e.end - e.start) * HOUR_H - 4,
                     }}
                     className={`absolute touch-none select-none overflow-hidden rounded-md px-[7px] py-[5px] text-fg-inverse outline-none ${
-                      dragging ? 'z-[5] cursor-grabbing shadow-card' : 'z-[3] cursor-grab transition-[top,left] duration-100'
+                      dragging ? 'z-[5] cursor-grabbing shadow-card' : e.source === 'schedule' ? 'z-[3] cursor-pointer' : 'z-[3] cursor-grab transition-[top,left] duration-100'
                     } ${selected ? 'ring-2 ring-fg ring-offset-1' : 'focus-visible:ring-2 focus-visible:ring-fg'}`}
                   >
                     <p className="m-0 flex items-center gap-[4px] text-[10px] font-bold"><span className="size-[4px] rounded-full bg-fg-inverse" />{e.title}</p>

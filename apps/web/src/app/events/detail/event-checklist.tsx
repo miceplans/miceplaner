@@ -14,6 +14,9 @@ export type CheckItem = {
   /** 완료 처리한 시각(ms). 완료일 순 정렬에 쓴다. 없으면 마감일로 대신한다. */
   completedAt?: number;
   date?: string;
+  /** 오전 9시를 0으로 한 시작·종료 시각. 0.5는 30분 단위다. */
+  start?: number;
+  end?: number;
   /** 표시용 담당자 이니셜. assignee가 있으면 assignee의 첫 글자를 쓴다. */
   owner?: string;
   /** 담당자 이름. 지정된 업무는 담당자만 완료할 수 있다. */
@@ -122,13 +125,15 @@ function addChild(items: CheckItem[], parentId: string, title: string, createdBy
   return mapTree(items, parentId, (item) => ({ ...item, children: [...(item.children ?? []), child] })).map(normalize);
 }
 
-export function addRoot(items: CheckItem[], title: string, createdBy?: string, details: Pick<CheckItem, 'date' | 'assignee'> = {}): CheckItem[] {
+export function addRoot(items: CheckItem[], title: string, createdBy?: string, details: Pick<CheckItem, 'date' | 'start' | 'end' | 'assignee'> = {}): CheckItem[] {
   return [...items, {
     id: `n${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
     title,
     done: false,
     createdBy,
     date: details.date || undefined,
+    start: details.start,
+    end: details.end,
     assignee: details.assignee || undefined,
     owner: details.assignee?.slice(0, 1),
   }];

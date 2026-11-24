@@ -32,6 +32,8 @@ export function ScheduleList({
   const [adding, setAdding] = useState(false);
   const [value, setValue] = useState('');
   const [date, setDate] = useState('');
+  const [start, setStart] = useState(0);
+  const [end, setEnd] = useState(1);
   const [assignee, setAssignee] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -40,9 +42,11 @@ export function ScheduleList({
 
   const submit = () => {
     const title = value.trim();
-    if (title) onChange((list) => addRoot(list, title, me, { date, assignee }));
+    if (title) onChange((list) => addRoot(list, title, me, { date, start, end, assignee }));
     setValue('');
     setDate('');
+    setStart(0);
+    setEnd(1);
     setAssignee('');
     setAdding(false);
   };
@@ -50,6 +54,8 @@ export function ScheduleList({
   const cancel = () => {
     setValue('');
     setDate('');
+    setStart(0);
+    setEnd(1);
     setAssignee('');
     setAdding(false);
   };
@@ -89,7 +95,11 @@ export function ScheduleList({
             >
               ×
             </button>}
-            {item.date && <span className="whitespace-nowrap text-base text-fg-secondary">{item.date}</span>}
+            {item.date && (
+              <span className="whitespace-nowrap text-base text-fg-secondary">
+                {item.date}{item.start !== undefined && item.end !== undefined ? ` ${formatTime(item.start)}–${formatTime(item.end)}` : ''}
+              </span>
+            )}
             <AssigneeBadge item={item} onAssign={(a) => onChange((list) => assignItem(list, item.id, a, me))} />
           </li>
         );
@@ -114,6 +124,26 @@ export function ScheduleList({
               className="min-w-[180px] flex-1"
             />
             <Input type="date" aria-label="새 일정 날짜" value={date} onChange={(e) => setDate(e.target.value)} size="sm" className="w-[150px]" />
+            <Select
+              aria-label="새 일정 시작 시간"
+              value={String(start)}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setStart(next);
+                if (end <= next) setEnd(Math.min(next + 1, 11));
+              }}
+              size="sm"
+              className="w-[105px]"
+              options={timeOptions(0, 10.5)}
+            />
+            <Select
+              aria-label="새 일정 종료 시간"
+              value={String(end)}
+              onChange={(e) => setEnd(Number(e.target.value))}
+              size="sm"
+              className="w-[105px]"
+              options={timeOptions(start + 0.5, 11)}
+            />
             <Select aria-label="새 일정 담당자" value={assignee} onChange={(e) => setAssignee(e.target.value)} size="sm" className="w-[140px]">
               <option value="">담당자 없음</option>
               {members.map((member) => <option key={member} value={member}>{member}</option>)}
@@ -141,4 +171,16 @@ export function ScheduleList({
       )}
     </ul>
   );
+}
+
+function formatTime(offset: number) {
+  const totalMinutes = 9 * 60 + offset * 60;
+  return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
+}
+
+function timeOptions(from: number, to: number) {
+  return Array.from({ length: Math.floor((to - from) / 0.5) + 1 }, (_, index) => from + index * 0.5).map((value) => ({
+    value: String(value),
+    label: formatTime(value),
+  }));
 }
