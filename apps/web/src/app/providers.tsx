@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { SidebarUserProvider } from '@miceplans/ui/sidebar';
-import { ApiError, getToken } from '../lib/api';
+import { ApiError, clearToken, getToken } from '../lib/api';
 import { useGetMe } from '../lib/api/generated/endpoints';
 import { DesktopNotifications } from './desktop-notifications';
 
@@ -14,7 +14,14 @@ import { DesktopNotifications } from './desktop-notifications';
 /** 로그인한 경우에만 내 정보를 조회해 사이드바 프로필에 전달한다. */
 function SidebarUser({ children }: { children: ReactNode }) {
   const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
-  return <SidebarUserProvider value={me.data ? { name: me.data.name, email: me.data.email, jobTitle: me.data.jobTitle, team: me.data.team, subTeam: me.data.subTeam, role: me.data.role } : null}>{children}</SidebarUserProvider>;
+  const queryClient = useQueryClient();
+  /** 세션 토큰은 서버에 상태가 없는 JWT라 브라우저에서 지우고, 다른 사용자에게 남지 않도록 캐시도 비운다. */
+  const signOut = () => {
+    clearToken();
+    queryClient.clear();
+    window.location.replace('/login');
+  };
+  return <SidebarUserProvider value={me.data ? { name: me.data.name, email: me.data.email, jobTitle: me.data.jobTitle, team: me.data.team, subTeam: me.data.subTeam, role: me.data.role, onSignOut: signOut } : null}>{children}</SidebarUserProvider>;
 }
 
 export function Providers({ children }: { children: ReactNode }) {

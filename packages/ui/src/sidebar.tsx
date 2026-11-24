@@ -17,8 +17,8 @@ export type SidebarKey =
 
 const A = '/assets/sidebar';
 
-/** 사이드바 하단에 표시할 로그인 사용자. 앱이 Provider로 주입하며, 없으면 프로필 영역을 숨긴다. */
-export type SidebarUser = { name: string; email?: string; jobTitle?: string; team?: string; subTeam?: string; role?: string };
+/** 사이드바 하단에 표시할 로그인 사용자. 앱이 Provider로 주입하며, 없으면 프로필 영역을 숨긴다. `onSignOut`이 있으면 프로필에 로그아웃 버튼을 보인다. */
+export type SidebarUser = { name: string; email?: string; jobTitle?: string; team?: string; subTeam?: string; role?: string; onSignOut?: () => void };
 const SidebarUserContext = createContext<SidebarUser | null>(null);
 export const SidebarUserProvider = SidebarUserContext.Provider;
 
@@ -283,6 +283,15 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
                 </div>
               ) : null}
             </dl>
+            {user.onSignOut ? (
+              <button
+                type="button"
+                onClick={() => { setProfileOpen(false); user.onSignOut?.(); }}
+                className="flex h-[34px] items-center justify-center rounded-md border border-border text-base font-medium text-error-delay hover:bg-error-bg"
+              >
+                로그아웃
+              </button>
+            ) : null}
           </div>
         </Dialog>
       , document.body) : null}
