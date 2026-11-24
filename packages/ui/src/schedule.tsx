@@ -5,6 +5,7 @@ import { SidePeekPanel, type SidePeekStore } from './side-peek';
 import { type PersonalTodo } from './personal-todo';
 import { Input } from './field';
 import { statusTones, type StatusToneKey } from './tokens';
+import { useSidebarToggle } from './sidebar';
 
 const A = '/assets/schedule';
 
@@ -65,9 +66,10 @@ export function StatusPill({ status }: { status: StatusKey }): ReactNode {
 /* ---------- Topbar ---------- */
 
 export function Topbar(): ReactNode {
+  const toggleSidebar = useSidebarToggle();
   return (
     <div className="flex h-[56px] w-full shrink-0 items-center gap-[12px] border-b border-solid border-border bg-surface px-[16px]">
-      <button type="button" aria-label="사이드바 토글" className="flex size-[28px] shrink-0 items-center justify-center rounded-sm hover:bg-surface-chip">
+      <button type="button" aria-label="사이드바 토글" onClick={toggleSidebar} className="flex size-[28px] shrink-0 items-center justify-center rounded-sm hover:bg-surface-chip">
         <img alt="" src={`${A}/6fc38.svg`} className="size-[16px]" />
       </button>
       <div className="flex h-full shrink-0 items-center gap-[6px] text-base">
@@ -439,9 +441,8 @@ export function MonthCalendar({
   );
 }
 
-/* 사이드바 활성 탭 아이콘 세트 */
+/* 사이드바 활성 탭 아이콘 세트. '전체 일정' 표는 정리되어 빠졌다. */
 export const SCHEDULE_TABS: ViewTab[] = [
-  { label: '전체 일정', icon: 'ffeb6', activeIcon: '753c4', href: '/schedule-table' },
   { label: '내 일정', icon: '10b86' },
   { label: '캘린더', icon: 'b0b49', activeIcon: '85cb7', href: '/schedule-calendar' },
 ];

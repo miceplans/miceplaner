@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { DesktopNotificationToggle } from '../desktop-notification-toggle';
 import { ApiError } from '../../lib/api';
+import { isDesktopShell } from '../../lib/desktop';
 import { getNotificationsListQueryKey, useApproveClientApplication, useNotificationsList } from '../../lib/api/generated/endpoints';
 import type { NotificationsListParams } from '../../lib/api/generated/model';
 import type { NotificationDto } from '@miceplans/contracts';
@@ -43,6 +44,7 @@ export function NotificationsView() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<TabKey>('all');
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // API 미설정(정적 목업)이면 조회 실패로 data가 비어 빈 알림 상태를 유지한다.
   const notifications = useNotificationsList(LIST_PARAMS);
   const apiItems = notifications.data ?? [];
@@ -110,7 +112,6 @@ export function NotificationsView() {
             })}
           </div>
           <div className="h-px min-w-px flex-1" />
-          <DesktopNotificationToggle />
           <button
             type="button"
             onClick={() => setReadIds(new Set(apiGroups.flatMap((g) => g.items.map((i) => i.id))))}
@@ -119,10 +120,28 @@ export function NotificationsView() {
             <img alt="" src={`${A}/mark-icon.svg`} className="size-[13px]" />
             <span className="whitespace-nowrap text-base font-medium text-fg-secondary">모두 읽음 처리</span>
           </button>
-          <DesktopNotificationToggle />
-          <button type="button" aria-label="알림 설정" className="flex size-[30px] items-center justify-center rounded-sm border border-solid border-border bg-surface">
-            <img alt="" src={`${A}/settings-icon.svg`} className="size-[15px]" />
-          </button>
+          <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setSettingsOpen(false); }}>
+            <button
+              type="button"
+              aria-label="알림 설정"
+              aria-haspopup="menu"
+              aria-expanded={settingsOpen}
+              onClick={() => setSettingsOpen((v) => !v)}
+              className="flex size-[30px] items-center justify-center rounded-sm border border-solid border-border bg-surface"
+            >
+              <img alt="" src={`${A}/settings-icon.svg`} className="size-[15px]" />
+            </button>
+            {settingsOpen && (
+              <div role="menu" className="absolute right-0 top-full z-20 mt-[4px] flex w-[220px] flex-col gap-[6px] rounded-lg bg-surface p-[10px] shadow-card">
+                <p className="m-0 text-xs font-semibold text-fg-secondary">알림 설정</p>
+                {isDesktopShell() ? (
+                  <DesktopNotificationToggle />
+                ) : (
+                  <p className="m-0 text-xs text-fg-tertiary">데스크톱 앱에서 데스크톱 알림을 켜고 끌 수 있습니다.</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex min-h-px w-full flex-1 flex-col items-start gap-[18px] px-[24px] py-[20px]">
           {groups.map((g) => (
