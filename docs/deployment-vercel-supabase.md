@@ -101,13 +101,13 @@ Vercel 함수는 무상태 요청 처리에는 적합하지만, 이 저장소의
 
 - Socket.IO 및 Hocuspocus 장기 연결: 현재 Vercel 공식 한도 문서는 함수가 WebSocket 서버 역할을 지원하지 않는다고 명시한다. 실시간 기능을 출시할 때는 별도 지속 실행 서비스 또는 검증된 Vercel WebSocket 베타를 사용한다.
 - `apps/worker`의 pg-boss 소비: 폴링하는 지속 worker라 Vercel에 상주시킬 수 없다. 파일 변환·임베딩을 운영할 때만 작은 별도 worker를 둔다.
-- 파일 업로드와 다운로드: Vercel 함수 요청·응답은 4.5MB 제한이 있어 업로드 상한을 4MB(`MAX_FILE_BYTES`)로 낮췄다. 4MB 이하 원본은 API를 거쳐 올리고 내려받는다. 더 큰 파일이 필요해지면 Supabase Storage(S3 호환) multipart/direct upload로 전환하고 API는 권한 검증과 메타데이터 기록만 처리하는 방식을 검토한다(명세 6절).
+- 파일 업로드와 다운로드: Vercel 함수 요청·응답은 4.5MB 제한이 있어 업로드 상한을 4MB(`MAX_FILE_BYTES`)로 낮췄다. 4MB 이하 원본은 API를 거쳐 올리고 내려받는다. 더 큰 파일이 필요해지면 S3 multipart/direct upload로 전환하고 API는 권한 검증과 메타데이터 기록만 처리하는 방식을 검토한다(명세 6절).
 
 현재 웹은 정적 UI가 중심이고 Socket.IO 클라이언트를 연결하지 않으므로, 이 구성으로 웹·인증·일반 HTTP API를 가장 작은 운영 단위로 먼저 올릴 수 있다.
 
 ## 협업 서버와 파일 저장소 (비용 기준 잠정 선택)
 
 - 협업(Hocuspocus): 실시간 서버·worker와 함께 AWS EC2 한 대(`infra/`, t4g.micro)의 컨테이너로 운영하고 `Release` 워크플로가 배포한다. Yjs 스냅샷은 PostgreSQL에 있으므로 서버는 무상태다. 클라이언트는 재연결로 복구한다. 접속 토큰 검증과 RLS 컨텍스트 사용은 그대로다.
-- 파일 저장소: Supabase Storage 비공개 버킷. 환경 변수는 `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`(`https://<project-ref>.storage.supabase.co/storage/v1/s3`)와 Storage 설정의 S3 접근 키다. 키는 서버 런타임(API·worker)에만 둔다.
+- 파일 저장소: AWS S3 비공개 버킷(`infra/`의 `Uploads`, 공개 차단·SSE-S3·TLS 전용, 스택 삭제 시에도 보존). worker는 EC2 인스턴스 역할로 접근하고 `S3_BUCKET`·`S3_REGION`은 SSM에 자동 등록된다. Vercel API 프로젝트에는 `S3_BUCKET`, `S3_REGION=ap-northeast-2`와 스택이 만든 `ApiFilesUser`(버킷의 `events/*`만 읽기·쓰기·삭제)의 접근 키 `AWS_ACCESS_KEY_ID`·`AWS_SECRET_ACCESS_KEY`를 넣는다. `S3_ENDPOINT`는 비운다. 키는 서버 런타임(API)에만 둔다. 발급 방법은 `infra/README.md`에 있다.
 - 무료 플랜은 비활성 시 프로젝트가 일시정지되므로 운영 시작 전에 Pro로 전환한다.
-- 용량·다운로드가 늘면 `S3_ENDPOINT`만 바꿔 Cloudflare R2 등으로 이전할 수 있다.
+- 전송량이 늘면 `S3_ENDPOINT`만 바꿔 Cloudflare R2 등으로 이전할 수 있다.

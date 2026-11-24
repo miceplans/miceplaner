@@ -21,6 +21,7 @@ export interface BackendProps extends StackProps {
 const REALTIME_PORT = 3400;
 const COLLAB_PORT = 3300;
 const PARAM_PATH = '/miceplans/prod';
+const HOST_AMI = 'ami-04eb46ea118fea29a';
 
 /**
  * 상시 프로세스(realtime·collab·worker)를 EC2 한 대의 Docker로 돌린다 (ADR: 서버 비용 최소화).
@@ -66,6 +67,12 @@ export class BackendStack extends Stack {
       removalPolicy: RemovalPolicy.RETAIN,
     });
     uploads.grantReadWrite(role);
+    // Vercel API 함수(업로드·다운로드)용 사용자. AWS 역할을 맡을 수 없어 접근 키를 쓰며, 업로드 키 접두사(events/)만 다룬다.
+    // 접근 키는 CloudFormation 출력에 남지 않도록 스택 밖에서 발급해 Vercel 환경 변수에만 둔다(infra/README.md).
+    const apiFilesUser = new iam.User(this, 'ApiFilesUser');
+    apiFilesUser.addToPolicy(new iam.PolicyStatement({ actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'], resources: [uploads.arnForObjects('events/*')] }));
+    // 없는 키를 AccessDenied가 아닌 NoSuchKey로 받으려면 목록 권한이 필요하다.
+    apiFilesUser.addToPolicy(new iam.PolicyStatement({ actions: ['s3:ListBucket'], resources: [uploads.bucketArn], conditions: { StringLike: { 's3:prefix': ['events/*'] } } }));
     new ssm.StringParameter(this, 'S3BucketParam', { parameterName: `${PARAM_PATH}/S3_BUCKET`, stringValue: uploads.bucketName });
     new ssm.StringParameter(this, 'S3RegionParam', { parameterName: `${PARAM_PATH}/S3_REGION`, stringValue: this.region });
 
@@ -128,7 +135,8 @@ EOF`,
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       instanceType: new ec2.InstanceType(props.instanceType ?? 't4g.micro'),
-      machineImage: ec2.MachineImage.latestAmazonLinux2023({ cpuType: ec2.AmazonLinuxCpuType.ARM_64 }),
+      // Amazon Linux 2023 arm64를 고정한다. 최신 AMI 조회를 쓰면 무관한 변경을 배포할 때도 인스턴스가 교체된다. AMI를 올릴 때만 바꾼다.
+      machineImage: ec2.MachineImage.genericLinux({ 'ap-northeast-2': HOST_AMI }),
       securityGroup: sg,
       role,
       userData,
@@ -177,6 +185,7 @@ EOF`,
     new CfnOutput(this, 'RealtimeUrl', { value: `https://${realtimeCdn.distributionDomainName}` });
     new CfnOutput(this, 'CollabUrl', { value: `https://${collabCdn.distributionDomainName}` });
     new CfnOutput(this, 'UploadsBucket', { value: uploads.bucketName });
+    new CfnOutput(this, 'ApiFilesUserName', { value: apiFilesUser.userName });
     new CfnOutput(this, 'ParameterPath', { value: PARAM_PATH });
   }
 }

@@ -26,7 +26,7 @@ MICEPLANNER는 행사 운영 데이터와 사내 지식을 다루며, 내부 직
 | 협업 편집 | TipTap, Yjs, Hocuspocus | 본문 동시 편집·커서·접속자 |
 | 주 저장소 | PostgreSQL, pgvector | RLS로 권한 강제 |
 | 작업 큐 | pg-boss | Redis는 확장 조건 충족 시 도입 |
-| 파일 | Supabase Storage (S3 호환 API) | DB와 같은 프로젝트·청구로 고정비 최소화. 코드는 S3 SDK(`S3_ENDPOINT`)를 그대로 사용하므로 R2·AWS S3로 교체 가능 |
+| 파일 | AWS S3 (`ap-northeast-2`, 비공개 버킷) | worker·협업 서버와 같은 AWS 계정·`infra/` 스택에서 관리하고, EC2는 인스턴스 역할로 접근해 키가 없다. 고정비가 없고 코드는 S3 SDK를 그대로 쓰므로 `S3_ENDPOINT`만 바꿔 R2 등으로 이전 가능 |
 | 임베딩 | BGE-M3 dense, TEI | 초기 검색 구성 |
 | 검색 | PostgreSQL FTS, `pg_trgm`, pgvector | 애플리케이션에서 결과 병합 |
 | LLM | GLM | OpenAI 호환 어댑터 뒤에 배치 |
@@ -71,7 +71,7 @@ Internal Web / Client Portal / optional Tauri
                  │                         │
                  └──── pg-boss worker ─────┘
                               │
-                              ├── Supabase Storage (S3 호환)
+                              ├── AWS S3 (업로드 원본)
                               └── TEI embedding service
 ```
 
@@ -151,7 +151,7 @@ packages/
 | Yjs와 Hocuspocus | 동시 편집과 presence를 제공 | 소프트 락, 외부 협업 SaaS |
 | Yjs 원본과 Markdown 파생본 | 서식 손실 없는 편집 원본과 검색 친화 파생본을 분리 | Markdown 원본 저장 |
 | 제안만 하는 AI | 행사 운영의 잘못된 자동 변경 비용을 제한 | 자동 실행 AI |
-| Supabase Storage | 이미 쓰는 Supabase에 포함돼 추가 계정·고정비가 없고 S3 호환이라 이전 비용이 낮음 | AWS S3(egress 과금), Cloudflare R2(용량·다운로드가 늘면 재검토) |
+| AWS S3 | 상시 프로세스(worker 등)를 이미 AWS EC2에서 운영하므로 같은 계정·CDK 스택에서 권한(인스턴스 역할·버킷 정책)을 관리하고, 월 고정비 없이 사용량(저장 GB·요청·전송)만 과금된다. 업로드 상한이 4MB이고 gzip으로 저장해 용량·전송 비용이 작다 | Supabase Storage(별도 S3 접근 키 관리, Pro 플랜 의존), Cloudflare R2(전송 비용이 커지면 재검토) |
 
 ## 재검토 조건
 
