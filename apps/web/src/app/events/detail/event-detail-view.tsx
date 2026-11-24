@@ -303,6 +303,8 @@ export function EventDetailView() {
   const peekStore = useScheduleNoteStore(eventId || null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [invited, setInvited] = useState<(Invitee & { as: InviteRole })[]>([]);
+  // 행사 PM·AM 판정. 실데이터는 멤버십 역할로, 목업 행사는 기존 목업 판정으로 한다.
+  const canManageEvent = roleResolved ? myRole === 'pm' || myRole === 'am' : event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name;
   const canInvite = roleResolved ? myRole === 'pm' : CURRENT_USER.name === event.pm;
   const gridRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; x: number; y: number; origin: CalEvent; moved: boolean } | null>(null);
@@ -605,8 +607,8 @@ export function EventDetailView() {
         {tab === '스케줄' && <ScheduleList items={schedule} onChange={(fn) => setSchedule(fn)} part={part} filter={filter} />}
         {tab === '할 일' && <EventTasks schedules={schedule} onChange={(fn) => setSchedule(fn)} part={part} filter={filter} />}
         </ItemAccessContext.Provider>
-        {tab === '문서' && <EventFiles eventId={eventId} canManage={event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />}
-        {tab === '문서' && <EventDocs eventId={eventId} part={part} canManage={event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />}
+        {tab === '문서' && <EventFiles eventId={eventId} canManage={canManageEvent} />}
+        {tab === '문서' && <EventDocs eventId={eventId} part={part} canManage={canManageEvent} />}
         {tab === '통계' && <EventStats schedule={schedule} tasks={schedule.flatMap((s) => s.children ?? [])} />}
         {tab === '제작물' && (
           <div className="mt-[24px] flex w-full flex-col gap-[24px]">
@@ -616,7 +618,7 @@ export function EventDetailView() {
           </div>
         )}
         {tab === '행사 정보' && (
-          <EventInfoSheet eventId={eventId} canEdit={roleResolved ? myRole === 'pm' || myRole === 'am' : event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />
+          <EventInfoSheet eventId={eventId} canEdit={canManageEvent} />
         )}
         {tab === '인력' && isMember && (
           <div className="mt-[16px] flex w-full flex-col gap-[12px]">
