@@ -3,10 +3,19 @@
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, DatePicker, Input, Select, toast } from '@miceplans/ui';
+import { Button, DatePicker, Input, SegmentControl, Select, toast } from '@miceplans/ui';
 import { useDirectoryClients, useDirectoryCreateClient, useEventsCreate } from '../../../lib/api/generated/endpoints';
 import type { ClientDto } from '../../../lib/api/generated/model';
 import { ApiError } from '../../../lib/api';
+
+const DEFAULT_EVENT_COLOR = '#f567a5';
+
+/** 행사일 입력 방식. 하루는 날짜 하나를 시작일·종료일로 함께 저장한다. */
+type DateMode = 'single' | 'range';
+const DATE_MODES = [
+  { value: 'single', label: '하루' },
+  { value: 'range', label: '기간' },
+] as const;
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
@@ -33,12 +42,14 @@ export function NewEventForm() {
   const [clientId, setClientId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [dateMode, setDateMode] = useState<DateMode>('range');
   const [place, setPlace] = useState('');
   const [budget, setBudget] = useState('');
   const [tried, setTried] = useState(false);
 
-  const dateError = startDate !== '' && endDate !== '' && endDate < startDate;
-  const missing = { name: name.trim() === '', clientId: clientId === '', startDate: startDate === '', endDate: endDate === '' };
+  const effectiveEnd = dateMode === 'single' ? startDate : endDate;
+  const dateError = startDate !== '' && effectiveEnd !== '' && effectiveEnd < startDate;
+  const missing = { name: name.trim() === '', clientId: clientId === '', startDate: startDate === '', endDate: effectiveEnd === '' };
   const invalid = Object.values(missing).some(Boolean) || dateError;
 
   const loading = clients.isPending;
@@ -66,7 +77,7 @@ export function NewEventForm() {
     if (invalid) return;
     try {
       const event = await create.mutateAsync({
-        data: { name: name.trim(), clientId, startDate, endDate, place: place.trim(), status: '진행중', priority: false, color: null, budget: budget === '' ? null : Number(budget) },
+        data: { name: name.trim(), clientId, startDate, endDate: effectiveEnd, place: place.trim(), status: '진행중', priority: false, color: DEFAULT_EVENT_COLOR, budget: budget === '' ? null : Number(budget) },
       });
       void queryClient.invalidateQueries();
       toast.info('행사를 추가했습니다.');
@@ -122,12 +133,26 @@ export function NewEventForm() {
             className="w-full text-right"
           />
         </Field>
-        <Field label="시작일" required>
-          <DatePicker value={startDate} onChange={setStartDate} invalid={tried && missing.startDate} className="w-full" />
-        </Field>
-        <Field label="종료일" required>
-          <DatePicker value={endDate} min={startDate || undefined} onChange={setEndDate} invalid={tried && (missing.endDate || dateError)} className="w-full" />
-        </Field>
+        <div className="col-span-2 flex items-center gap-[12px] max-md:col-span-1">
+          <span className="text-sm font-semibold text-fg">
+            행사일<span className="text-error"> *</span>
+          </span>
+          <SegmentControl options={DATE_MODES} value={dateMode} onChange={setDateMode} size="sm" />
+        </div>
+        {dateMode === 'single' ? (
+          <Field label="날짜" required>
+            <DatePicker value={startDate} onChange={setStartDate} invalid={tried && missing.startDate} className="w-full" />
+          </Field>
+        ) : (
+          <>
+            <Field label="시작일" required>
+              <DatePicker value={startDate} onChange={setStartDate} invalid={tried && missing.startDate} className="w-full" />
+            </Field>
+            <Field label="종료일" required>
+              <DatePicker value={endDate} min={startDate || undefined} onChange={setEndDate} invalid={tried && (missing.endDate || dateError)} className="w-full" />
+            </Field>
+          </>
+        )}
         <div className="col-span-2 max-md:col-span-1">
           <Field label="장소">
             <Input value={place} maxLength={200} onChange={(e) => setPlace(e.target.value)} placeholder="장소" className="w-full" />

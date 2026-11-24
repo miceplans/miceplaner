@@ -13,6 +13,7 @@
   "dependencies": {
     "@hocuspocus/provider": "^4.8.0",
     "@miceplans/contracts": "workspace:*",
+    "@miceplans/domain": "workspace:*",
     "@miceplans/editor-schema": "workspace:*",
     "@miceplans/ui": "workspace:*",
     "@tanstack/react-query": "^5.107.1",

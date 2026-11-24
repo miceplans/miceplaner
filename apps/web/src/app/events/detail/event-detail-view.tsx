@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
+import { dDayLabel } from '@miceplans/domain';
 import { Checkbox, Dialog, Input, Select, SidePeekPanel, SegmentControl, StatusPill, TextTabs, Toggle, toast, type StatusKey } from '@miceplans/ui';
-import { ItemAccessContext, normalizeTree, resolveOwners, type CheckItem } from './event-checklist';
+import { ItemAccessContext, normalizeTree, resolveOwners, toggleItem, type CheckItem } from './event-checklist';
+
+/** 상단 '할 일' 카드 항목. local은 이 기기에 저장된 스케줄 하위 할 일이다. */
+type OpenTodo = { id: string; title: string; due?: string; local: boolean };
 import type { Invitee, InviteRole } from './invite-dialog';
 import type { RequestRow, Team } from './event-products';
 import { PART_FILTERS, type PartFilter } from './event-parts';
@@ -207,10 +211,6 @@ function Prop({ icon, label, children }: { icon: string; label: string; children
 /** 실제 행사 정보를 화면 표시 형식으로 바꾼다. */
 function toEventInfo(real: EventListItemDto): EventInfo {
   const fmt = (d: string) => d.split('-').join('. ');
-  const start = new Date(`${real.startDate}T00:00:00`);
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const diff = Math.round((start.getTime() - todayStart.getTime()) / 86_400_000);
   return {
     name: real.name,
     period: real.startDate === real.endDate ? fmt(real.startDate) : `${fmt(real.startDate)} – ${fmt(real.endDate)}`,
@@ -220,7 +220,8 @@ function toEventInfo(real: EventListItemDto): EventInfo {
     design: real.designName ?? '',
     place: real.place,
     status: real.status,
-    dday: diff === 0 ? 'D-Day' : diff > 0 ? `D-${diff}` : '종료',
+    // 시작일만 보면 진행 중인 행사도 '종료'로 보여서 종료일까지 함께 본다.
+    dday: dDayLabel(new Date(`${real.startDate}T00:00:00`), new Date(), new Date(`${real.endDate}T00:00:00`)),
     color: real.color ?? '#f567a5',
   };
 }
@@ -418,15 +419,29 @@ export function EventDetailView() {
   // '할 일' 카드: 행사 항목 중 상위 할 일을 마감일 순으로 보여주고, 체크하면 완료 처리한다.
   const eventItems = useEventItemsList(eventId, undefined, { query: { enabled: eventId !== '' && getToken() !== null } });
   const updateItem = useItemsUpdate();
-  const openTodos = useMemo(
-    () =>
-      (eventItems.data ?? [])
-        .filter((it) => it.kind === 'task' && it.status !== '완료' && it.status !== '취소')
-        .sort((a, b) => (a.dueOn ?? '9999-12-31').localeCompare(b.dueOn ?? '9999-12-31'))
-        .slice(0, 8),
-    [eventItems.data],
-  );
-  const completeTodo = (itemId: string) => {
+  // 할 일 탭에서 추가한 항목은 스케줄 하위 할 일로 이 기기에 저장되므로(업무 보드와 같은 기준) 서버 Task와 함께 보여 준다.
+  const openTodos = useMemo(() => {
+    const server: OpenTodo[] = (eventItems.data ?? [])
+      .filter((it) => it.kind === 'task' && it.status !== '완료' && it.status !== '취소')
+      .map((it) => ({ id: it.id, title: it.title, due: it.dueOn ?? undefined, local: false }));
+    const local: OpenTodo[] = [];
+    const visit = (items: CheckItem[], depth: number) => {
+      for (const item of items) {
+        if (depth > 0 && !item.done && item.workflowStatus !== '완료') local.push({ id: item.id, title: item.title, due: item.date, local: true });
+        if (item.children?.length) visit(item.children, depth + 1);
+      }
+    };
+    visit(schedule, 0);
+    return [...server, ...local].sort((a, b) => (a.due ?? '9999-12-31').localeCompare(b.due ?? '9999-12-31')).slice(0, 8);
+  }, [eventItems.data, schedule]);
+  const completeTodo = (todo: OpenTodo) => {
+    if (todo.local) {
+      const next = toggleItem(schedule, todo.id, access.me);
+      if (next === schedule) toast.error('담당자나 만든 사람만 완료할 수 있습니다.');
+      else setSchedule(next);
+      return;
+    }
+    const itemId = todo.id;
     updateItem.mutate(
       { id: itemId, data: { status: '완료' } },
       {
@@ -884,16 +899,16 @@ export function EventDetailView() {
                 <Checkbox
                   className="size-[17px]!"
                   checked={false}
-                  onChange={() => completeTodo(todo.id)}
+                  onChange={() => completeTodo(todo)}
                 />
                 <span className="text-sm font-semibold text-fg">{todo.title}</span>
                 <span className="flex-1" />
-                {todo.dueOn ? <span className="text-[10.5px] text-fg-muted">~{todo.dueOn.slice(5).replace('-', '/')}</span> : null}
+                {todo.due ? <span className="text-[10.5px] text-fg-muted">~{todo.due.slice(5).replace('-', '/')}</span> : null}
               </label>
             ))}
             {!openTodos.length && (
               <p className="m-0 px-[4px] py-[8px] text-sm text-fg-tertiary">
-                {eventItems.isPending ? '할 일을 불러오는 중입니다.' : '남은 할 일이 없습니다.'}
+                {eventItems.isPending && eventItems.fetchStatus !== 'idle' ? '할 일을 불러오는 중입니다.' : '남은 할 일이 없습니다.'}
               </p>
             )}
           </div>
