@@ -88,9 +88,9 @@ export function Topbar(): ReactNode {
         />
         <span className="flex h-[20px] items-center justify-center rounded-xs bg-surface px-[5px] text-2xs text-fg-secondary">⌘K</span>
       </label>
-      <a href="/import/upload" className="flex h-[30px] shrink-0 items-center gap-[6px] rounded-sm bg-brand px-[12px] text-base font-semibold text-fg-inverse hover:bg-brand max-md:hidden">
+      <a href="/events/new" className="flex h-[30px] shrink-0 items-center gap-[6px] rounded-sm bg-brand px-[12px] text-base font-semibold text-fg-inverse hover:bg-brand max-md:hidden">
         <img alt="" src={`${A}/05c58.svg`} className="size-[14px]" />
-        <span className="whitespace-nowrap">새 행사</span>
+        <span className="whitespace-nowrap">행사 추가</span>
       </a>
     </div>
   );
