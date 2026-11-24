@@ -83,6 +83,7 @@ export * from './markNotificationsReadBody';
 export * from './moveFileBody';
 export * from './noticeDto';
 export * from './notificationDto';
+export * from './notificationDtoActionStatus';
 export * from './notificationDtoKind';
 export * from './notificationsListParams';
 export * from './notificationsMarkRead200';

@@ -113,9 +113,13 @@ describe('인증 (F-01)', () => {
     expect(application.body).toMatchObject({ companyName: '테스트사', applicantName: '홍길동', status: 'pending' });
     await api().post('/auth/client/login').send({ email: 'applicant@x.test', password: 'client-long-password' }).expect(401);
     const notice = await api().get('/notifications?unread=true').set(as('admin')).expect(200);
+    expect(notice.body.find((item: { title: string }) => item.title.includes(application.body.id))).toMatchObject({ actionStatus: 'pending' });
     expect(notice.body).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'client_application', title: expect.stringContaining('테스트사의 홍길동님이 신청하셨습니다.') })]));
     await api().post(`/auth/client-applications/${application.body.id}/approve`).set(as('staff')).expect(403);
     await api().post(`/auth/client-applications/${application.body.id}/approve`).set(as('admin')).expect(200);
+    const approvedNotice = await api().get('/notifications').set(as('admin')).expect(200);
+    expect(approvedNotice.body.find((item: { title: string }) => item.title.includes(application.body.id))).toMatchObject({ actionStatus: 'approved' });
+    expect(approvedNotice.body.find((item: { title: string; readAt: string | null }) => item.title.includes(application.body.id)).readAt).not.toBeNull();
     const login = await api().post('/auth/client/login').send({ email: 'applicant@x.test', password: 'client-long-password' }).expect(200);
     expect(login.body.user).toMatchObject({ name: '홍길동', role: 'client' });
     approvedClientUserId = login.body.user.id;
