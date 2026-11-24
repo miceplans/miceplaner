@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import { ClientHeader } from '@miceplans/ui';
+import { useMemo, type ReactNode } from 'react';
+import { ClientShell, DdayChip, PortalStateTag, SectionHeader, TableFrame, TableMessage, TableRow } from '@miceplans/ui';
 import type { PortalProgramDto } from '@miceplans/contracts/portal';
 import {
   ddayLabel,
@@ -13,25 +13,10 @@ import {
   programState,
   sortPrograms,
   todayIso,
-  type ScheduleState,
 } from '../portal';
 import { eventDetailHref, usePortalData } from '../use-portal-data';
 
-const A = '/assets/client/dashboard';
-
-const STATE_TONE: Record<ScheduleState, string> = {
-  예정: 'bg-brand-tint text-brand',
-  진행중: 'bg-brand text-fg-inverse',
-  완료: 'bg-surface-chip text-fg-secondary',
-};
-
-function StatePill({ state }: { state: ScheduleState }) {
-  return (
-    <span className={`flex h-[22px] shrink-0 items-center justify-center rounded-lg px-[9px] text-2xs font-semibold ${STATE_TONE[state]}`}>
-      {state}
-    </span>
-  );
-}
+const STEP_LIMIT = 6;
 
 /** Client 대시보드. 명세 F-07 범위(행사·Program 일정) 데이터로만 구성한다. */
 export default function ClientDashboardPage() {
@@ -54,247 +39,117 @@ export default function ClientDashboardPage() {
     return sortPrograms(programs.filter((p) => (p.dueOn ?? p.startsOn ?? '') >= today)).slice(0, 5);
   }, [programs, today]);
 
-  const thisMonth = useMemo(() => {
-    if (!programs) return [];
-    const prefix = today.slice(0, 7);
-    return sortPrograms(programs.filter((p) => (p.startsOn ?? p.dueOn ?? '').startsWith(prefix))).slice(0, 4);
-  }, [programs, today]);
-
-  const upcomingDday = (p: PortalProgramDto): string | null => {
+  const upcomingTag = (p: PortalProgramDto): ReactNode => {
     const start = p.startsOn ?? p.dueOn;
     if (!start) return null;
     const state = programState(p.startsOn, p.dueOn, today);
-    if (state === '완료') return '완료';
-    if (state === '진행중') return '진행중';
-    return `D-${daysUntil(start, today)}`;
+    if (state === '완료' || state === '진행중') return <PortalStateTag state={state} />;
+    return <DdayChip>D-{daysUntil(start, today)}</DdayChip>;
   };
 
   const donePrograms = focusPrograms.filter((p) => programState(p.startsOn, p.dueOn, today) === '완료').length;
-  const steps = focusPrograms.slice(0, 5);
+  const percent = focusPrograms.length > 0 ? Math.round((donePrograms / focusPrograms.length) * 100) : 0;
+  const steps = focusPrograms.slice(0, STEP_LIMIT);
   const hiddenPrograms = focusPrograms.length - steps.length;
+  const placeholder = loading ? '불러오는 중…' : null;
 
   return (
-    <div className="flex min-h-[860px] w-full min-w-[1440px] flex-col bg-surface-sunken">
-      <ClientHeader active="dashboard" />
-      <main className="flex min-h-px flex-1 items-start px-[40px] pb-[36px] pt-[40px]">
-        <div className="flex w-[1361px] flex-col items-center gap-[22px]">
-          {error ? (
-            <p role="alert" className="w-full rounded-xl bg-error-bg px-[20px] py-[12px] text-sm text-error-delay">{error}</p>
-          ) : null}
-          <div className="flex w-full items-center gap-[22px]">
-            <a
-              href="/client/events"
-              className="flex min-h-[260px] w-[575px] shrink-0 flex-col items-end justify-between rounded-2xl bg-brand-pink px-[53.077px] py-[35.385px]"
-            >
-              <p className="w-full text-3xl font-semibold text-fg-inverse">행사</p>
-              <div className="flex w-full items-end justify-between gap-[8px]">
-                <div className="flex flex-col gap-[6px]">
-                  {focus ? (
-                    <>
-                      <p className="whitespace-nowrap text-2xl font-semibold text-fg-inverse">{focus.name}</p>
-                      <p className="whitespace-nowrap text-md text-fg-inverse/80">
-                        {formatRange(focus.startDate, focus.endDate)} · {ddayLabel(focus.startDate, focus.endDate, today)}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="whitespace-nowrap text-md text-fg-inverse/80">{loading ? '불러오는 중…' : '지정된 행사가 없습니다'}</p>
-                  )}
+    <ClientShell active="dashboard" title="대시보드">
+      {error ? <TableFrame><TableMessage tone="error">{error}</TableMessage></TableFrame> : null}
+
+      <section className="flex w-full flex-col gap-[10px]">
+        <SectionHeader title="진행 중인 행사" link={{ label: '전체 행사', href: '/client/events' }} />
+        <TableFrame className="gap-[14px] p-[20px]">
+          {focus ? (
+            <>
+              <div className="flex w-full flex-wrap items-center gap-[8px]">
+                <PortalStateTag state={eventState(focus.startDate, focus.endDate, today)} />
+                {eventState(focus.startDate, focus.endDate, today) === '예정' ? <DdayChip>{ddayLabel(focus.startDate, focus.endDate, today)}</DdayChip> : null}
+              </div>
+              <a href={eventDetailHref(focus.eventId)} className="w-full break-words text-xl font-bold tracking-[-0.008em] text-fg hover:underline">
+                {focus.name}
+              </a>
+              <dl className="flex w-full flex-wrap gap-x-[24px] gap-y-[6px] text-base">
+                <div className="flex gap-[8px]">
+                  <dt className="text-fg-tertiary">기간</dt>
+                  <dd className="text-fg">{formatRange(focus.startDate, focus.endDate)}</dd>
                 </div>
-                <div className="flex items-center gap-[8px]">
-                  <p className="whitespace-nowrap text-2xl font-semibold text-fg-inverse">바로가기</p>
-                  <img alt="" src={`${A}/frame133.svg`} className="size-[31.096px]" />
+                <div className="flex min-w-0 gap-[8px]">
+                  <dt className="shrink-0 text-fg-tertiary">장소</dt>
+                  <dd className="min-w-0 break-words text-fg">{focus.place || '장소 미정'}</dd>
                 </div>
+              </dl>
+              <div className="flex w-full items-center gap-[12px]">
+                <div className="h-[6px] min-w-0 flex-1 overflow-hidden rounded-full bg-surface-chip">
+                  <div className="h-full rounded-full bg-brand" style={{ width: `${percent}%` }} />
+                </div>
+                <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-fg-secondary">
+                  프로그램 {donePrograms}/{focusPrograms.length} 완료 · {percent}%
+                </span>
               </div>
-            </a>
+            </>
+          ) : (
+            <p className="text-sm text-fg-tertiary">{placeholder ?? '지정된 행사가 없습니다'}</p>
+          )}
+        </TableFrame>
+      </section>
 
-            <section className="flex min-h-[260px] w-[371px] shrink-0 flex-col items-start justify-between rounded-2xl bg-surface p-[24px]">
-              <div className="flex w-full items-center gap-[8px]">
-                <h2 className="whitespace-nowrap text-xl font-bold text-fg">다가오는 일정</h2>
-                <a href="/client/calendar" className="flex items-center gap-[4px] py-[4px]">
-                  <span className="whitespace-nowrap text-2xs font-medium text-brand">캘린더 보기</span>
-                  <img alt="" src={`${A}/chevron-right.svg`} className="size-[12px]" />
-                </a>
-              </div>
-              <ul className="flex w-full flex-col gap-[4px]">
-                {loading ? (
-                  <li className="flex h-[44px] w-full items-center text-sm text-fg-tertiary">불러오는 중…</li>
-                ) : upcoming.length === 0 ? (
-                  <li className="flex h-[44px] w-full items-center text-sm text-fg-tertiary">다가오는 일정이 없습니다</li>
-                ) : (
-                  upcoming.map((p) => {
-                    const when = p.startsOn ?? p.dueOn;
-                    const dday = upcomingDday(p);
-                    return (
-                      <li key={p.programId} className="flex min-h-[44px] w-full items-center gap-[12px]">
-                        <p className="w-[52px] shrink-0 whitespace-nowrap text-lg font-semibold text-fg">
-                          {when ? formatDate(when).slice(5) : '미정'}
-                        </p>
-                        <div className="flex min-w-px flex-1 flex-col gap-[2px] whitespace-nowrap">
-                          <p className="text-sm text-fg">{p.title}</p>
-                          <p className="text-2xs text-fg-tertiary">{eventName.get(p.eventId) ?? ''}</p>
-                        </div>
-                        {dday ? (
-                          <span
-                            className={`flex h-[22px] shrink-0 items-center justify-center rounded-lg px-[9px] text-2xs font-semibold ${
-                              dday === '진행중' ? 'bg-brand text-fg-inverse' : dday === '완료' ? 'bg-surface-chip text-fg-secondary' : 'bg-brand-tint text-brand'
-                            }`}
-                          >
-                            {dday}
-                          </span>
-                        ) : null}
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </section>
-
-            <section className="flex min-h-[260px] w-[371px] shrink-0 flex-col items-start justify-between rounded-2xl bg-surface p-[24px]">
-              <div className="flex w-full items-center gap-[8px]">
-                <h2 className="whitespace-nowrap text-xl font-bold text-fg">내 행사 현황</h2>
-                <a href="/client/events" className="flex items-center gap-[4px] py-[4px]">
-                  <span className="whitespace-nowrap text-2xs font-medium text-brand">전체 보기</span>
-                  <img alt="" src={`${A}/chevron-right.svg`} className="size-[12px]" />
-                </a>
-              </div>
-              <ul className="flex w-full flex-col gap-[2px]">
-                {loading ? (
-                  <li className="flex h-[36px] w-full items-center text-sm text-fg-tertiary">불러오는 중…</li>
-                ) : sortedEvents.length === 0 ? (
-                  <li className="flex h-[36px] w-full items-center text-sm text-fg-tertiary">지정된 행사가 없습니다</li>
-                ) : (
-                  sortedEvents.slice(0, 5).map((e) => (
-                    <li key={e.eventId} className="flex min-h-[36px] w-full items-center justify-between gap-[8px]">
-                      <a href={eventDetailHref(e.eventId)} className="min-w-px flex-1 truncate text-sm text-fg">
-                        {e.name}
-                      </a>
-                      <StatePill state={eventState(e.startDate, e.endDate, today)} />
-                    </li>
-                  ))
-                )}
-              </ul>
-            </section>
-          </div>
-
-          <div className="flex w-[1347px] items-stretch gap-[22px]">
-            <section className="flex min-h-[438px] w-[959px] shrink-0 flex-col items-start gap-[18.781px] rounded-2xl bg-surface px-[37.562px] py-[21.911px]">
-              <h2 className="whitespace-nowrap text-3xl font-semibold text-fg">행사 진행 단계</h2>
-              {focus ? (
-                <>
-                  <p className="whitespace-nowrap text-md text-fg-secondary">
-                    {focus.name} · 프로그램 {donePrograms}/{focusPrograms.length} 완료
-                  </p>
-                  <div className="flex h-[68.864px] shrink-0 flex-col items-center">
-                    <div className="flex w-[763px] items-center">
-                      {steps.map((p, i) => {
-                        const state = programState(p.startsOn, p.dueOn, today);
-                        const stepState = state === '완료' ? 'done' : state === '진행중' ? 'current' : 'todo';
-                        return (
-                          <div key={p.programId} className="contents">
-                            {i > 0 ? (
-                              <div className={`h-[3.13px] min-w-px flex-1 rounded-xs ${programState(steps[i - 1]!.startsOn, steps[i - 1]!.dueOn, today) === '완료' ? 'bg-brand' : 'bg-border-placeholder'}`} />
-                            ) : null}
-                            <div className="flex size-[37.562px] shrink-0 flex-col items-center gap-[6.26px]">
-                              <div
-                                className={`flex size-[37.562px] shrink-0 items-center justify-center rounded-2xl ${
-                                  stepState === 'todo' ? 'border-[1.565px] border-solid border-border-placeholder bg-surface' : 'bg-brand'
-                                }`}
-                              >
-                                {stepState === 'done' ? (
-                                  <img alt="" src={`${A}/check.svg`} className="size-[18.781px]" />
-                                ) : (
-                                  <p className={`text-lg ${stepState === 'current' ? 'font-semibold text-fg-inverse' : 'text-border-placeholder'}`}>
-                                    {i + 1}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <ul className="flex w-[763px] flex-col gap-[6px]">
-                    {steps.map((p, i) => {
-                      const when = p.startsOn ?? p.dueOn;
-                      return (
-                        <li key={p.programId} className="flex w-full items-center gap-[10px] whitespace-nowrap">
-                          <p className="w-[20px] shrink-0 text-sm font-semibold text-fg-tertiary">{i + 1}</p>
-                          <p className="min-w-px flex-1 truncate text-sm text-fg">{p.title}</p>
-                          <p className="shrink-0 text-2xs text-fg-tertiary">{when ? formatDate(when) : '일정 미정'}</p>
-                          <StatePill state={programState(p.startsOn, p.dueOn, today) ?? '예정'} />
-                        </li>
-                      );
-                    })}
-                    {hiddenPrograms > 0 ? (
-                      <li className="text-2xs font-medium text-brand">
-                        <a href={eventDetailHref(focus.eventId)}>+ {hiddenPrograms}개 더 보기</a>
-                      </li>
-                    ) : null}
-                  </ul>
-                </>
-              ) : (
-                <p className="text-sm text-fg-tertiary">{loading ? '불러오는 중…' : '표시할 행사가 없습니다'}</p>
-              )}
-              <div className="relative h-[178.188px] w-[324.373px] shrink-0">
-                <img alt="" src={`${A}/group23.svg`} className="absolute inset-0 size-full max-w-none" />
-                {focus && focusPrograms.length > 0 ? (
-                  <p className="absolute left-0 top-[107.99px] w-full whitespace-nowrap text-center text-3xl font-bold tracking-[1.5651px] text-fg">
-                    {Math.round((donePrograms / focusPrograms.length) * 100)}%
-                  </p>
+      <div className="grid w-full grid-cols-1 gap-[16px] lg:grid-cols-2">
+        <section className="flex min-w-0 flex-col gap-[10px]">
+          <SectionHeader title="프로그램 진행" link={focus ? { label: '행사 상세', href: eventDetailHref(focus.eventId) } : undefined} />
+          <TableFrame>
+            {placeholder ? (
+              <TableMessage>{placeholder}</TableMessage>
+            ) : steps.length === 0 ? (
+              <TableMessage>공유된 프로그램 일정이 없습니다</TableMessage>
+            ) : (
+              <>
+                {steps.map((p, i) => {
+                  const when = p.startsOn ?? p.dueOn;
+                  return (
+                    <TableRow key={p.programId}>
+                      <span className="w-[16px] shrink-0 text-2xs font-semibold text-fg-tertiary">{i + 1}</span>
+                      <span className="min-w-0 flex-1 truncate text-base text-fg">{p.title}</span>
+                      <span className="shrink-0 whitespace-nowrap text-xs text-fg-tertiary max-sm:hidden">{when ? formatDate(when) : '일정 미정'}</span>
+                      <PortalStateTag state={programState(p.startsOn, p.dueOn, today) ?? '예정'} />
+                    </TableRow>
+                  );
+                })}
+                {hiddenPrograms > 0 && focus ? (
+                  <TableRow href={eventDetailHref(focus.eventId)}>
+                    <span className="text-xs font-medium text-fg-secondary">+ {hiddenPrograms}개 더 보기</span>
+                  </TableRow>
                 ) : null}
-              </div>
-            </section>
+              </>
+            )}
+          </TableFrame>
+        </section>
 
-            <div className="flex w-[371px] shrink-0 flex-col gap-[22px]">
-              <section className="flex min-h-[150px] w-full shrink-0 flex-col items-start justify-between rounded-2xl bg-surface p-[24px]">
-                <h2 className="whitespace-nowrap text-xl font-bold text-fg">행사 정보</h2>
-                {focus ? (
-                  <dl className="flex w-full flex-col gap-[10px]">
-                    <div className="flex w-full items-center gap-[10px]">
-                      <dt className="w-[52px] shrink-0 text-2xs text-fg-tertiary">기간</dt>
-                      <dd className="whitespace-nowrap text-md text-fg">{formatRange(focus.startDate, focus.endDate)}</dd>
+        <section className="flex min-w-0 flex-col gap-[10px]">
+          <SectionHeader title="다가오는 일정" link={{ label: '캘린더 보기', href: '/client/calendar' }} />
+          <TableFrame>
+            {placeholder ? (
+              <TableMessage>{placeholder}</TableMessage>
+            ) : upcoming.length === 0 ? (
+              <TableMessage>다가오는 일정이 없습니다</TableMessage>
+            ) : (
+              upcoming.map((p) => {
+                const when = p.startsOn ?? p.dueOn;
+                return (
+                  <TableRow key={p.programId}>
+                    <span className="w-[40px] shrink-0 whitespace-nowrap text-base font-semibold text-fg">{when ? formatDate(when).slice(5) : '미정'}</span>
+                    <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
+                      <span className="truncate text-base text-fg">{p.title}</span>
+                      <span className="truncate text-2xs text-fg-tertiary">{eventName.get(p.eventId) ?? ''}</span>
                     </div>
-                    <div className="flex w-full items-center gap-[10px]">
-                      <dt className="w-[52px] shrink-0 text-2xs text-fg-tertiary">장소</dt>
-                      <dd className="whitespace-nowrap text-md text-fg">{focus.place || '장소 미정'}</dd>
-                    </div>
-                    <div className="flex w-full items-center gap-[10px]">
-                      <dt className="w-[52px] shrink-0 text-2xs text-fg-tertiary">D-day</dt>
-                      <dd className="whitespace-nowrap text-md text-fg">{ddayLabel(focus.startDate, focus.endDate, today)}</dd>
-                    </div>
-                  </dl>
-                ) : (
-                  <p className="text-sm text-fg-tertiary">{loading ? '불러오는 중…' : '표시할 행사가 없습니다'}</p>
-                )}
-              </section>
-              <section className="flex min-h-[260px] w-full shrink-0 flex-col items-start justify-between rounded-2xl bg-surface p-[24px]">
-                <h2 className="whitespace-nowrap text-xl font-bold text-fg">이번 달 일정</h2>
-                <ul className="flex w-full flex-col">
-                  {loading ? (
-                    <li className="flex min-h-[40px] w-full items-center text-sm text-fg-tertiary">불러오는 중…</li>
-                  ) : thisMonth.length === 0 ? (
-                    <li className="flex min-h-[40px] w-full items-center text-sm text-fg-tertiary">이번 달 공유된 일정이 없습니다</li>
-                  ) : (
-                    thisMonth.map((p) => {
-                      const when = p.startsOn ?? p.dueOn!;
-                      return (
-                        <li key={p.programId} className="flex min-h-[40px] w-full items-center gap-[10px]">
-                          <p className="w-[52px] shrink-0 whitespace-nowrap text-sm font-semibold text-fg">{formatDate(when).slice(5)}</p>
-                          <div className="flex min-w-px flex-1 flex-col gap-px">
-                            <p className="truncate whitespace-nowrap text-sm text-fg">{p.title}</p>
-                            <p className="truncate whitespace-nowrap text-2xs text-fg-tertiary">{eventName.get(p.eventId) ?? ''}</p>
-                          </div>
-                        </li>
-                      );
-                    })
-                  )}
-                </ul>
-              </section>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+                    {upcomingTag(p)}
+                  </TableRow>
+                );
+              })
+            )}
+          </TableFrame>
+        </section>
+      </div>
+    </ClientShell>
   );
 }

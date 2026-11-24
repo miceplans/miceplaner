@@ -4,6 +4,7 @@ export * from './badge';
 export * from './status-tag';
 export * from './sidebar';
 export * from './page-frame';
+export * from './table';
 export * from './import-stepper';
 export * from './schedule';
 export * from './personal-todo';
