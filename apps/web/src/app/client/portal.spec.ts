@@ -11,7 +11,9 @@ import {
   inclusiveDays,
   nearestEvent,
   programState,
-  publicEventChipsByDay,
+  eventsInMonth,
+  eventWeekBars,
+  shortRange,
   sortPrograms,
   todayIso,
 } from './portal';
@@ -172,19 +174,47 @@ describe('chipsByDay', () => {
   });
 });
 
-describe('publicEventChipsByDay', () => {
-  it('공개 행사를 기간 내 모든 날에 행사명 칩으로 표시하고 월 범위로 자른다', () => {
-    const chips = publicEventChipsByDay(
-      [
-        { eventId: 'a', name: '국제 컨퍼런스', startDate: '2026-10-30', endDate: '2026-11-02' },
-        { eventId: 'b', name: '전시회', startDate: '2026-11-18', endDate: '2026-11-18' },
-      ],
+const pub = (eventId: string, name: string, startDate: string, endDate: string) => ({ eventId, name, startDate, endDate });
+
+describe('shortRange', () => {
+  it('하루·같은 해·해 넘김을 구분해 짧게 적는다', () => {
+    expect(shortRange('2026-11-18', '2026-11-18')).toBe('11.18');
+    expect(shortRange('2026-11-18', '2026-11-20')).toBe('11.18 ~ 11.20');
+    expect(shortRange('2026-12-30', '2027-01-02')).toBe('2026.12.30 ~ 2027.01.02');
+  });
+});
+
+describe('eventsInMonth', () => {
+  it('월과 겹치는 행사만 시작일 순(같으면 긴 행사 먼저)으로 돌려준다', () => {
+    const list = eventsInMonth(
+      [pub('x', '10월 행사', '2026-10-01', '2026-10-03'), pub('b', '짧은', '2026-11-05', '2026-11-05'), pub('a', '긴', '2026-11-05', '2026-11-09'), pub('c', '걸침', '2026-10-30', '2026-11-02')],
+      2026,
+      11,
+    );
+    expect(list.map((e) => e.eventId)).toEqual(['c', 'a', 'b']);
+  });
+});
+
+describe('eventWeekBars', () => {
+  // 2026년 11월: 1일이 일요일이라 1주 = 1~7일, 2주 = 8~14일 ...
+  it('여러 날 행사를 주 행마다 이어진 막대 하나로 나누고, 주를 넘으면 이어짐을 표시한다', () => {
+    const weeks = eventWeekBars([pub('a', '박람회', '2026-11-05', '2026-11-10')], 2026, 11, T);
+    expect(weeks[0]).toEqual([expect.objectContaining({ eventId: 'a', col: 4, span: 3, lane: 0, continuesBefore: false, continuesAfter: true })]);
+    expect(weeks[1]).toEqual([expect.objectContaining({ eventId: 'a', col: 0, span: 3, lane: 0, continuesBefore: true, continuesAfter: false })]);
+    expect(weeks[2]).toEqual([]);
+  });
+
+  it('지난달에서 이어지는 행사는 1일부터 그리고, 겹치는 행사는 다음 줄로 내린다', () => {
+    const weeks = eventWeekBars(
+      [pub('c', '걸침', '2026-10-30', '2026-11-02'), pub('d', '겹침', '2026-11-02', '2026-11-03'), pub('e', '뒤', '2026-11-04', '2026-11-04')],
       2026,
       11,
       T,
     );
-    expect([...chips.keys()].sort((x, y) => x - y)).toEqual([1, 2, 18]);
-    expect(chips.get(1)).toEqual([{ programId: 'a', title: '국제 컨퍼런스', state: '완료' }]);
-    expect(chips.get(18)).toEqual([{ programId: 'b', title: '전시회', state: '진행중' }]);
+    expect(weeks[0]).toEqual([
+      expect.objectContaining({ eventId: 'c', col: 0, span: 2, lane: 0, continuesBefore: true, state: '완료' }),
+      expect.objectContaining({ eventId: 'd', col: 1, span: 2, lane: 1 }),
+      expect.objectContaining({ eventId: 'e', col: 3, span: 1, lane: 0 }),
+    ]);
   });
 });

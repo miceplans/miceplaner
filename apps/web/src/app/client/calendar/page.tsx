@@ -5,7 +5,7 @@ import type { PublicEventDto } from '@miceplans/contracts/portal';
 import { ClientShell, portalStateTone, type PortalState } from '@miceplans/ui';
 import { getToken } from '../../../lib/api';
 import { usePortalPublicEvents } from '../../../lib/api/generated/endpoints';
-import { calendarWeeks, chipsByDay, publicEventChipsByDay, todayIso } from '../portal';
+import { calendarWeeks, chipsByDay, eventState as eventStateOf, eventsInMonth, eventWeekBars, formatRange, inclusiveDays, shortRange, todayIso, type DayChip, type WeekBar } from '../portal';
 import { usePortalData } from '../use-portal-data';
 
 /** 내부 일정 달력(MonthCalendar)과 같은 화살표 자산. */
@@ -13,6 +13,12 @@ const S = '/assets/schedule';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const LEGEND: PortalState[] = ['진행중', '예정', '완료'];
+
+/** 공개 캘린더 주 행: 날짜 줄 아래에 기간 막대를 줄(lane)마다 쌓는다. */
+const BAR_TOP = 34;
+const BAR_H = 20;
+const BAR_GAP = 4;
+const ROW_MIN = 102;
 
 const noSubscribe = () => () => {};
 /** 조회 실패 시 쓰는 고정 빈 목록. 렌더마다 새 배열을 만들면 useMemo가 매번 다시 계산된다. */
@@ -42,10 +48,11 @@ export default function ClientCalendarPage() {
   const [cursor, setCursor] = useState({ year: todayYear, month: todayMonth });
 
   const weeks = useMemo(() => calendarWeeks(cursor.year, cursor.month), [cursor]);
-  const chips = useMemo(
-    () => (signedIn ? chipsByDay(myPrograms ?? [], cursor.year, cursor.month, today) : publicEventChipsByDay(publicEvents ?? [], cursor.year, cursor.month, today)),
-    [signedIn, myPrograms, publicEvents, cursor, today],
-  );
+  const chips = useMemo(() => (signedIn ? chipsByDay(myPrograms ?? [], cursor.year, cursor.month, today) : new Map<number, DayChip[]>()), [signedIn, myPrograms, cursor, today]);
+  // 비로그인 공개 캘린더는 행사 기간을 칸마다 반복하지 않고 이어진 막대로 그린다.
+  const bars = useMemo(() => (signedIn === false ? eventWeekBars(publicEvents ?? [], cursor.year, cursor.month, today) : []), [signedIn, publicEvents, cursor, today]);
+  const monthEvents = useMemo(() => (signedIn === false ? eventsInMonth(publicEvents ?? [], cursor.year, cursor.month) : []), [signedIn, publicEvents, cursor]);
+  const isEmpty = signedIn === false ? monthEvents.length === 0 : chips.size === 0;
   const isCurrentMonth = cursor.year === todayYear && cursor.month === todayMonth;
   const todayDay = Number(today.slice(8, 10));
 
@@ -99,8 +106,12 @@ export default function ClientCalendarPage() {
                 <div key={d} className="flex items-center justify-center text-xs font-medium text-fg-tertiary">{d}</div>
               ))}
             </div>
-            {weeks.map((week, wi) => (
-              <div key={wi} className="grid h-[102px] w-full grid-cols-7 border-b border-solid border-border-strong">
+            {weeks.map((week, wi) => {
+              const weekBars = bars[wi] ?? [];
+              const lanes = weekBars.reduce((n, b) => Math.max(n, b.lane + 1), 0);
+              const height = Math.max(ROW_MIN, BAR_TOP + lanes * (BAR_H + BAR_GAP) + 6);
+              return (
+              <div key={wi} style={{ height }} className="relative grid w-full grid-cols-7 border-b border-solid border-border-strong">
                 {week.map((day, ci) => {
                   const dayChips = day ? (chips.get(day) ?? []) : [];
                   const isToday = isCurrentMonth && day === todayDay;
@@ -138,17 +149,70 @@ export default function ClientCalendarPage() {
                     </div>
                   );
                 })}
+                {weekBars.length > 0 ? (
+                  <div
+                    className="pointer-events-none absolute inset-x-0 grid grid-cols-7 px-[4px]"
+                    style={{ top: BAR_TOP, gridAutoRows: BAR_H, rowGap: BAR_GAP }}
+                  >
+                    {weekBars.map((b) => <EventBar key={b.eventId} bar={b} />)}
+                  </div>
+                ) : null}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
+        {signedIn === false && monthEvents.length > 0 ? (
+          <section className="flex w-full flex-col gap-[8px]">
+            <h2 className="text-base font-semibold text-fg">{cursor.month}월 행사</h2>
+            <ul className="flex w-full flex-col divide-y divide-border-soft rounded-md border border-solid border-border-soft bg-surface">
+              {monthEvents.map((e) => {
+                const tone = portalStateTone(eventStateOf(e.startDate, e.endDate, today));
+                return (
+                  <li key={e.eventId} className="flex items-center gap-[10px] px-[16px] py-[12px] max-md:flex-col max-md:items-start max-md:gap-[4px]">
+                    <span className="flex min-w-0 flex-1 items-center gap-[8px]">
+                      <span className="size-[7px] shrink-0 rounded-full" style={{ background: tone.fg }} />
+                      <span className="truncate text-sm font-medium text-fg">{e.name}</span>
+                    </span>
+                    <span className="whitespace-nowrap text-sm text-fg-secondary">
+                      {formatRange(e.startDate, e.endDate)} <span className="text-xs text-fg-tertiary">({inclusiveDays(e.startDate, e.endDate)}일)</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
+
         {error ? (
           <p role="alert" className="text-sm text-error-delay">{error}</p>
-        ) : loaded && chips.size === 0 ? (
+        ) : loaded && isEmpty ? (
           <p className="text-sm text-fg-tertiary">{signedIn ? '이 달에 공유된 일정이 없습니다' : '이 달에 공개된 행사가 없습니다'}</p>
         ) : null}
       </div>
     </ClientShell>
+  );
+}
+
+/** 행사 기간 막대. 이 주 밖으로 이어지는 쪽은 모서리를 펴서 이어짐을 보여 준다. 막대 안에 행사명과 기간을 적는다. */
+function EventBar({ bar }: { bar: WeekBar }) {
+  const tone = portalStateTone(bar.state);
+  const period = shortRange(bar.startDate, bar.endDate);
+  return (
+    <div
+      title={`${bar.name} · ${formatRange(bar.startDate, bar.endDate)}`}
+      className={`pointer-events-auto mx-[2px] flex min-w-0 items-center gap-[6px] px-[6px] ${bar.continuesBefore ? 'rounded-l-none' : 'rounded-l-xs'} ${
+        bar.continuesAfter ? 'rounded-r-none' : 'rounded-r-xs'
+      }`}
+      style={{ gridColumn: `${bar.col + 1} / span ${bar.span}`, gridRow: bar.lane + 1, background: tone.bg }}
+    >
+      {!bar.continuesBefore ? <span className="size-[5px] shrink-0 rounded-full" style={{ background: tone.fg }} /> : null}
+      <span className="truncate text-2xs font-medium" style={{ color: tone.fg }}>
+        {bar.continuesBefore ? '← ' : ''}
+        {bar.name}
+      </span>
+      <span className="shrink-0 whitespace-nowrap text-2xs opacity-80" style={{ color: tone.fg }}>{period}</span>
+    </div>
   );
 }
