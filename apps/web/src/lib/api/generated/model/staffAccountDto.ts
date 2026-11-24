@@ -14,6 +14,8 @@ export interface StaffAccountDto {
   name: string;
   email: string;
   jobTitle: string;
+  team?: string;
+  subTeam?: string;
   role: StaffAccountDtoRole;
   employmentStatus: StaffAccountDtoEmploymentStatus;
   joinedAt: string;

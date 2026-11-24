@@ -21,12 +21,14 @@ export type UserDto = z.infer<typeof userDto>;
 export const employmentStatus = z.enum(['active', 'departed']);
 export type EmploymentStatus = z.infer<typeof employmentStatus>;
 
-/** 대표가 보는 직원 계정 관리 목록. Client 계정은 이 목록에서 제외한다. */
+/** 대표가 보는 직원 계정 관리 목록. Client 계정은 이 목록에서 제외한다. `team`·`subTeam`은 하이웍스 조직도 값이며 조회에 실패하면 비어 있다. */
 export const staffAccountDto = z.object({
   id: uuid,
   name: z.string(),
   email: z.string(),
   jobTitle: z.string(),
+  team: z.string().optional(),
+  subTeam: z.string().optional(),
   role: z.enum(['super_admin', 'staff']),
   employmentStatus,
   joinedAt: z.string(),
@@ -37,7 +39,9 @@ export type StaffAccountDto = z.infer<typeof staffAccountDto>;
 export const updateStaffAccountBody = z.object({
   role: z.enum(['super_admin', 'staff']).optional(),
   employmentStatus: employmentStatus.optional(),
-}).refine((value) => value.role !== undefined || value.employmentStatus !== undefined, '변경할 값을 입력하세요.');
+  /** 직급은 하이웍스에 없어 대표가 직접 입력한다. 빈 문자열은 직급을 비운다. */
+  jobTitle: z.string().trim().max(50).optional(),
+}).refine((value) => value.role !== undefined || value.employmentStatus !== undefined || value.jobTitle !== undefined, '변경할 값을 입력하세요.');
 export type UpdateStaffAccountBody = z.infer<typeof updateStaffAccountBody>;
 
 export const clientDto = z.object({ id: uuid, name: z.string() });
