@@ -1,7 +1,8 @@
 import { fetchWithRetry } from './retry';
 import type { ChatMsg, LlmChunk, LlmClient, ToolCall, ToolSpec } from './llm';
 
-export type AnthropicCompatOptions = { baseUrl: string; apiKey: string; model: string; fetch?: typeof fetch; temperature?: number; maxTokens?: number };
+/** `thinking`은 `OpenAiCompatOptions`와 같다. 기본은 끈다. */
+export type AnthropicCompatOptions = { baseUrl: string; apiKey: string; model: string; fetch?: typeof fetch; temperature?: number; maxTokens?: number; thinking?: boolean };
 
 type Block = { type: 'text'; text: string } | { type: 'tool_use'; id: string; name: string; input: unknown } | { type: 'tool_result'; tool_use_id: string; content: string };
 type WireMsg = { role: 'user' | 'assistant'; content: string | Block[] };
@@ -37,7 +38,7 @@ function toWire(messages: readonly ChatMsg[]): { system: string; messages: WireM
 }
 
 /** Anthropic Messages 호환 스트리밍 어댑터 (예: z.ai `/api/anthropic`). API 키는 서버 런타임에서만 주입한다. */
-export function anthropicCompatible({ baseUrl, apiKey, model, fetch: doFetch = fetch, temperature = 0.2, maxTokens = 4096 }: AnthropicCompatOptions): LlmClient {
+export function anthropicCompatible({ baseUrl, apiKey, model, fetch: doFetch = fetch, temperature = 0.2, maxTokens = 4096, thinking = false }: AnthropicCompatOptions): LlmClient {
   return {
     model,
     async *stream({ messages, tools, signal }) {
@@ -50,6 +51,8 @@ export function anthropicCompatible({ baseUrl, apiKey, model, fetch: doFetch = f
           stream: true,
           max_tokens: maxTokens,
           temperature,
+          // z.ai Anthropic 호환 엔드포인트는 GLM 사고 모드를 기본으로 켠다. 켤 때는 Anthropic 형식대로 budget_tokens가 필요하다.
+          thinking: thinking ? { type: 'enabled', budget_tokens: Math.max(1024, Math.floor(maxTokens / 2)) } : { type: 'disabled' },
           ...(wire.system ? { system: wire.system } : {}),
           messages: wire.messages,
           ...(tools.length ? { tools: tools.map((t: ToolSpec) => ({ name: t.name, description: t.description, input_schema: t.parameters })) } : {}),

@@ -19,7 +19,11 @@ export interface LlmClient {
   stream(req: { messages: readonly ChatMsg[]; tools: readonly ToolSpec[]; signal?: AbortSignal }): AsyncIterable<LlmChunk>;
 }
 
-export type OpenAiCompatOptions = { baseUrl: string; apiKey: string; model: string; fetch?: typeof fetch; temperature?: number };
+/**
+ * `thinking`: GLM의 사고(추론) 모드. 기본은 끈다. 켜 두면 답을 쓰기 전 추론만 단계마다 5~15초 걸리고(2026-11-24 z.ai `glm-4.5-flash` 측정, 끄면 0.3초),
+ * 그 동안 사용자에게 보이는 글자가 없다. 에이전트는 도구 호출마다 LLM을 다시 부르므로 지연이 단계 수만큼 쌓인다.
+ */
+export type OpenAiCompatOptions = { baseUrl: string; apiKey: string; model: string; fetch?: typeof fetch; temperature?: number; thinking?: boolean };
 
 const toWire = (m: ChatMsg) => {
   if (m.role === 'assistant') {
@@ -34,7 +38,7 @@ const toWire = (m: ChatMsg) => {
 };
 
 /** OpenAI Chat Completions 호환 스트리밍 어댑터. API 키는 서버 런타임에서만 주입한다. */
-export function openAiCompatible({ baseUrl, apiKey, model, fetch: doFetch = fetch, temperature = 0.2 }: OpenAiCompatOptions): LlmClient {
+export function openAiCompatible({ baseUrl, apiKey, model, fetch: doFetch = fetch, temperature = 0.2, thinking = false }: OpenAiCompatOptions): LlmClient {
   return {
     model,
     async *stream({ messages, tools, signal }) {
@@ -46,6 +50,7 @@ export function openAiCompatible({ baseUrl, apiKey, model, fetch: doFetch = fetc
           stream: true,
           stream_options: { include_usage: true },
           temperature,
+          thinking: { type: thinking ? 'enabled' : 'disabled' },
           messages: messages.map(toWire),
           ...(tools.length ? { tools: tools.map((t) => ({ type: 'function', function: t })) } : {}),
         }),
