@@ -22,6 +22,11 @@ export type SidebarUser = { name: string; email?: string; jobTitle?: string; tea
 const SidebarUserContext = createContext<SidebarUser | null>(null);
 export const SidebarUserProvider = SidebarUserContext.Provider;
 
+/** 사이드바 '최근' 목록의 항목. 앱이 최근 행사 등으로 Provider로 주입한다. */
+export type SidebarRecentItem = { name: string; dot: string; start?: Date; href?: string };
+const SidebarRecentContext = createContext<SidebarRecentItem[]>([]);
+export const SidebarRecentProvider = SidebarRecentContext.Provider;
+
 
 /** 이전 표시/숨김 설정의 localStorage 키. 새 설정으로 한 번만 마이그레이션한다. */
 const HIDDEN_NAV_KEY = 'miceplans.sidebar.hiddenNav';
@@ -51,8 +56,6 @@ function dDayOf(start: Date): string {
   if (diff === 0) return 'D-Day';
   return diff > 0 ? `D-${diff}` : '종료';
 }
-
-const RECENT: { name: string; dot: string; start?: Date }[] = [];
 
 function isSidebarKey(value: unknown): value is SidebarKey {
   return typeof value === 'string' && NAV.some((n) => n.key === value);
@@ -93,6 +96,7 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
   }, []);
 
   const user = useContext(SidebarUserContext);
+  const recent = useContext(SidebarRecentContext);
   const allowedNav = NAV.filter((n) => !n.adminOnly || user?.role === 'super_admin');
   const visibleNav = navOrder.map((key) => allowedNav.find((n) => n.key === key)).filter((n): n is (typeof NAV)[number] => Boolean(n));
   const availableNav = allowedNav.filter((n) => !navOrder.includes(n.key));
@@ -214,13 +218,25 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
       <div className="flex min-h-0 shrink flex-col gap-[4px] overflow-y-auto px-[10px] max-md:hidden">
         <p className="text-base font-bold text-fg-secondary">최근</p>
         <div className="flex flex-col">
-          {RECENT.map((r) => (
-            <div key={r.name} className="flex items-center h-[36px] gap-[11px] rounded-lg px-[10px]">
-              <img alt="" src={`${A}/${r.dot}.svg`} className="size-[8px]" />
-              <span className="whitespace-nowrap text-base font-medium text-fg-secondary">{r.name}</span>
-              {r.start && <span className="rounded-sm bg-brand-tint px-[5px] py-px text-2xs font-semibold text-brand">{dDayOf(r.start)}</span>}
-            </div>
-          ))}
+          {recent.map((r) => {
+            const inner = (
+              <>
+                <img alt="" src={`${A}/${r.dot}.svg`} className="size-[8px]" />
+                <span className="truncate whitespace-nowrap text-base font-medium text-fg-secondary">{r.name}</span>
+                {r.start && <span className="rounded-sm bg-brand-tint px-[5px] py-px text-2xs font-semibold text-brand">{dDayOf(r.start)}</span>}
+              </>
+            );
+            return r.href ? (
+              <a key={r.name} href={r.href} className="flex items-center h-[36px] gap-[11px] rounded-lg px-[10px] no-underline hover:bg-surface-chip">
+                {inner}
+              </a>
+            ) : (
+              <div key={r.name} className="flex items-center h-[36px] gap-[11px] rounded-lg px-[10px]">
+                {inner}
+              </div>
+            );
+          })}
+          {!recent.length ? <p className="m-0 px-[10px] py-[4px] text-sm text-fg-tertiary">최근 행사가 없습니다.</p> : null}
         </div>
       </div>
       <div className="flex h-[52px] shrink-0 items-center gap-[10px] border-t border-solid border-border px-[14px] max-md:hidden">

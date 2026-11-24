@@ -1,4 +1,4 @@
-/** 연차 사용 현황 타입과 상수. */
+/** 연차 사용 현황 타입과 상수. 직원·사용 내역은 연차 API(useLeaveBalances·useLeaveList)에서 가져온다. */
 
 export type LeaveEmployee = {
   id: string;
@@ -16,8 +16,6 @@ export type LeaveEmployee = {
 
 /** 잔여 연차가 이 일수 이하면 부족으로 강조한다. */
 export const LOW_REMAINING_DAYS = 3;
-
-export const LEAVE_EMPLOYEES: LeaveEmployee[] = [];
 
 /** 로그인 사용자 정보가 연결되기 전 쓰는 빈 값. */
 export const LEAVE_ME: LeaveEmployee = { id: 'me', name: '나', role: '', total: 0, used: 0, monthly: [] };
@@ -44,6 +42,3 @@ export type LeaveRecord = { date: string; employeeId: string; kind: LeaveKind };
 
 /** 오늘(YYYY-MM-DD, 로컬 시간대). */
 export const LEAVE_TODAY = new Date().toLocaleDateString('sv-SE');
-
-/** 일자별 휴가 사용 내역(date는 YYYY-MM-DD). */
-export const LEAVE_RECORDS: LeaveRecord[] = [];
