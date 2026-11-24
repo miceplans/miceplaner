@@ -66,7 +66,7 @@ function ClientSelect({ value, onChange }: { value: string; onChange: (v: string
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="rounded-md px-[8px] py-[4px] text-base text-fg hover:bg-surface-subtle"
+        className="-mx-[8px] rounded-md px-[8px] py-[4px] text-base text-fg hover:bg-surface-subtle"
       >
         {value || 'Client 선택'}
       </button>
