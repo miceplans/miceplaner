@@ -381,6 +381,38 @@ export function EventDetailView() {
   };
   // 캘린더가 가리키는 날(BASE_MONDAY 기준 일수). Day/Week/Month 모두 이 날을 기준으로 표시 구간을 정한다.
   const [anchor, setAnchor] = useState(TODAY_INDEX);
+  // 보기와 기준 날짜를 저장해 새로고침 후에도 유지한다. 기준 날짜는 YYYY-MM-DD 절대 날짜로 저장해 주가 바뀌어도 어긋나지 않게 한다.
+  const CAL_PREFS_KEY = 'miceplans.event-detail.calendar';
+  const [calPrefsLoaded, setCalPrefsLoaded] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(CAL_PREFS_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      if (parsed && typeof parsed === 'object') {
+        const prefs = parsed as { view?: unknown; anchorDate?: unknown };
+        if (prefs.view === 'Day' || prefs.view === 'Week' || prefs.view === 'Month') setCalView(prefs.view);
+        if (typeof prefs.anchorDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(prefs.anchorDate)) {
+          const [y, m, d] = prefs.anchorDate.split('-').map(Number);
+          setAnchor(absOf(new Date(y!, m! - 1, d!)));
+        }
+      }
+    } catch {
+      /* 저장값이 깨져 있으면 기본값으로 둔다. */
+    }
+    setCalPrefsLoaded(true);
+  }, []);
+  const anchorIsoOf = (abs: number) => {
+    const date = dateOf(abs);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+  useEffect(() => {
+    if (!calPrefsLoaded) return;
+    try {
+      window.localStorage.setItem(CAL_PREFS_KEY, JSON.stringify({ view: calView, anchorDate: anchorIsoOf(anchor) }));
+    } catch {
+      /* 저장 실패는 화면 상태에만 영향을 주므로 무시한다. */
+    }
+  }, [calView, anchor, calPrefsLoaded]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [peekId, setPeekId] = useState<string | null>(null);
