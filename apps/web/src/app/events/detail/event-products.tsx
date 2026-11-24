@@ -355,7 +355,14 @@ export function DesignRequestTable({ team, part = '전체', eventName = '행사'
                 onBlur={(e) => { if (r.id === editingId && !e.currentTarget.contains(e.relatedTarget)) setEditingId(null); }}
                 className={`flex items-center gap-[12px] border-0 border-x border-b border-solid bg-surface px-[14px] py-[10px] ${LINE} ${i === visible.length - 1 ? 'rounded-b-lg' : ''}`}
               >
-                {FIELDS.map((f, fi) =>
+                {FIELDS.flatMap((f, fi) => [
+                  // 헤더 순서(품명·파트·마감일·사이즈…)에 맞춰 품명 바로 뒤에 파트·마감일을 둔다.
+                  ...(fi === 1
+                    ? [
+                        <span key="part" className={`${CELL} w-[70px] text-fg-secondary`}>{r.part}</span>,
+                        <span key="due" className={`${CELL} w-[80px]`}>{r.due}</span>,
+                      ]
+                    : []),
                   editing ? (
                     f === 'name' ? (
                       <ProductNameCombobox
@@ -388,9 +395,7 @@ export function DesignRequestTable({ team, part = '전체', eventName = '행사'
                       {fi === 0 && <img alt="" src={`${A}/role-chevron.svg`} className="size-[14px]" />}
                     </span>
                   ),
-                )}
-                <span className={`${CELL} w-[70px] text-fg-secondary`}>{r.part}</span>
-                <span className={`${CELL} w-[80px]`}>{r.due}</span>
+                ])}
                 <span className="flex h-[40px] w-[80px] shrink-0 items-center px-[8px]">
                   <Checkbox
                     aria-label="협의중"

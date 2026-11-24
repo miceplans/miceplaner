@@ -191,9 +191,20 @@ function toEventInfo(real: EventListItemDto): EventInfo {
 export function EventDetailView() {
   const queryClient = useQueryClient();
   const [eventId, setEventId] = useState('');
+  // 새로고침·뒤로가기 뒤에도 보던 탭을 유지하도록 탭은 ?tab=으로 URL에 둔다.
+  const [tab, setTab] = useState<TabName>(DEFAULT_TAB.planning);
   useEffect(() => {
-    setEventId(new URLSearchParams(window.location.search).get('id') ?? '');
+    const params = new URLSearchParams(window.location.search);
+    setEventId(params.get('id') ?? '');
+    const saved = params.get('tab');
+    if (saved && (TABS_BY_TEAM.planning as readonly string[]).includes(saved)) setTab(saved as TabName);
   }, []);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('tab') === tab) return;
+    url.searchParams.set('tab', tab);
+    window.history.replaceState(window.history.state, '', url);
+  }, [tab]);
   // 목업 id(e1~e5)처럼 API에 없는 행사는 조회 실패로 data가 비어 기존 목업 데이터를 쓴다.
   // 메인 목록에서 들어오면 목록 캐시의 같은 행사로 바로 그리고, 목록의 신선도(staleTime)를 그대로 따라 중복 요청을 피한다.
   const eventQuery = useEventsGet(eventId, {
@@ -218,7 +229,6 @@ export function EventDetailView() {
   useEffect(() => { setClient(event.client); }, [event.client]);
   // TODO: 팀 구분 기준(역할·소속)이 확정되면 인증 정보에서 가져온다. 그전에는 ?team=design 으로 디자인팀 화면을 본다.
   const [team, setTeam] = useState<Team>('planning');
-  const [tab, setTab] = useState<TabName>(DEFAULT_TAB.planning);
   const tabs = TABS_BY_TEAM[team];
   const [part, setPart] = useState<PartFilter>('전체');
   const [filter, setFilter] = useState<ItemFilter>(DEFAULT_FILTER);
@@ -235,22 +245,18 @@ export function EventDetailView() {
   const myTeam = me.data?.team;
   useEffect(() => {
     const next: Team = myTeam === DESIGN_TEAM ? 'design' : 'planning';
-    // GET /auth/me는 첫 렌더 뒤에 도착한다. 같은 팀 값이 다시 들어올 때까지 매번
-    // 기본 탭(기획팀: 제작물)으로 돌리면 사용자가 고른 탭이 사라진다.
-    setTeam((current) => {
-      if (current === next) return current;
-      setTab(DEFAULT_TAB[next]);
-      return next;
-    });
+    // GET /auth/me는 첫 렌더 뒤에 도착한다. 팀이 바뀌어도 탭은 그대로 두고,
+    // 새 팀에 없는 탭(디자인팀의 제작물 등)만 아래 효과가 기본 탭으로 돌린다.
+    setTeam(next);
   }, [myTeam]);
-  // 멤버 탭을 보고 있을 때 권한이 사라지면(미리보기 토글 등) 기본 탭으로 돌아간다.
+  // 사용자·멤버십 조회가 끝나기 전에는 isMember가 임시로 false라, 이때 탭을 돌리면
+  // URL로 복원한 인력 탭 등이 기본 탭(제작물)으로 덮인다.
+  const accessPending = getToken() !== null && (meId === null ? me.isPending : members.isPending);
+  // 현재 탭이 보이는 탭 목록에 없으면(권한 상실·팀 변경 등) 기본 탭으로 돌아간다.
   useEffect(() => {
-    if (!isMember && tab === '인력') setTab(DEFAULT_TAB[team]);
-  }, [isMember, tab, team]);
-  // 현재 탭이 보이는 탭 목록에 없으면(탭 이름 변경 직후 등) 기본 탭으로 돌아간다.
-  useEffect(() => {
+    if (accessPending) return;
     if (!(visibleTabs as readonly string[]).includes(tab)) setTab(DEFAULT_TAB[team]);
-  }, [visibleTabs, tab, team]);
+  }, [accessPending, visibleTabs, tab, team]);
   const assignable = useMemo(() => getAssignableNames({ pm: event.pm, am: event.am, design: event.design }, eventId), [event.pm, event.am, event.design, eventId]);
   const [schedule, setSchedule] = useState(() => resolveOwners(INITIAL_SCHEDULE, assignable));
   const [products, setProducts] = useState<RequestRow[]>([]);
