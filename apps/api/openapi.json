@@ -3313,6 +3313,10 @@
           "amName": {
             "nullable": true,
             "type": "string"
+          },
+          "designName": {
+            "nullable": true,
+            "type": "string"
           }
         },
         "required": [
@@ -3332,7 +3336,8 @@
           "updatedAt",
           "clientName",
           "pmName",
-          "amName"
+          "amName",
+          "designName"
         ],
         "additionalProperties": false
       },
@@ -3475,6 +3480,7 @@
             "enum": [
               "pm",
               "am",
+              "design",
               "member"
             ]
           }
@@ -3500,6 +3506,7 @@
             "enum": [
               "pm",
               "am",
+              "design",
               "member"
             ]
           }
@@ -3518,6 +3525,7 @@
             "enum": [
               "pm",
               "am",
+              "design",
               "member"
             ]
           }

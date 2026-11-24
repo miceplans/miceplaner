@@ -76,7 +76,7 @@ export class EventsController {
     @Auth() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Param('userId', ParseUUIDPipe) userId: string,
-    @ZodBody(changeEventMemberRoleBody) body: { role: 'pm' | 'am' | 'member' },
+    @ZodBody(changeEventMemberRoleBody) body: { role: 'pm' | 'am' | 'design' | 'member' },
   ) {
     return this.events.changeMemberRole(user, id, userId, body.role);
   }

@@ -98,7 +98,7 @@ export class EventsService {
   }
 
   /** 멤버 추가는 PM·AM(과 Super Admin)만 하고 당사자에게 알림이 간다 (명세 2.2, F-06). */
-  async addMember(user: AuthUser, eventId: string, targetUserId: string, role: 'pm' | 'am' | 'member') {
+  async addMember(user: AuthUser, eventId: string, targetUserId: string, role: 'pm' | 'am' | 'design' | 'member') {
     requireInternal(user);
     const row = await this.run(user, async (db) => {
       await this.requireEvent(db, eventId);
@@ -112,7 +112,7 @@ export class EventsService {
     return eventMemberDto.parse(row);
   }
 
-  async changeMemberRole(user: AuthUser, eventId: string, targetUserId: string, role: 'pm' | 'am' | 'member') {
+  async changeMemberRole(user: AuthUser, eventId: string, targetUserId: string, role: 'pm' | 'am' | 'design' | 'member') {
     requireInternal(user);
     const row = await this.run(user, async (db) => {
       await this.requireEvent(db, eventId);

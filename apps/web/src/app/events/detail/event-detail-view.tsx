@@ -31,6 +31,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event-filter';
 import { PmTransfer } from './pm-transfer';
+import { LeadSelect } from './lead-select';
 import { TaskBoard } from './task-board-view';
 import { useScheduleNoteStore } from '../../schedule-calendar/schedule-note-store';
 import type { EventListItemDto } from '@miceplans/contracts';
@@ -215,7 +216,7 @@ function toEventInfo(real: EventListItemDto): EventInfo {
     client: real.clientName ?? '(삭제된 고객사)',
     pm: real.pmName ?? '',
     am: real.amName ?? '',
-    design: '',
+    design: real.designName ?? '',
     place: real.place,
     status: real.status,
     dday: diff === 0 ? 'D-Day' : diff > 0 ? `D-${diff}` : '종료',
@@ -774,8 +775,12 @@ export function EventDetailView() {
           <Prop icon="prop-tag" label="상태"><StatusPill status={event.status} /></Prop>
           <Prop icon="prop-client" label="고객사"><ClientSelect value={clientLabel} accounts={clientAccounts.data ?? []} onChange={changeClient} /></Prop>
           <Prop icon="prop-person" label="PM">{event.pm}</Prop>
-          <Prop icon="prop-person" label="AM">{event.am}</Prop>
-          <Prop icon="prop-person" label="디자인">{event.design}</Prop>
+          <Prop icon="prop-person" label="AM">
+            {real ? <LeadSelect eventId={eventId} role="am" label={event.am} members={members.data} users={users.data} canManage={canManageClients} /> : event.am}
+          </Prop>
+          <Prop icon="prop-person" label="디자인">
+            {real ? <LeadSelect eventId={eventId} role="design" label={event.design} members={members.data} users={users.data} canManage={canManageClients} /> : event.design}
+          </Prop>
           {invited.length > 0 && (
             <Prop icon="prop-person" label="초대됨">
               <span className="flex items-center gap-[8px]">

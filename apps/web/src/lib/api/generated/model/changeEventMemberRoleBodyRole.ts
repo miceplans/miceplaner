@@ -12,5 +12,6 @@ export type ChangeEventMemberRoleBodyRole = typeof ChangeEventMemberRoleBodyRole
 export const ChangeEventMemberRoleBodyRole = {
   pm: 'pm',
   am: 'am',
+  design: 'design',
   member: 'member',
 } as const;

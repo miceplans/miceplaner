@@ -12,5 +12,6 @@ export type EventMemberDtoRole = typeof EventMemberDtoRole[keyof typeof EventMem
 export const EventMemberDtoRole = {
   pm: 'pm',
   am: 'am',
+  design: 'design',
   member: 'member',
 } as const;

@@ -44,4 +44,6 @@ export interface EventListItemDto {
   pmName: string | null;
   /** @nullable */
   amName: string | null;
+  /** @nullable */
+  designName: string | null;
 }

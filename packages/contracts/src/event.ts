@@ -23,11 +23,12 @@ export const eventDto = z.object({
 });
 export type EventDto = z.infer<typeof eventDto>;
 
-/** 목록·상세 화면은 고객사 이름과 PM·AM 이름을 함께 보여 준다 (표 렌더링용 조인 결과). */
+/** 목록·상세 화면은 고객사 이름과 PM·AM·디자인 담당 이름을 함께 보여 준다 (표 렌더링용 조인 결과). 여러 명이면 쉼표로 잇는다. */
 export const eventListItemDto = eventDto.extend({
   clientName: z.string().nullable(),
   pmName: z.string().nullable(),
   amName: z.string().nullable(),
+  designName: z.string().nullable(),
 });
 export type EventListItemDto = z.infer<typeof eventListItemDto>;
 
@@ -79,7 +80,9 @@ export const listEventsQuery = z.object({
 });
 export type ListEventsQuery = z.infer<typeof listEventsQuery>;
 
-export const eventMemberRole = z.enum(['pm', 'am', 'member']);
+/** design(디자인 담당)은 권한상 member와 같고, 행사 상세의 '디자인' 속성 표시에만 구분한다. */
+export const eventMemberRole = z.enum(['pm', 'am', 'design', 'member']);
+export type EventMemberRole = z.infer<typeof eventMemberRole>;
 export const eventMemberDto = z.object({ eventId: uuid, userId: uuid, role: eventMemberRole });
 export type EventMemberDto = z.infer<typeof eventMemberDto>;
 
