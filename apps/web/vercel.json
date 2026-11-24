@@ -4,7 +4,7 @@
   "regions": ["icn1"],
   "cleanUrls": true,
   "redirects": [
-    { "source": "/", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/dashboard", "permanent": false },
+    { "source": "/", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/calendar", "permanent": false },
     { "source": "/login", "has": [{ "type": "host", "value": "client\\..+" }], "destination": "/client/login", "permanent": false },
     {
       "source": "/:path((?!client/|_next/|assets/|apply$|favicon\\.ico$).+)",
