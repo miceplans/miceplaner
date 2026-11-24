@@ -30,6 +30,13 @@ function groupByYear(events: EventListItemDto[]): YearGroup[] {
 
 const fmtDate = (d: string) => d.split('-').join('. ');
 
+/** 불러오는 중·실패를 '행사 없음'과 구분해 보여 준다. */
+export function emptyMessage(q: { isPending: boolean; isError: boolean }) {
+  if (q.isPending) return '행사를 불러오는 중입니다…';
+  if (q.isError) return '행사 목록을 불러오지 못했습니다. 새로고침해 주세요.';
+  return '등록된 행사가 없습니다.';
+}
+
 export function EventsByYearView() {
   const router = useRouter();
   const params = useSearchParams();
@@ -91,8 +98,16 @@ export function EventsByYearView() {
                 <span className="text-base text-fg-disabled">행사 {g.count}건</span>
               </div>
               <div className={`flex gap-[8px] ${view === 'folder' ? 'h-full items-center' : 'order-last w-full min-w-0'}`}>
+                {/* 색을 정하지 않은 새 행사도 칸이 보이도록 브랜드 핑크를 기본색으로 쓴다. */}
                 {g.events.slice(0, 3).map((e) => (
-                  <div key={e.id} style={{ backgroundColor: e.color ?? undefined }} className={`h-[64px] rounded-md ${view === 'folder' ? 'w-[96px] shrink-0' : 'min-w-0 flex-1'}`} />
+                  <div
+                    key={e.id}
+                    title={e.name}
+                    style={e.color ? { backgroundColor: e.color } : undefined}
+                    className={`flex h-[64px] items-end overflow-hidden rounded-md p-[8px] ${e.color ? '' : 'bg-brand-pink'} ${view === 'folder' ? 'w-[96px] shrink-0' : 'min-w-0 flex-1'}`}
+                  >
+                    <span className="min-w-0 truncate text-xs font-semibold text-fg-inverse drop-shadow-sm">{e.name}</span>
+                  </div>
                 ))}
                 {[...Array(Math.max(0, 3 - g.events.length))].map((_, n) => (
                   <div key={`empty-${n}`} className={`h-[64px] rounded-md bg-expired ${view === 'folder' ? 'w-[96px] shrink-0' : 'min-w-0 flex-1'}`} />
@@ -105,7 +120,7 @@ export function EventsByYearView() {
               <img alt="" src={`${A}/chevron.svg`} className="size-[20px] shrink-0" />
             </a>
           ))}
-          {!groups.length && <p className="m-0 py-[32px] text-base text-fg-tertiary">등록된 행사가 없습니다.</p>}
+          {!groups.length && <p className="m-0 py-[32px] text-base text-fg-tertiary">{emptyMessage(events)}</p>}
         </div>
         )}
       </div>
