@@ -222,8 +222,8 @@ export async function listStaffAccounts(client: PoolClient): Promise<UserRow[]> 
   return rows;
 }
 
-export async function updateStaffAccount(client: PoolClient, id: string, patch: { role?: 'super_admin' | 'staff'; employmentStatus?: 'active' | 'departed' }): Promise<UserRow | undefined> {
-  await client.query(`SELECT manage_staff_account($1, $2, $3)`, [id, patch.role ?? null, patch.employmentStatus ?? null]);
+export async function updateStaffAccount(client: PoolClient, id: string, patch: { role?: 'super_admin' | 'staff'; employmentStatus?: 'active' | 'departed'; jobTitle?: string }): Promise<UserRow | undefined> {
+  await client.query(`SELECT manage_staff_account($1, $2, $3, $4)`, [id, patch.role ?? null, patch.employmentStatus ?? null, patch.jobTitle ?? null]);
   return getUserById(client, id);
 }
 

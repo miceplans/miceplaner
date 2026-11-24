@@ -11,4 +11,6 @@ import type { UpdateStaffAccountBodyRole } from './updateStaffAccountBodyRole';
 export interface UpdateStaffAccountBody {
   role?: UpdateStaffAccountBodyRole;
   employmentStatus?: UpdateStaffAccountBodyEmploymentStatus;
+  /** @maxLength 50 */
+  jobTitle?: string;
 }

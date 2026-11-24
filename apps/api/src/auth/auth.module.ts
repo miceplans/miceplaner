@@ -3,5 +3,5 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { HiworksService } from './hiworks';
 
-@Module({ controllers: [AuthController], providers: [AuthService, HiworksService], exports: [AuthService] })
+@Module({ controllers: [AuthController], providers: [AuthService, HiworksService], exports: [AuthService, HiworksService] })
 export class AuthModule {}

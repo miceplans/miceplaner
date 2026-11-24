@@ -62,6 +62,7 @@ beforeAll(async () => {
   const hiworksMembers = new Map([
     ['new@x.test', { email: 'new@x.test', name: '신규' }],
     ['pm@x.test', { email: 'pm@x.test', name: 'PM' }],
+    ['target@x.test', { email: 'target@x.test', name: 'Target', team: '디자인팀', subTeam: '영상팀' }],
     ['client@x.test', { email: 'client@x.test', name: 'Client' }],
   ]);
   const moduleRef = await Test.createTestingModule({ imports: [AppModule], controllers: [BoomController] })
@@ -174,6 +175,20 @@ describe('인증 (F-01)', () => {
 
     const audit = await admin.query(`SELECT action FROM audit_log WHERE action = 'staff.account.change' AND detail->>'userId' = $1`, [U.target]);
     expect(audit.rows.length).toBeGreaterThanOrEqual(3);
+  });
+  it('Super Admin만 직원 직급을 입력하고, 목록에 하이웍스 팀을 함께 내려준다', async () => {
+    const list = await api().get('/staff-accounts').set(as('admin')).expect(200);
+    expect(list.body).toEqual(expect.arrayContaining([expect.objectContaining({ id: U.target, team: '디자인팀', subTeam: '영상팀' })]));
+
+    await api().patch(`/staff-accounts/${U.target}`).set(as('staff')).send({ jobTitle: '대리' }).expect(403);
+    await api().patch(`/staff-accounts/${U.target}`).set(as('admin')).send({ jobTitle: '  대리 ' }).expect(200)
+      .expect(({ body }) => expect(body).toMatchObject({ jobTitle: '대리', team: '디자인팀', role: 'staff', employmentStatus: 'active' }));
+    await api().patch(`/staff-accounts/${U.target}`).set(as('admin')).send({ jobTitle: 'x'.repeat(51) }).expect(400);
+    await api().patch(`/staff-accounts/${U.target}`).set(as('admin')).send({ jobTitle: '' }).expect(200)
+      .expect(({ body }) => expect(body.jobTitle).toBe(''));
+
+    const audit = await admin.query(`SELECT detail FROM audit_log WHERE action = 'staff.account.change' AND detail->>'userId' = $1 AND detail->>'jobTitle' = '대리'`, [U.target]);
+    expect(audit.rows).toHaveLength(1);
   });
 });
 

@@ -4849,6 +4849,12 @@
           "jobTitle": {
             "type": "string"
           },
+          "team": {
+            "type": "string"
+          },
+          "subTeam": {
+            "type": "string"
+          },
           "role": {
             "type": "string",
             "enum": [
@@ -4899,6 +4905,10 @@
               "active",
               "departed"
             ]
+          },
+          "jobTitle": {
+            "type": "string",
+            "maxLength": 50
           }
         },
         "additionalProperties": false
