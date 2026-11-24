@@ -49,7 +49,7 @@ export function parseFileHandler(deps: Deps) {
 }
 
 /** 문서에서 임베딩이 비어 있는 청크만 채운다. 본문이 다시 색인되면 청크가 새로 생겨 다음 작업이 다시 채운다. */
-export function embedDocHandler(deps: Deps) {
+export function embedDocHandler(deps: Pick<Deps, 'pool' | 'embedder'>) {
   return async ({ docId, ctx }: EmbedDocJob): Promise<void> => {
     if (!deps.embedder) return;
     const pending = await withContext(deps.pool, ctx, async (db) => ((await hasVector(db)) ? chunksMissingEmbedding(db, docId) : []));

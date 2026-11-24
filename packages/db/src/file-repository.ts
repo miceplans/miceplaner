@@ -65,6 +65,11 @@ export async function chunksMissingEmbedding(client: PoolClient, docId: string):
   return (await client.query<PendingChunk>(`SELECT id, heading, content FROM knowledge_chunks WHERE doc_id = $1 AND embedding IS NULL ORDER BY chunk_index`, [docId])).rows;
 }
 
+/** 임베딩이 빈 청크가 남은 문서. 보이는 범위는 RLS가 정한다. 백필(apps/worker `backfill-embeddings`)에서 쓴다. */
+export async function docsMissingEmbedding(client: PoolClient): Promise<string[]> {
+  return (await client.query<{ docId: string }>(`SELECT DISTINCT doc_id AS "docId" FROM knowledge_chunks WHERE embedding IS NULL`)).rows.map((r) => r.docId);
+}
+
 /** 임베딩을 저장한다. 그 사이 본문이 바뀌어 청크가 사라졌다면 조용히 건너뛴다. 저장한 개수를 돌려준다. */
 export async function setChunkEmbeddings(client: PoolClient, ids: readonly string[], vectors: readonly string[]): Promise<number> {
   if (ids.length === 0) return 0;

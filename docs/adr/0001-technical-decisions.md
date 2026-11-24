@@ -27,7 +27,7 @@ MICEPLANNER는 행사 운영 데이터와 사내 지식을 다루며, 내부 직
 | 주 저장소 | PostgreSQL, pgvector | RLS로 권한 강제 |
 | 작업 큐 | pg-boss | Redis는 확장 조건 충족 시 도입 |
 | 파일 | AWS S3 (`ap-northeast-2`, 비공개 버킷) | worker·협업 서버와 같은 AWS 계정·`infra/` 스택에서 관리하고, EC2는 인스턴스 역할로 접근해 키가 없다. 고정비가 없고 코드는 S3 SDK를 그대로 쓰므로 `S3_ENDPOINT`만 바꿔 R2 등으로 이전 가능 |
-| 임베딩 | BGE-M3 dense, TEI | 초기 검색 구성 |
+| 임베딩 | BGE-M3 dense, TEI (`cpu-arm64-1.9`, 전용 EC2 `t4g.medium`) | 공용 호스트(`t4g.micro`, 1GB)에는 모델(2.5~3GB)이 올라가지 않아 따로 둔다(2026-11-24 결정, 월 약 $30). 위키·파일 원문이 AWS 밖 업체로 나가지 않게 사용량 과금 외부 API 대신 자체 서빙을 택했다 |
 | 검색 | PostgreSQL FTS, `pg_trgm`, pgvector | 애플리케이션에서 결과 병합 |
 | LLM | GLM | OpenAI 호환 어댑터 뒤에 배치 |
 | 내부 인증 | 이메일·비밀번호(scrypt) + 하이웍스 조직도 구성원 검증 | Google OIDC는 철회(2026-11-03). 하이웍스 OAuth는 신규 발급이 중단되어 쓰지 않는다. 메일 소유 확인이 없어 자유 가입 선점 위험을 감수한다. Client는 `client.` 포털에서 회사명·이름·이메일·비밀번호로 신청하고 Super Admin 승인 뒤 로그인한다. |
@@ -77,6 +77,10 @@ Internal Web / Client Portal / optional Tauri
 
 Client 포털은 API만 호출한다. 협업 서버는 Client 연결을 받지 않는다. API, 협업 서버, worker는 모두 무제한 DB 역할 없이 같은 RLS 원칙을 적용한다.
 
+### 임베딩 서빙
+
+TEI(BGE-M3)는 `infra/`의 전용 EC2(`EmbedHost`, 기본 `t4g.medium`, Amazon Linux 2023 arm64)에서 systemd 서비스로 상시 실행한다. 이미지는 다이제스트, 모델은 리비전으로 고정하며 모델을 바꾸면 기존 벡터와 호환되지 않으므로 전체 백필이 필요하다. 질의 임베딩은 Vercel API가, 문서 임베딩은 worker가 하므로 같은 CloudFront 배포(HTTPS 전용)로 열고, 보안 그룹은 CloudFront 원본 접두사 목록의 8080만 허용한다. 공개 주소이므로 TEI `--api-key`를 쓰며 키는 SSM SecureString `TEI_API_KEY`(인스턴스 역할은 이 키 하나만 읽는다)와 Vercel API 환경 변수에만 둔다. 주소 `TEI_URL`은 스택이 SSM에 등록한다. 질의 임베딩은 3초, 문서 임베딩은 60초에서 끊으며 실패하면 검색은 lexical로, 임베딩 작업은 pg-boss 재시도로 넘어간다. GPU·자동 확장은 문서량이나 지연이 문제가 될 때 다시 검토한다.
+
 ### 저장과 실시간
 
 - 행사·공유 업무 데이터의 기준 저장소는 PostgreSQL이다. 개인 Todo는 서버 비용과 의존성을 줄이기 위해 사용자 컴퓨터의 로컬 저장소를 기준으로 하는 local-first 데이터이며, 초기 범위에서는 서버에 동기화하지 않는다.
@@ -100,13 +104,13 @@ Client 포털은 API만 호출한다. 협업 서버는 Client 연결을 받지 �
 
 ### 검색과 AI
 
-한국어 검색은 서버 비용을 우선해 형태소 분석기를 두지 않는다. 색인은 `simple` tsvector, 질의는 조사 제거 후 어간 접두 일치와 `pg_trgm`이며, WASM Kiwi(`kiwi-nlp`)는 상시 메모리 700~900MB라 API·worker에 상주시키기 어렵다고 판단해 배제했다. 골든 셋이 기준 미달이면 worker 한정 Kiwi 또는 별도 검색 엔진을 재검토한다. 임베딩 서빙(TEI)과 pgvector는 위키 외 문서 검색 요구가 확인될 때 추가한다.
+한국어 검색은 서버 비용을 우선해 형태소 분석기를 두지 않는다. 색인은 `simple` tsvector, 질의는 조사 제거 후 어간 접두 일치와 `pg_trgm`이며, WASM Kiwi(`kiwi-nlp`)는 상시 메모리 700~900MB라 API·worker에 상주시키기 어렵다고 판단해 배제했다. 골든 셋이 기준 미달이면 worker 한정 Kiwi 또는 별도 검색 엔진을 재검토한다. 임베딩 서빙(TEI)과 pgvector는 2026-11-24 운영에서 켜기로 결정했다(아래 '임베딩 서빙').
 
 협업 서버(`apps/collaboration`)는 연결마다 세션 토큰을 검증하고 사용자의 RLS 컨텍스트로 DB에 접근한다. Yjs는 문서당 병합된 스냅샷 하나를 PostgreSQL(`wiki_ydoc`)에 저장해 별도 저장소를 두지 않는다. API가 협업 서버로 본문 변경(AI 승인·되돌리기)을 요청하는 내부 경로는 공유 비밀로 보호하며 네트워크에서도 내부로 제한한다.
 
 검색은 먼저 RLS 기반 권한 필터를 적용하고, 행사·고객사·문서 유형·최신성 조건을 적용한 후 FTS와 `pg_trgm`, dense 검색 결과를 병합·재정렬한다. 모든 AI 답변은 출처를 제공한다.
 
-업로드 파일은 worker가 Markdown으로 변환해 `event_docs`와 `knowledge_chunks`로 들어가므로 위키와 같은 RLS를 따른다. 원본은 S3에 두고 API가 대신 전달한다. dense 임베딩 열은 pgvector가 있는 서버에서만 만들며, 없거나 `TEI_URL`이 없으면 검색은 lexical만 쓴다. pg-boss 스키마는 배포 때 소유자 역할로 만들고 앱·worker 역할에는 DDL 권한을 주지 않는다. 자세한 동작과 미확정 항목(원본 보존 기간, 임베딩 서빙 비용, 거리 임계값)은 기능 명세 F-10과 6절에 있다.
+업로드 파일은 worker가 Markdown으로 변환해 `event_docs`와 `knowledge_chunks`로 들어가므로 위키와 같은 RLS를 따른다. 원본은 S3에 두고 API가 대신 전달한다. dense 임베딩 열은 pgvector가 있는 서버에서만 만들며, 없거나 `TEI_URL`이 없으면 검색은 lexical만 쓴다. pg-boss 스키마는 배포 때 소유자 역할로 만들고 앱·worker 역할에는 DDL 권한을 주지 않는다. 자세한 동작과 미확정 항목(원본 보존 기간, 거리 임계값)은 기능 명세 F-10과 6절에 있다.
 
 AI 도구는 읽기와 proposal 생성으로 제한하며 사용자의 RLS 컨텍스트에서 실행된다. 사람 이름은 LLM 전송 직전에 요청별 `<PERSON_001>` 토큰으로 가리고, SSE 출력에서만 메모리 대응표로 복원한다. 예산은 AI 경계의 비가역 차단 대상이라 도구 출력·프롬프트·호출 로그에 포함하지 않는다. 승인 반영은 승인자 권한으로 서버가 한 PostgreSQL 트랜잭션에서 수행한다. AI 위키 승인은 API가 Yjs 원본과 Markdown 파생본, 색인, revision, proposal 결정, 감사 로그를 함께 저장하고, 커밋 뒤 협업 서버는 열린 연결에 상태만 전파한다. 이 순서는 별도 협업 서버 DB 트랜잭션과 API 트랜잭션을 하나의 분산 트랜잭션처럼 취급하지 않게 한다. 변경은 승인 뒤 서버 API가 실행하고 감사 로그에 남긴다. GLM의 도구 호출 품질은 20~30개 골든 셋으로 초기 2주 안에 평가한다. LLM 어댑터는 모델 교체를 가능하게 유지한다.
 
