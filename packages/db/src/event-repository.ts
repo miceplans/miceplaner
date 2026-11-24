@@ -5,19 +5,20 @@ import { isRole, type EventStatus, type Role } from '@miceplans/domain';
 export type EventRow = {
   id: string; clientId: string; name: string; startDate: string; endDate: string; place: string; status: EventStatus;
   priority: boolean; color: string | null; budget: number | null; publicVisible: boolean; version: number; createdBy: string | null; createdAt: string; updatedAt: string;
-  clientName: string; pmName: string | null; amName: string | null;
+  clientName: string; pmName: string | null; amName: string | null; designName: string | null;
 };
 
 const COLUMNS = `id, client_id AS "clientId", name, to_char(start_date, 'YYYY-MM-DD') AS "startDate", to_char(end_date, 'YYYY-MM-DD') AS "endDate",
   place, status, priority, color, budget::float8 AS budget, public_visible AS "publicVisible", version, created_by AS "createdBy", ${isoTs('created_at', 'createdAt')}, ${isoTs('updated_at', 'updatedAt')}`;
 
-// 목록·상세는 고객사 이름과 PM·AM 이름까지 함께 보여 준다. 고객사는 삭제돼도 행사가
+// 목록·상세는 고객사 이름과 PM·AM·디자인 담당 이름까지 함께 보여 준다. 고객사는 삭제돼도 행사가
 // 사라지지 않게 LEFT JOIN으로 건다(삭제된 고객사는 RLS로 이름이 null이 된다).
 const SELECT_COLUMNS = `e.id, e.client_id AS "clientId", e.name, to_char(e.start_date, 'YYYY-MM-DD') AS "startDate", to_char(e.end_date, 'YYYY-MM-DD') AS "endDate",
   e.place, e.status, e.priority, e.color, e.budget::float8 AS budget, e.public_visible AS "publicVisible", e.version, e.created_by AS "createdBy", ${isoTs('e.created_at', 'createdAt')}, ${isoTs('e.updated_at', 'updatedAt')},
   c.name AS "clientName",
   (SELECT string_agg(u.name, ', ' ORDER BY u.name) FROM event_members m JOIN users u ON u.id = m.user_id WHERE m.event_id = e.id AND m.role = 'pm') AS "pmName",
-  (SELECT string_agg(u.name, ', ' ORDER BY u.name) FROM event_members m JOIN users u ON u.id = m.user_id WHERE m.event_id = e.id AND m.role = 'am') AS "amName"`;
+  (SELECT string_agg(u.name, ', ' ORDER BY u.name) FROM event_members m JOIN users u ON u.id = m.user_id WHERE m.event_id = e.id AND m.role = 'am') AS "amName",
+  (SELECT string_agg(u.name, ', ' ORDER BY u.name) FROM event_members m JOIN users u ON u.id = m.user_id WHERE m.event_id = e.id AND m.role = 'design') AS "designName"`;
 
 const FROM = `FROM events e LEFT JOIN clients c ON c.id = e.client_id`;
 
@@ -107,7 +108,7 @@ export async function eventRole(client: PoolClient, eventId: string): Promise<Ro
   return isRole(role) ? role : 'staff';
 }
 
-export type EventMemberRole = 'pm' | 'am' | 'member';
+export type EventMemberRole = 'pm' | 'am' | 'design' | 'member';
 export type EventMemberRow = { eventId: string; userId: string; role: EventMemberRole };
 
 export async function listEventMembers(client: PoolClient, eventId: string): Promise<EventMemberRow[]> {

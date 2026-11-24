@@ -2,7 +2,7 @@ import pg from 'pg';
 import { eventListItemDto, notificationDto } from '@miceplans/contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  addEventMember, createEvent, getEvent, listEventMembers, listNotifications, removeEventMember, transferPm, withContext, type DbContext,
+  addEventMember, changeEventMemberRole, createEvent, eventRole, getEvent, listEventMembers, listNotifications, removeEventMember, transferPm, withContext, type DbContext,
 } from '../src';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -105,5 +105,22 @@ describe('PM 넘기기 (F-02, F-06)', () => {
     expect(received.filter((n) => n.kind === 'member_changed' && n.eventId === event.id && n.title.includes('추가'))).toHaveLength(1);
     const log = await admin.query(`SELECT action FROM audit_log WHERE event_id = $1 AND action = 'member.pm.transfer'`, [event.id]);
     expect(log.rowCount).toBe(1);
+  });
+});
+
+describe('디자인 담당 역할 (0023)', () => {
+  it('PM이 디자인 담당을 지정하면 목록에 이름이 나오고, 권한은 일반 멤버와 같다', async () => {
+    const event = await newEvent(as.staff, '디자인 담당');
+    await withContext(app, as.staff, (db) => addEventMember(db, U.staff, event.id, U.member, 'design'));
+    const read = await withContext(app, as.staff, (db) => getEvent(db, event.id));
+    expect(eventListItemDto.parse(read)).toMatchObject({ pmName: 'staff', amName: null, designName: 'member' });
+    // 판정은 member로 해 항목 편집은 되지만 멤버 관리는 못 한다.
+    expect(await withContext(app, as.member, (db) => eventRole(db, event.id))).toBe('member');
+    await expect(withContext(app, as.member, (db) => addEventMember(db, U.member, event.id, U.admin, 'member'))).rejects.toThrow();
+    // 해제하면 일반 멤버로 돌아가고 감사 로그가 남는다.
+    await withContext(app, as.staff, (db) => changeEventMemberRole(db, U.staff, event.id, U.member, 'member'));
+    expect(eventListItemDto.parse(await withContext(app, as.staff, (db) => getEvent(db, event.id)))).toMatchObject({ designName: null });
+    const log = await admin.query(`SELECT action FROM audit_log WHERE event_id = $1`, [event.id]);
+    expect(log.rows.map((r) => r.action)).toEqual(expect.arrayContaining(['member.add', 'member.role.change']));
   });
 });

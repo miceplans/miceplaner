@@ -7,7 +7,7 @@ import { getEventsMembersQueryKey, useDirectoryUsers, useEventsMembers, useEvent
 
 type Candidate = { userId: string; name: string; role: string };
 
-const ROLE_LABEL: Record<string, string> = { pm: 'PM', am: 'AM', member: '멤버' };
+const ROLE_LABEL: Record<string, string> = { pm: 'PM', am: 'AM', design: '디자인', member: '멤버' };
 
 /**
  * PM 넘기기. 부모(EventDetailView)가 실제 멤버 목록으로 본인의 PM 여부를 판정해 isPm으로
