@@ -1,40 +1,58 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { PageBody, PageTopbar } from './page-frame';
-import { SIDEBAR_FRAME, SidebarLogo, SidebarNav, SidebarNavLink } from './sidebar';
 import { StatusTag } from './status-tag';
 import { statusTones, type StatusToneKey } from './tokens';
 
+const A = '/assets/client';
+
 export type ClientNavKey = 'dashboard' | 'events' | 'calendar';
 
-const NAV: { key: ClientNavKey; label: string; href: string; icon: string }[] = [
-  { key: 'dashboard', label: '대시보드', href: '/client/dashboard', icon: '/assets/client/shared/layout-dashboard.svg' },
-  { key: 'events', label: '행사', href: '/client/events', icon: '/assets/sidebar/events.svg' },
-  { key: 'calendar', label: '캘린더', href: '/client/calendar', icon: '/assets/sidebar/calendar.svg' },
+type HeaderNavKey = 'dashboard' | 'calendar';
+
+const NAV: { key: HeaderNavKey; label: string; href: string; icon: string }[] = [
+  { key: 'dashboard', label: '대시보드', href: '/client/dashboard', icon: 'layout-dashboard' },
+  { key: 'calendar', label: '캘린더', href: '/client/calendar', icon: 'calendar' },
 ];
 
-/** Client 포털 사이드바. 내부 앱 사이드바와 같은 틀·로고·내비 항목을 쓰고, 포털 메뉴만 보여 준다. */
-export function ClientSidebar({ active }: { active: ClientNavKey }): ReactNode {
+/** 클라이언트 포털 공통 헤더(로고 + 탭 내비게이션). 행사 목록·상세는 대시보드 탭에 속한다. */
+export function ClientHeader({ active = 'dashboard' }: { active?: ClientNavKey }): ReactNode {
+  const current: HeaderNavKey = active === 'calendar' ? 'calendar' : 'dashboard';
   return (
-    <aside className={SIDEBAR_FRAME} data-name="ClientSidebar">
-      <SidebarLogo href="/client/dashboard" />
-      <SidebarNav>
-        {NAV.map((n) => (
-          <SidebarNavLink key={n.key} href={n.href} icon={n.icon} label={n.label} active={n.key === active} />
-        ))}
-      </SidebarNav>
-      <div className="min-h-[5px] flex-1 max-md:hidden" />
-      <div className="flex h-[52px] shrink-0 items-center border-t border-solid border-border px-[14px] max-md:hidden">
-        <span className="text-sm font-semibold text-fg-secondary">고객 포털</span>
+    <header className="sticky top-0 z-10 flex w-full shrink-0 items-start">
+      <div className="flex h-[64px] min-w-px flex-1 items-center justify-between gap-[24px] border-b border-solid border-border bg-surface px-[40px] max-md:h-auto max-md:flex-col max-md:items-stretch max-md:gap-[8px] max-md:px-[16px] max-md:py-[12px]">
+        <a href="/client/dashboard" className="flex shrink-0 items-center gap-[8px]">
+          <div className="flex shrink-0 items-center gap-[7px]">
+            <img alt="mice planner" src="/assets/mice-planner-logo.png" className="h-[11px] w-[116px] object-contain brightness-0" />
+            <img alt="" src={`${A}/shared/group5.svg`} className="h-[26.758px] w-[21px]" />
+          </div>
+          <div className="h-[16px] w-px shrink-0 bg-border-strong" />
+          <p className="whitespace-nowrap text-sm text-fg-secondary">고객 포털</p>
+        </a>
+        <nav className="flex h-[48px] shrink-0 items-center gap-[2px] self-end rounded-md bg-surface-sunken px-[5px] max-md:w-full max-md:self-auto">
+          {NAV.map((n) => {
+            const on = n.key === current;
+            return (
+              <a
+                key={n.key}
+                href={n.href}
+                aria-current={on ? 'page' : undefined}
+                className={`flex min-w-0 flex-1 items-center justify-center gap-[7px] rounded-md p-[12px] ${on ? 'bg-surface' : ''}`}
+              >
+                <img alt="" src={`${A}/shared/${n.icon}.svg`} className="size-[15px]" />
+                <span className={`whitespace-nowrap text-base ${on ? 'font-medium text-fg' : 'font-normal text-fg-secondary'}`}>{n.label}</span>
+              </a>
+            );
+          })}
+        </nav>
       </div>
-    </aside>
+    </header>
   );
 }
 
 /**
- * Client 포털 페이지 틀. 내부 AppShell과 같은 구조: 좌측 사이드바(240) + 상단바(h56) + 흰 본문.
- * Client는 내부 데이터에 접근하지 않으므로 사이드바 사용자·최근 항목·구성 수정은 두지 않는다.
+ * Client 포털 페이지 틀. 포털 전용 `ClientHeader`(h64) 아래에 페이지 제목 행과 본문을 둔다.
+ * 본문은 화면 폭을 따라 늘어나되 최대 1200px로 가운데 정렬한다(고정 폭 금지).
  */
 export function ClientShell({
   active,
@@ -48,13 +66,14 @@ export function ClientShell({
   children: ReactNode;
 }): ReactNode {
   return (
-    <div className="flex min-h-screen w-full bg-surface max-md:flex-col">
-      <div className="sticky top-0 h-screen shrink-0 self-start max-md:static max-md:h-auto">
-        <ClientSidebar active={active} />
-      </div>
-      <main className="flex min-w-0 flex-1 flex-col">
-        <PageTopbar title={title}>{actions}</PageTopbar>
-        <PageBody>{children}</PageBody>
+    <div className="flex min-h-screen w-full flex-col bg-surface-sunken">
+      <ClientHeader active={active} />
+      <main className="mx-auto flex w-full min-w-0 max-w-[1200px] flex-1 flex-col gap-[16px] px-[40px] py-[32px] max-md:px-[16px] max-md:py-[20px]">
+        <div className="flex min-h-[32px] w-full flex-wrap items-center justify-between gap-[12px]">
+          {typeof title === 'string' ? <h1 className="text-xl font-bold text-fg">{title}</h1> : title}
+          {actions}
+        </div>
+        {children}
       </main>
     </div>
   );
