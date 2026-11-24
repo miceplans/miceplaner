@@ -388,8 +388,8 @@ describe('Client 포털 (F-07)', () => {
     expect(conflict.body).toMatchObject({ code: 'VERSION_CONFLICT', currentVersion: version + 1 });
 
     const open = (await api().get('/portal/public-events').expect(200)).body as Record<string, unknown>[];
-    expect(mine(open as { eventId: string }[])).toEqual([{ eventId: EVENT, name: '개막 행사', startDate: expect.any(String), endDate: expect.any(String) }]);
-    expect(Object.keys(open[0]!).sort()).toEqual(['endDate', 'eventId', 'name', 'startDate']);
+    expect(mine(open as { eventId: string }[])).toEqual([{ eventId: EVENT, name: '개막 행사', startDate: expect.any(String), endDate: expect.any(String), color: expect.toBeOneOf([expect.any(String), null]) }]);
+    expect(Object.keys(open[0]!).sort()).toEqual(['color', 'endDate', 'eventId', 'name', 'startDate']);
     const log = await admin.query(`SELECT actor_id FROM audit_log WHERE action = 'event.public_visibility.change' AND event_id = $1`, [EVENT]);
     expect(log.rows).toEqual([{ actor_id: U.pm }]);
 

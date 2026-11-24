@@ -8,5 +8,5 @@ export type PortalEventDto = z.infer<typeof portalEventDto>;
 export type PortalProgramDto = z.infer<typeof portalProgramDto>;
 
 /** 비로그인 공개 캘린더. 공개 표시한 행사의 행사명과 기간만 담는다 (장소·고객사·Program 제외, 2026-11-24 결정). */
-export const publicEventDto = z.object({ eventId: uuid, name: z.string(), startDate: isoDate, endDate: isoDate });
+export const publicEventDto = z.object({ eventId: uuid, name: z.string(), startDate: isoDate, endDate: isoDate, color: z.string().nullable() });
 export type PublicEventDto = z.infer<typeof publicEventDto>;

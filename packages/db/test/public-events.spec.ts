@@ -25,7 +25,7 @@ beforeAll(async () => {
   );
   await admin.query(`INSERT INTO clients (id, name) VALUES ($1, '공개 테스트사')`, [CO]);
   await admin.query(
-    `INSERT INTO events (id, client_id, name, start_date, end_date, place) VALUES ($1, $3, '공개 행사', '2026-12-10', '2026-12-12', '비밀 장소'), ($2, $3, '비공개 행사', '2026-12-01', '2026-12-02', '')`,
+    `INSERT INTO events (id, client_id, name, start_date, end_date, place, color) VALUES ($1, $3, '공개 행사', '2026-12-10', '2026-12-12', '비밀 장소', '#4a8cff'), ($2, $3, '비공개 행사', '2026-12-01', '2026-12-02', '', NULL)`,
     [EVENT, HIDDEN, CO],
   );
   await admin.query(`INSERT INTO event_members (event_id, user_id, role) VALUES ($1, $2, 'pm'), ($1, $3, 'am'), ($1, $4, 'member')`, [EVENT, U.pm, U.am, U.member]);
@@ -47,11 +47,11 @@ describe('비로그인 공개 캘린더 (F-07)', () => {
     expect(await withContext(app, as.staff, (db) => setEventPublicVisibility(db, U.staff, EVENT, true, version))).not.toMatchObject({ publicVisible: true });
   });
 
-  it('PM이 공개하면 익명 조회에 행사명·기간만 나오고 감사 로그를 남긴다', async () => {
+  it('PM이 공개하면 익명 조회에 행사명·기간·대표색만 나오고 감사 로그를 남긴다', async () => {
     const version = (await withContext(app, as.pm, (db) => getEvent(db, EVENT)))!.version;
     const row = await withContext(app, as.pm, (db) => setEventPublicVisibility(db, U.pm, EVENT, true, version));
     expect(row).toMatchObject({ id: EVENT, publicVisible: true, version: version + 1 });
-    expect(mine(await withContext(app, anonymous, (db) => publicEvents(db)))).toEqual([{ eventId: EVENT, name: '공개 행사', startDate: '2026-12-10', endDate: '2026-12-12' }]);
+    expect(mine(await withContext(app, anonymous, (db) => publicEvents(db)))).toEqual([{ eventId: EVENT, name: '공개 행사', startDate: '2026-12-10', endDate: '2026-12-12', color: '#4a8cff' }]);
     const log = await admin.query(`SELECT actor_id, detail FROM audit_log WHERE action = 'event.public_visibility.change' AND event_id = $1`, [EVENT]);
     expect(log.rows).toEqual([{ actor_id: U.pm, detail: { publicVisible: true } }]);
   });
