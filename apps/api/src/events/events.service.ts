@@ -4,7 +4,7 @@ import {
   addEventMember, changeEventMemberRole, createEvent, eventRole, getEvent, getUserById, listEventClients, listEventMembers, listEvents,
   removeEventMember, setEventClient, setEventPublicVisibility, softDeleteEvent, transferPm, updateEvent, withContext,
 } from '@miceplans/db';
-import { canChangeEventPublicVisibility, canDeleteEvent, canEditEventItems, canManageMembers, canTransferPm } from '@miceplans/domain';
+import { canChangeEventPublicVisibility, canChangeEventStatus, canDeleteEvent, canEditEventItems, canManageMembers, canTransferPm } from '@miceplans/domain';
 import type { Pool, PoolClient } from '@miceplans/db';
 import { AuthUser, requireInternal } from '../common/auth';
 import { assertFound, assertOk, mapDbError, versionConflictError } from '../common/http';
@@ -58,8 +58,12 @@ export class EventsService {
   async update(user: AuthUser, id: string, body: UpdateEventBody) {
     requireInternal(user);
     const row = await this.run(user, async (db) => {
-      await this.requireEvent(db, id);
+      const current = await this.requireEvent(db, id);
       await this.requireRole(db, id, canEditEventItems, '[403] 행사 멤버만 수정할 수 있습니다.');
+      // 상태는 PM·AM만 바꾼다. 같은 값을 다시 보내는 것은 변경이 아니므로 막지 않는다 (DB 트리거와 같은 기준).
+      if (body.status !== undefined && body.status !== current.status) {
+        await this.requireRole(db, id, canChangeEventStatus, '[403] 행사 상태는 PM·AM만 바꿀 수 있습니다.');
+      }
       return assertFound(await updateEvent(db, id, body), '행사');
     });
     this.rt.eventChanged(id);

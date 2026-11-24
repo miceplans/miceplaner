@@ -32,6 +32,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DEFAULT_FILTER, FilterBar, applyFilter, type ItemFilter } from './event-filter';
 import { PmTransfer } from './pm-transfer';
 import { LeadSelect } from './lead-select';
+import { StatusSelect } from './status-select';
 import { TaskBoard } from './task-board-view';
 import { useScheduleNoteStore } from '../../schedule-calendar/schedule-note-store';
 import type { EventListItemDto } from '@miceplans/contracts';
@@ -772,7 +773,9 @@ export function EventDetailView() {
         </div>
 
         <div className="flex w-full flex-col py-[16px]">
-          <Prop icon="prop-tag" label="상태"><StatusPill status={event.status} /></Prop>
+          <Prop icon="prop-tag" label="상태">
+            {real ? <StatusSelect eventId={real.id} status={event.status} canChange={canManageClients} /> : <StatusPill status={event.status} />}
+          </Prop>
           <Prop icon="prop-client" label="고객사"><ClientSelect value={clientLabel} accounts={clientAccounts.data ?? []} onChange={changeClient} /></Prop>
           <Prop icon="prop-person" label="PM">{event.pm}</Prop>
           <Prop icon="prop-person" label="AM">
@@ -827,7 +830,7 @@ export function EventDetailView() {
         {tab === '스케줄' && <ScheduleList items={schedule} onChange={(fn) => setSchedule(fn)} part={part} filter={filter} />}
         {tab === '할 일' && <EventTasks schedules={schedule} onChange={(fn) => setSchedule(fn)} part={part} filter={filter} />}
         </ItemAccessContext.Provider>
-        {tab === '문서' && <EventFiles eventId={eventId} canManage={event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />}
+        {tab === '문서' && <EventFiles eventId={eventId} canManage={canManageClients} />}
         {tab === '문서' && <EventDocs eventId={eventId} part={part} canManage={event.pm === CURRENT_USER.name || event.am === CURRENT_USER.name} />}
         {tab === '통계' && <EventStats schedule={schedule} tasks={schedule.flatMap((s) => s.children ?? [])} />}
         {tab === '제작물' && (
