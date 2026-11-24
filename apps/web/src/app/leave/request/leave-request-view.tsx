@@ -3,12 +3,10 @@
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { DatePicker, FlowTopbar, PageFrame, Select, Textarea, toast } from '@miceplans/ui';
-import { LEAVE_ME, LEAVE_EMPLOYEES, LEAVE_KINDS, LEAVE_TODAY, remainingOf, type LeaveKind } from '../data';
+import { LEAVE_KINDS, LEAVE_TODAY, LEAVE_ME, remainingOf, type LeaveEmployee, type LeaveKind } from '../data';
 import { useWorkCheck } from '../use-work-check';
-
-/** 로그인 사용자 연동 전까지는 빈 값(LEAVE_ME)으로 둔다. */
-const ME = LEAVE_EMPLOYEES[0] ?? LEAVE_ME;
-const COLLEAGUES = LEAVE_EMPLOYEES.filter((e) => e.id !== ME.id);
+import { getToken } from '../../../lib/api';
+import { useGetMe, useLeaveBalances } from '../../../lib/api/generated/endpoints';
 
 const field = 'w-full';
 
@@ -45,6 +43,21 @@ export function LeaveRequestView() {
   const [sent, setSent] = useState(false);
   const [submittedDays, setSubmittedDays] = useState(0);
   const { compEarned, compUsedDays, compRemaining, addCompUsed } = useWorkCheck();
+
+  // 로그인 사용자의 연차 잔여일과 대체 근무자 후보는 연차 API에서 가져온다.
+  const year = new Date().getFullYear();
+  const balances = useLeaveBalances({ year });
+  const meQuery = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
+  const employees: LeaveEmployee[] = (balances.data ?? []).map((b) => ({
+    id: b.userId,
+    name: b.name,
+    role: b.jobTitle,
+    total: b.total,
+    used: b.used,
+    monthly: b.monthly,
+  }));
+  const ME = employees.find((e) => e.id === meQuery.data?.id) ?? LEAVE_ME;
+  const COLLEAGUES = employees.filter((e) => e.id !== ME.id);
 
   const isComp = kind === 'comp';
   const perDay = LEAVE_KINDS.find((k) => k.kind === kind)?.days ?? 1;

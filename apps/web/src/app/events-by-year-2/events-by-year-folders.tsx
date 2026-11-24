@@ -3,32 +3,53 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ViewToggle } from '@miceplans/ui';
+import { useEventsList } from '../../lib/api/generated/endpoints';
+import type { EventListItemDto } from '@miceplans/contracts';
 
 const A = '/assets/events-by-year-2';
 
 const OPTIONS = [
-  { value: 'folder', label: '폴더 뷰', icon: `${A}/gallery-icon.svg` },
+  { value: 'folder', label: '폴버 뷰', icon: `${A}/gallery-icon.svg` },
   { value: 'list', label: '리스트', icon: `${A}/list-icon.svg` },
 ] as const;
 
-/** Rectangle 5.svg (폴더 뒷면) / Rectangle 4.svg (폴더 앞면) 윤곽 그대로. */
+/** Rectangle 5.svg (폴버 뒷면) / Rectangle 4.svg (폴버 앞면) 윤곽 그대로. */
 const BACK_PATH =
   'M0.0158252 12.6109C-0.333818 5.75245 5.13287 0 12.0003 0H80.7605C89.482 0 99.7299 11.2546 108.187 13.3847C110.881 14.063 114.302 14.4706 118.635 14.4706C136.696 14.4706 168.993 14.4706 186.774 14.4706C193.639 14.4706 199.084 20.2183 198.738 27.074L193.389 133.309C193.068 139.694 187.797 144.706 181.405 144.706H18.1538C11.7638 144.706 6.4947 139.699 6.16937 133.317L0.0158252 12.6109Z';
 const FRONT_PATH =
   'M0.0227783 12.731C-0.398431 5.82892 5.08561 0 12.0005 0H186.577C193.46 0 198.932 5.77727 198.56 12.65L193.304 109.532C192.959 115.898 187.697 120.882 181.322 120.882H17.9129C11.5694 120.882 6.32159 115.945 5.93519 109.613L0.0227783 12.731Z';
 
-const FOLDERS = [] as { year: number; color: string; photos: number[]; href?: string }[];
+const DEFAULT_COLOR = '#f567a5';
+const PHOTO_COUNT = 12;
 
-type FolderData = (typeof FOLDERS)[number];
+type YearGroup = { year: number; count: number; color: string; events: EventListItemDto[] };
 
-function Folder({ year, color, photos, href }: FolderData & { href?: string }) {
+/** 행사 목록을 연도 내림차순으로 묶는다. 대표색은 그 연도 첫 행사 색을 쓴다. */
+function groupByYear(events: EventListItemDto[]): YearGroup[] {
+  const byYear = new Map<number, EventListItemDto[]>();
+  for (const e of events) {
+    const year = Number(e.startDate.slice(0, 4));
+    if (!Number.isFinite(year)) continue;
+    byYear.set(year, [...(byYear.get(year) ?? []), e]);
+  }
+  return [...byYear.entries()]
+    .map(([year, list]) => ({
+      year,
+      count: list.length,
+      color: list.find((e) => e.color)?.color ?? DEFAULT_COLOR,
+      events: list,
+    }))
+    .sort((a, b) => b.year - a.year);
+}
+
+function Folder({ year, color, photos, href }: { year: number; color: string; photos: number[]; href?: string }) {
   const body = (
     <div className="group flex flex-col items-center gap-[20px] self-stretch">
       <div className="relative h-[150px] w-[200px] shrink-0">
         <svg width="199" height="145" viewBox="0 0 199 145" fill="none" className="absolute left-0 top-0 block" aria-hidden>
-          <path d={BACK_PATH} className={color} />
+          <path d={BACK_PATH} style={{ fill: color }} />
         </svg>
-        {/* 폴터 사진 2장: 뒷면과 앞면 사이에서 호버 시 살짝 올라온다 */}
+        {/* 폴버 사진 2장: 뒷면과 앞면 사이에서 호버 시 살짝 올라온다 */}
         <img
           alt=""
           src={`${A}/photos/p${photos[0]}.jpg`}
@@ -75,6 +96,8 @@ function FrontClip() {
 export function EventsByYearFolders() {
   const router = useRouter();
   const [view, setView] = useState<'folder' | 'list'>('folder');
+  const events = useEventsList();
+  const groups = groupByYear(events.data ?? []);
 
   return (
     <div className="flex w-full flex-col items-center leading-[normal]">
@@ -92,10 +115,17 @@ export function EventsByYearFolders() {
           />
         </div>
         <div className="grid w-[812px] shrink-0 grid-cols-3 gap-x-[40px] gap-y-[14px]">
-          {FOLDERS.map((f) => (
-            <Folder key={f.year} {...f} />
+          {groups.map((g, i) => (
+            <Folder
+              key={g.year}
+              year={g.year}
+              color={g.color}
+              photos={[(i * 2) % PHOTO_COUNT + 1, (i * 2 + 1) % PHOTO_COUNT + 1]}
+              href={`/events-by-year?year=${g.year}`}
+            />
           ))}
         </div>
+        {!groups.length && <p className="m-0 text-base text-fg-tertiary">등록된 행사가 없습니다.</p>}
       </div>
     </div>
   );

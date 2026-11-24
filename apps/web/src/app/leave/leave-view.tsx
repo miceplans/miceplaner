@@ -1,13 +1,35 @@
+'use client';
+
+import { useMemo } from 'react';
 import { Button, FlowTopbar, PageFrame } from '@miceplans/ui';
 import { LeaveCalendar } from './leave-calendar';
-import { LEAVE_EMPLOYEES, LOW_REMAINING_DAYS, MONTH_LABELS, remainingOf } from './data';
+import { LEAVE_ME, LOW_REMAINING_DAYS, MONTH_LABELS, remainingOf, type LeaveEmployee } from './data';
+import { getToken } from '../../lib/api';
+import { useGetMe, useLeaveBalances } from '../../lib/api/generated/endpoints';
 
 function formatDays(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 export function LeaveView() {
-  const employees = LEAVE_EMPLOYEES;
+  const year = new Date().getFullYear();
+  const balances = useLeaveBalances({ year });
+  const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
+  const employees: LeaveEmployee[] = useMemo(
+    () =>
+      (balances.data ?? []).map((b) => ({
+        id: b.userId,
+        name: b.name,
+        role: b.jobTitle,
+        total: b.total,
+        used: b.used,
+        monthly: b.monthly,
+      })),
+    [balances.data],
+  );
+  // 로그인 사용자 연동 전까지는 빈 값(LEAVE_ME)으로 둔다.
+  const meEmployee = employees.find((e) => e.id === me.data?.id) ?? LEAVE_ME;
+
   return (
     <PageFrame topbar={<FlowTopbar showToggle title="연차 사용 현황" />} mainClassName="bg-surface">
       <div className="flex min-h-px flex-1 flex-col items-start gap-[16px] px-[24px] py-[20px]">
@@ -60,8 +82,13 @@ export function LeaveView() {
               </div>
             );
           })}
+          {!employees.length && (
+            <p className="m-0 w-full px-[16px] py-[20px] text-base text-fg-tertiary">
+              {balances.isPending ? '연차 정보를 불러오는 중입니다.' : '등록된 직원 연차 정보가 없습니다.'}
+            </p>
+          )}
         </div>
-        <LeaveCalendar />
+        <LeaveCalendar employees={employees} me={meEmployee} />
         <p className="m-0 text-2xs text-fg-tertiary">잔여 연차가 {LOW_REMAINING_DAYS}일 이하인 직원은 빨간색으로 표시됩니다.</p>
         <p className="m-0 text-2xs text-fg-tertiary">캘린더의 토·일 날짜를 누른 후 주말 근무를 체크할 수 있으며, 근무 1일당 대휴 1일이 발생해 다른 날짜에 대휴로 사용할 수 있습니다.</p>
       </div>

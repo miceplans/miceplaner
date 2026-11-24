@@ -1,13 +1,37 @@
 'use client';
 
-import { useState } from 'react';
-import { Button, ConfirmDialog, Dialog, DatePicker, FlowTopbar, Input, PageFrame, Select, ViewTabs, type ViewTab } from '@miceplans/ui';
+import { useMemo, useState } from 'react';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { Button, ConfirmDialog, Dialog, DatePicker, FlowTopbar, Input, PageFrame, Select, ViewTabs, toast, type ViewTab } from '@miceplans/ui';
+import { getToken, ApiError } from '../../lib/api';
+import {
+  eventItemsList,
+  getEventItemsListQueryKey,
+  useDirectoryUsers,
+  useEventItemsCreate,
+  useEventsList,
+  useGetMe,
+  useItemsAssign,
+  useItemsRemove,
+  useItemsReschedule,
+  useItemsUpdate,
+} from '../../lib/api/generated/endpoints';
+import type { EventItemDtoStatus } from '../../lib/api/generated/model';
 
 const A = '/assets/task-board';
 
-/** 담당자는 자유 이름(문자열)이다. 인증 연동 전 현재 사용자는 비어 있다. */
-type Avatar = string;
-const ME: Avatar = '';
+/** 칸반 열. 상태값 자체가 열 ID가 된다. */
+const ITEM_STATUSES = ['할 일', '진행 중', '검토 대기', '보류', '취소', '완료'] as const;
+type ItemStatus = (typeof ITEM_STATUSES)[number];
+
+const DOT_OF: Record<ItemStatus, string> = {
+  '할 일': 'dot-todo',
+  '진행 중': 'dot-progress',
+  '검토 대기': 'dot-review',
+  '보류': 'dot-hold',
+  '취소': 'dot-cancel',
+  '완료': 'dot-done',
+};
 
 /** 담당자 배지 톤. 고정 명단 대신 이름 문자 합으로 정해 같은 사람은 같은 색을 쓰게 한다. */
 const AVATAR_TONES = [
@@ -26,28 +50,28 @@ function avatarTone(name: string): string {
 /** 저장 형식은 yyyy-mm-dd. 화면에는 MM.DD로 표시. */
 const fmtDue = (due: string | null) => (due ? `${due.slice(5, 7)}.${due.slice(8, 10)}` : '-');
 
+// 지연 판정 기준일(로컬 시간대 YYYY-MM-DD).
+const TODAY = new Date().toLocaleDateString('sv-SE');
+
 type Task = {
   id: string;
+  eventId: string;
   event: string;
   schedule: string;
   title: string;
   due: string | null;
   late?: boolean;
-  who: Avatar;
-  createdBy: Avatar;
+  who: string;
+  assigneeId: string | null;
+  createdBy: string;
+  createdById: string;
+  status: ItemStatus;
+  version: number;
 };
-type Column = { id: string; name: string; dot: string; done?: boolean; cancelled?: boolean; tasks: Task[] };
+type Column = { id: ItemStatus; name: string; dot: string; done?: boolean; cancelled?: boolean; tasks: Task[] };
 
-const COLUMNS: Column[] = [];
+type EventOption = { id: string; name: string; startDate: string; mine: boolean };
 
-type EventOption = { name: string; startDate: string; mine: boolean };
-
-const EVENTS: EventOption[] = [];
-
-/** 내 행사 우선, 같은 그룹 안에서는 최근 행사 순. */
-const SORTED_EVENTS = [...EVENTS].sort(
-  (a, b) => Number(b.mine) - Number(a.mine) || b.startDate.localeCompare(a.startDate),
-);
 const ALL = '전체 행사';
 
 type TabKey = 'board' | 'list' | 'mine';
@@ -60,7 +84,7 @@ const TABS: (ViewTab & { key: TabKey })[] = [
 
 type SortMode = 'default' | 'due-asc' | 'due-desc';
 
-type TaskFormValues = { title: string; event: string; schedule: string; due: string | null; who: Avatar; status: string };
+type TaskFormValues = { title: string; event: string; schedule: string; due: string | null; who: string; status: string };
 
 type DialogState = { mode: 'add'; status: string } | { mode: 'edit'; taskId: string };
 
@@ -110,8 +134,8 @@ function TaskCard({
           <span className="text-2xs whitespace-nowrap text-fg-secondary">마감일 없음</span>
         )}
         <div className="h-px min-w-px flex-1" />
-        <span className={`flex h-[22px] items-center justify-center rounded-lg px-[6px] text-2xs font-semibold whitespace-nowrap ${avatarTone(task.who)}`}>
-          {task.who}
+        <span className={`flex h-[22px] items-center justify-center rounded-lg px-[6px] text-2xs font-semibold whitespace-nowrap ${avatarTone(task.who || '?')}`}>
+          {task.who || '미배정'}
         </span>
       </div>
       {canEdit || canComplete ? (
@@ -151,19 +175,104 @@ function TaskCard({
 }
 
 export function TaskBoard() {
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('board');
-  const [columns, setColumns] = useState(COLUMNS);
   const [event, setEvent] = useState(ALL);
   const [sortMode, setSortMode] = useState<SortMode>('default');
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [deleting, setDeleting] = useState<Task | null>(null);
 
-  const inEvent = (task: Task) => event === ALL || task.event === event;
-  const boardColumns = columns.map((c) => ({ ...c, tasks: c.tasks.filter(inEvent) }));
-  const tasks = boardColumns.flatMap((column) =>
-    column.tasks.map((task) => ({ ...task, column: column.name, done: column.done, cancelled: column.cancelled })),
+  const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
+  const meId = me.data?.id ?? null;
+  const events = useEventsList();
+  const users = useDirectoryUsers({ query: { enabled: getToken() !== null, staleTime: 60_000 } });
+  const eventList = useMemo(() => events.data ?? [], [events.data]);
+  const eventIds = useMemo(() => eventList.map((e) => e.id), [eventList]);
+  // 전체 보드는 모든 행사의 할 일을 모아 본다. 행사 수가 적어 행사별 쿼리를 묶는다.
+  const itemQueries = useQueries({
+    queries: eventIds.map((id) => ({
+      queryKey: getEventItemsListQueryKey(id),
+      queryFn: () => eventItemsList(id),
+      staleTime: 30_000,
+    })),
+  });
+
+  /** 내 행사 우선, 같은 그룹 안에서는 최근 행사 순. */
+  const meName = me.data?.name ?? null;
+  const EVENTS: EventOption[] = useMemo(
+    () =>
+      eventList.map((e) => ({
+        id: e.id,
+        name: e.name,
+        startDate: e.startDate,
+        mine: meName ? [e.pmName, e.amName].some((names) => !!names && names.split(',').map((s) => s.trim()).includes(meName)) : false,
+      })),
+    [eventList, meName],
   );
-  const visibleTasks = tab === 'mine' ? tasks.filter((task) => task.createdBy === ME) : tasks;
+  const SORTED_EVENTS = useMemo(
+    () => [...EVENTS].sort((a, b) => Number(b.mine) - Number(a.mine) || b.startDate.localeCompare(a.startDate)),
+    [EVENTS],
+  );
+
+  const userNameById = useMemo(() => new Map((users.data ?? []).map((u) => [u.id, u.name])), [users.data]);
+  const userIdByName = useMemo(() => new Map((users.data ?? []).map((u) => [u.name, u.id])), [users.data]);
+
+  const tasks: Task[] = useMemo(() => {
+    const list: Task[] = [];
+    itemQueries.forEach((query, i) => {
+      const ev = eventList[i];
+      if (!ev) return;
+      const items = query.data ?? [];
+      const titleById = new Map(items.map((it) => [it.id, it.title]));
+      for (const it of items) {
+        if (it.kind !== 'task') continue;
+        list.push({
+          id: it.id,
+          eventId: ev.id,
+          event: ev.name,
+          schedule: (it.parentId && titleById.get(it.parentId)) || it.description || '일정 미지정',
+          title: it.title,
+          due: it.dueOn,
+          late: !!it.dueOn && it.dueOn < TODAY && it.status !== '완료' && it.status !== '취소',
+          who: it.assigneeId ? (userNameById.get(it.assigneeId) ?? '') : '',
+          assigneeId: it.assigneeId,
+          createdBy: userNameById.get(it.createdBy) ?? '',
+          createdById: it.createdBy,
+          status: it.status,
+          version: it.version,
+        });
+      }
+    });
+    return list;
+  }, [itemQueries, eventList, userNameById]);
+
+  const columns: Column[] = useMemo(
+    () =>
+      ITEM_STATUSES.map((s) => ({
+        id: s,
+        name: s,
+        dot: DOT_OF[s],
+        done: s === '완료',
+        cancelled: s === '취소',
+        tasks: [],
+      })),
+    [],
+  );
+
+  const createItem = useEventItemsCreate();
+  const updateItem = useItemsUpdate();
+  const assignItem = useItemsAssign();
+  const rescheduleItem = useItemsReschedule();
+  const removeItem = useItemsRemove();
+
+  const refreshEvent = (eventId: string) =>
+    queryClient.invalidateQueries({ queryKey: getEventItemsListQueryKey(eventId) });
+  const failToast = (error: unknown, fallback: string) =>
+    toast.error(error instanceof ApiError ? error.message : fallback);
+
+  const inEvent = (task: Task) => event === ALL || task.event === event;
+  const boardColumns = columns.map((c) => ({ ...c, tasks: tasks.filter((t) => t.status === c.id && inEvent(t)) }));
+  const visibleTasks = tab === 'mine' ? tasks.filter((task) => task.createdById === meId) : tasks.filter(inEvent);
   /** 마감일 없는 항목은 어느 방향이든 맨 뒤로. 기본은 현행 순서 유지(안정 정렬). */
   const sortedTasks = [...visibleTasks].sort((a, b) => {
     if (sortMode === 'default') return 0;
@@ -175,64 +284,98 @@ export function TaskBoard() {
 
   let editTarget: { task: Task; status: string } | null = null;
   if (dialog?.mode === 'edit') {
-    const column = columns.find((c) => c.tasks.some((t) => t.id === dialog.taskId));
-    const task = column?.tasks.find((t) => t.id === dialog.taskId);
-    if (column && task) editTarget = { task, status: column.id };
+    const task = tasks.find((t) => t.id === dialog.taskId);
+    if (task) editTarget = { task, status: task.status };
   }
 
   const addTask = (values: TaskFormValues) => {
-    const task: Task = { id: `n${Date.now()}`, event: values.event, schedule: values.schedule, title: values.title, due: values.due, who: values.who, createdBy: ME };
-    setColumns((prev) => prev.map((c) => (c.id === values.status ? { ...c, tasks: [...c.tasks, task] } : c)));
+    const ev = EVENTS.find((e) => e.name === values.event);
+    if (!ev) return;
+    const schedule = values.schedule.trim();
+    createItem.mutate(
+      {
+        eventId: ev.id,
+        data: {
+          kind: 'task',
+          parentId: null,
+          title: values.title,
+          description: schedule && schedule !== '일정 미지정' ? schedule : '',
+          part: null,
+          status: values.status as EventItemDtoStatus,
+          startsOn: null,
+          dueOn: values.due,
+          assigneeId: values.who.trim() ? (userIdByName.get(values.who.trim()) ?? null) : null,
+        },
+      },
+      {
+        onSuccess: () => refreshEvent(ev.id),
+        onError: (error) => failToast(error, '[500] 할 일 추가에 실패했습니다.'),
+      },
+    );
     setDialog(null);
   };
 
   const updateTask = (taskId: string, values: TaskFormValues) => {
-    setColumns((prev) => {
-      const source = prev.find((c) => c.tasks.some((t) => t.id === taskId));
-      const existing = source?.tasks.find((t) => t.id === taskId);
-      if (!source || !existing || existing.createdBy !== ME) return prev;
-      const updated: Task = { ...existing, event: values.event, schedule: values.schedule, title: values.title, due: values.due, who: values.who };
-      if (source.id === values.status) {
-        return prev.map((c) => (c.id === source.id ? { ...c, tasks: c.tasks.map((t) => (t.id === taskId ? updated : t)) } : c));
-      }
-      return prev.map((c) => {
-        if (c.id === source.id) return { ...c, tasks: c.tasks.filter((t) => t.id !== taskId) };
-        if (c.id === values.status) return { ...c, tasks: [...c.tasks, updated] };
-        return c;
-      });
-    });
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || task.createdById !== meId) return;
+    const schedule = values.schedule.trim();
+    const nextAssignee = values.who.trim() ? (userIdByName.get(values.who.trim()) ?? null) : null;
+    const onDone = () => refreshEvent(task.eventId);
+    updateItem.mutate(
+      {
+        id: taskId,
+        data: {
+          title: values.title,
+          status: values.status as EventItemDtoStatus,
+          description: schedule && schedule !== '일정 미지정' ? schedule : '',
+        },
+      },
+      {
+        onSuccess: () => {
+          if (nextAssignee !== task.assigneeId) {
+            assignItem.mutate({ id: taskId, data: { assigneeId: nextAssignee, expectedVersion: task.version } }, { onSuccess: onDone });
+          } else {
+            onDone();
+          }
+        },
+        onError: (error) => failToast(error, '[500] 할 일 수정에 실패했습니다.'),
+      },
+    );
+    if (values.due !== task.due) {
+      rescheduleItem.mutate({ id: taskId, data: { startsOn: null, dueOn: values.due, expectedVersion: task.version } }, { onError: (error) => failToast(error, '[500] 마감일 변경에 실패했습니다.') });
+    }
     setDialog(null);
   };
 
   /** 담당자 액션: 완료 컬럼으로 이동. */
   const completeTask = (taskId: string) => {
-    setColumns((prev) => {
-      const source = prev.find((c) => c.tasks.some((t) => t.id === taskId));
-      const existing = source?.tasks.find((t) => t.id === taskId);
-      const doneCol = prev.find((c) => c.done);
-      if (!source || !existing || !doneCol || source.id === doneCol.id || existing.who !== ME) return prev;
-      return prev.map((c) => {
-        if (c.id === source.id) return { ...c, tasks: c.tasks.filter((t) => t.id !== taskId) };
-        if (c.id === doneCol.id) return { ...c, tasks: [...c.tasks, existing] };
-        return c;
-      });
-    });
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || task.assigneeId !== meId || task.status === '완료' || task.status === '취소') return;
+    updateItem.mutate(
+      { id: taskId, data: { status: '완료' } },
+      { onSuccess: () => refreshEvent(task.eventId), onError: (error) => failToast(error, '[500] 완료 처리에 실패했습니다.') },
+    );
   };
 
   const removeTask = (taskId: string) => {
-    setColumns((prev) => prev.map((c) => ({ ...c, tasks: c.tasks.filter((t) => t.id !== taskId || t.createdBy !== ME) })));
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || task.createdById !== meId) return;
+    removeItem.mutate(
+      { id: taskId },
+      { onSuccess: () => refreshEvent(task.eventId), onError: (error) => failToast(error, '[500] 삭제에 실패했습니다.') },
+    );
     setDeleting(null);
   };
 
   /** 생성자만 수정 다이얼로그를 연다. */
   const openEdit = (taskId: string) => {
-    const task = columns.flatMap((c) => c.tasks).find((t) => t.id === taskId);
-    if (!task || task.createdBy !== ME) return;
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || task.createdById !== meId) return;
     setDialog({ mode: 'edit', taskId });
   };
 
   return (
-    <PageFrame topbar={<FlowTopbar leading={<EventSelect value={event} onChange={setEvent} />} />}>
+    <PageFrame topbar={<FlowTopbar leading={<EventSelect value={event} onChange={setEvent} events={SORTED_EVENTS} />} />}>
       <ViewTabs
         tabs={TABS}
         active={TABS.findIndex((t) => t.key === tab)}
@@ -260,8 +403,8 @@ export function TaskBoard() {
                 task={t}
                 dim={c.done || c.cancelled}
                 strike={c.cancelled}
-                canEdit={t.createdBy === ME}
-                canComplete={t.who === ME && !c.done && !c.cancelled}
+                canEdit={t.createdById === meId}
+                canComplete={t.assigneeId === meId && !c.done && !c.cancelled}
                 onEdit={() => openEdit(t.id)}
                 onComplete={() => completeTask(t.id)}
                 onDelete={() => setDeleting(t)}
@@ -287,12 +430,13 @@ export function TaskBoard() {
             <div className="min-w-[680px]">
               {sortedTasks.map((task) => (
                 <div key={task.id} className="flex min-h-[56px] items-center gap-[16px] border-b border-border px-[16px] text-base last:border-b-0">
-                  <span className="w-[100px] shrink-0 text-fg-secondary">{task.column}</span>
-                  <span className={`min-w-0 flex-1 font-medium ${task.cancelled ? 'text-fg-secondary line-through' : 'text-fg'}`}>{task.title}</span>
+                  <span className="w-[100px] shrink-0 text-fg-secondary">{task.status}</span>
+                  <span className={`min-w-0 flex-1 font-medium ${task.status === '취소' ? 'text-fg-secondary line-through' : 'text-fg'}`}>{task.title}</span>
                   <span className={`w-[100px] shrink-0 whitespace-nowrap ${task.late && task.due ? 'text-error-delay' : 'text-fg-secondary'}`}>{fmtDue(task.due)}</span>
-                  <span className={`flex h-[22px] shrink-0 items-center justify-center rounded-lg px-[6px] text-2xs font-semibold whitespace-nowrap ${avatarTone(task.who)}`}>{task.who}</span>
+                  <span className={`flex h-[22px] shrink-0 items-center justify-center rounded-lg px-[6px] text-2xs font-semibold whitespace-nowrap ${avatarTone(task.who || '?')}`}>{task.who || '미배정'}</span>
                 </div>
               ))}
+              {!sortedTasks.length && <p className="m-0 px-[16px] py-[20px] text-base text-fg-tertiary">표시할 할 일이 없습니다.</p>}
             </div>
           </div>
         </div>
@@ -300,8 +444,10 @@ export function TaskBoard() {
       {dialog?.mode === 'add' ? (
         <TaskDialog
           mode="add"
+          columns={columns}
+          events={SORTED_EVENTS}
           defaultStatus={dialog.status}
-          defaultEvent={event === ALL ? SORTED_EVENTS[0]!.name : event}
+          defaultEvent={event === ALL ? (SORTED_EVENTS[0]?.name ?? '') : event}
           onCancel={() => setDialog(null)}
           onSubmit={addTask}
         />
@@ -309,10 +455,12 @@ export function TaskBoard() {
       {dialog?.mode === 'edit' && editTarget ? (
         <TaskDialog
           mode="edit"
+          columns={columns}
+          events={SORTED_EVENTS}
           initial={{
             title: editTarget.task.title,
             event: editTarget.task.event,
-            schedule: editTarget.task.schedule,
+            schedule: editTarget.task.schedule === '일정 미지정' ? '' : editTarget.task.schedule,
             due: editTarget.task.due,
             who: editTarget.task.who,
             status: editTarget.status,
@@ -334,7 +482,7 @@ export function TaskBoard() {
   );
 }
 
-function EventSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function EventSelect({ value, onChange, events }: { value: string; onChange: (v: string) => void; events: EventOption[] }) {
   const [open, setOpen] = useState(false);
   const pick = (v: string) => {
     onChange(v);
@@ -362,8 +510,8 @@ function EventSelect({ value, onChange }: { value: string; onChange: (v: string)
                 {ALL}
               </button>
             </li>
-            {SORTED_EVENTS.map((e, i) => (
-              <li key={e.name} className={i > 0 && SORTED_EVENTS[i - 1]!.mine !== e.mine ? 'mt-[4px] border-t border-solid border-border pt-[4px]' : ''}>
+            {events.map((e, i) => (
+              <li key={e.id} className={i > 0 && events[i - 1]!.mine !== e.mine ? 'mt-[4px] border-t border-solid border-border pt-[4px]' : ''}>
                 <button type="button" role="option" aria-selected={value === e.name} onClick={() => pick(e.name)} className={`${item} ${value === e.name ? 'text-brand' : 'text-fg'}`}>
                   <span className="min-w-0 flex-1 truncate">{e.name}</span>
                   {e.mine ? <span className="rounded-xs bg-brand-tint px-[6px] text-2xs text-brand">내 행사</span> : null}
@@ -380,6 +528,8 @@ function EventSelect({ value, onChange }: { value: string; onChange: (v: string)
 
 function TaskDialog({
   mode,
+  columns,
+  events,
   initial,
   defaultStatus = '할 일',
   defaultEvent,
@@ -387,6 +537,8 @@ function TaskDialog({
   onSubmit,
 }: {
   mode: 'add' | 'edit';
+  columns: Column[];
+  events: EventOption[];
   initial?: TaskFormValues;
   defaultStatus?: string;
   defaultEvent: string;
@@ -397,9 +549,10 @@ function TaskDialog({
   const [event, setEvent] = useState(initial?.event ?? defaultEvent);
   const [schedule, setSchedule] = useState(initial?.schedule ?? '');
   const [due, setDue] = useState(initial?.due ?? '');
-  const [who, setWho] = useState(initial?.who ?? ME);
+  const [who, setWho] = useState(initial?.who ?? '');
   const [status, setStatus] = useState(initial?.status ?? defaultStatus);
   const label = 'flex flex-col gap-[4px] text-sm text-fg-secondary';
+  const canSubmit = !!title.trim() && !!event;
   return (
     <Dialog onClose={onCancel}>
       <form
@@ -408,7 +561,7 @@ function TaskDialog({
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
-          if (!title.trim()) return;
+          if (!canSubmit) return;
           onSubmit({
             title: title.trim(),
             event,
@@ -429,16 +582,17 @@ function TaskDialog({
           <label className={`${label} flex-1`}>
             상태
             <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full">
-              {COLUMNS.map((c) => (
-                <option key={c.id}>{c.name}</option>
+              {columns.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </Select>
           </label>
           <label className={`${label} flex-1`}>
             행사
             <Select value={event} onChange={(e) => setEvent(e.target.value)} className="w-full">
-              {SORTED_EVENTS.map((e) => (
-                <option key={e.name}>{e.name}</option>
+              {!events.some((e) => e.name === event) && event ? <option value={event}>{event}</option> : null}
+              {events.map((e) => (
+                <option key={e.id} value={e.name}>{e.name}</option>
               ))}
             </Select>
           </label>
@@ -472,7 +626,7 @@ function TaskDialog({
           <Button variant="secondary" onClick={onCancel}>
             취소
           </Button>
-          <Button type="submit">{mode === 'add' ? '추가' : '저장'}</Button>
+          <Button type="submit" disabled={!canSubmit}>{mode === 'add' ? '추가' : '저장'}</Button>
         </div>
       </form>
     </Dialog>

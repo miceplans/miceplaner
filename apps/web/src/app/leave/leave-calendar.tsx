@@ -2,45 +2,45 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { LEAVE_ME, LEAVE_EMPLOYEES, LEAVE_KINDS, LEAVE_RECORDS, LEAVE_TODAY } from './data';
+import { LEAVE_KINDS, LEAVE_TODAY, type LeaveEmployee } from './data';
 import { useWorkCheck } from './use-work-check';
+import { useLeaveList } from '../../lib/api/generated/endpoints';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const KIND_BY_ID = new Map(LEAVE_KINDS.map((k, i) => [k.kind, { ...k, order: i }]));
-const NAME_BY_ID = new Map(LEAVE_EMPLOYEES.map((e) => [e.id, e.name]));
-/** 로그인 사용자 연동 전까지는 빈 값(LEAVE_ME)으로 둔다. */
-const ME = LEAVE_EMPLOYEES[0] ?? LEAVE_ME;
 
 function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-export function LeaveCalendar() {
+export function LeaveCalendar({ employees, me }: { employees: LeaveEmployee[]; me: LeaveEmployee }) {
   const router = useRouter();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const { weekendWork, toggleWeekendWork, compUsed, compEarned, compRemaining } = useWorkCheck();
+  const leaveList = useLeaveList({ year, month });
 
   const workSet = useMemo(() => new Set(weekendWork), [weekendWork]);
+  const nameById = useMemo(() => new Map(employees.map((e) => [e.id, e.name])), [employees]);
 
   const recordsByDate = useMemo(() => {
     const map = new Map<string, { name: string; kind: NonNullable<ReturnType<typeof KIND_BY_ID.get>> }[]>();
-    for (const r of LEAVE_RECORDS) {
+    for (const r of leaveList.data ?? []) {
       const kind = KIND_BY_ID.get(r.kind);
-      const name = NAME_BY_ID.get(r.employeeId);
+      const name = nameById.get(r.userId);
       if (!kind || !name) continue;
       map.set(r.date, [...(map.get(r.date) ?? []), { name, kind }]);
     }
     const compKind = KIND_BY_ID.get('comp');
     if (compKind) {
       for (const r of compUsed) {
-        map.set(r.date, [...(map.get(r.date) ?? []), { name: NAME_BY_ID.get(r.employeeId) ?? ME.name, kind: compKind }]);
+        map.set(r.date, [...(map.get(r.date) ?? []), { name: nameById.get(r.employeeId) ?? me.name, kind: compKind }]);
       }
     }
     for (const list of map.values()) list.sort((a, b) => a.kind.order - b.kind.order);
     return map;
-  }, [compUsed]);
+  }, [leaveList.data, nameById, compUsed, me.name]);
 
   const firstWeekday = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -112,7 +112,7 @@ export function LeaveCalendar() {
               key={i}
               onClick={day ? (isWeekendCell ? () => toggleWeekendWork(key) : () => router.push(`/leave/request?date=${key}`)) : undefined}
               aria-pressed={isWeekendCell ? worked : undefined}
-              title={day ? (isWeekendCell ? `${ME.name} · 주말 근무 체크` : `${month}월 ${day}일 휴무계 작성`) : undefined}
+              title={day ? (isWeekendCell ? `${me.name} · 주말 근무 체크` : `${month}월 ${day}일 휴무계 작성`) : undefined}
               className={`flex min-h-[96px] flex-col items-start gap-[4px] border-solid border-border p-[6px] ${i % 7 !== 6 ? 'border-r' : ''} ${i < cells.length - 7 ? 'border-b' : ''} ${day ? '' : 'bg-surface-sunken'} ${day ? 'cursor-pointer hover:bg-surface-sunken' : ''}`}
             >
               {day ? (
@@ -121,7 +121,7 @@ export function LeaveCalendar() {
                 </span>
               ) : null}
               {worked ? (
-                <span title={`${ME.name} · 주말 근무`} className="flex w-full items-center gap-[4px] text-2xs font-medium text-brand-blue">
+                <span title={`${me.name} · 주말 근무`} className="flex w-full items-center gap-[4px] text-2xs font-medium text-brand-blue">
                   <img alt="주말 근무" src="/assets/leave/work.svg" className="size-[14px] shrink-0" />
                   <span className="min-w-px flex-1 truncate">근무</span>
                 </span>
