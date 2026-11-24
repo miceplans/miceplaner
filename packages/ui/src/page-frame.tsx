@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useSidebarToggle } from './sidebar';
 
 const A = '/assets/flow';
 
@@ -19,10 +20,11 @@ export function FlowTopbar({
   showToggle?: boolean;
   showKbd?: boolean;
 }): ReactNode {
+  const toggleSidebar = useSidebarToggle();
   return (
     <div className="flex h-[56px] w-full shrink-0 items-center gap-[12px] border-b border-solid border-border bg-surface px-[16px] max-md:h-auto max-md:min-h-[56px] max-md:flex-wrap max-md:py-[10px]">
       {showToggle ? (
-        <button type="button" aria-label="사이드바 토글" className="flex size-[28px] shrink-0 items-center justify-center rounded-sm">
+        <button type="button" aria-label="사이드바 토글" onClick={toggleSidebar} className="flex size-[28px] shrink-0 items-center justify-center rounded-sm hover:bg-surface-chip">
           <img alt="" src={`${A}/toggle-icon.svg`} className="size-[16px]" />
         </button>
       ) : null}

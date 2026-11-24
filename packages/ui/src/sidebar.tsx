@@ -27,6 +27,12 @@ export type SidebarRecentItem = { name: string; dot: string; start?: Date; href?
 const SidebarRecentContext = createContext<SidebarRecentItem[]>([]);
 export const SidebarRecentProvider = SidebarRecentContext.Provider;
 
+/** 상단바의 사이드바 토글 버튼이 숨김·표시를 바꾸는 함수. AppShell이 제공한다. */
+const SidebarToggleContext = createContext<() => void>(() => {});
+export function useSidebarToggle(): () => void {
+  return useContext(SidebarToggleContext);
+}
+
 
 /** 이전 표시/숨김 설정의 localStorage 키. 새 설정으로 한 번만 마이그레이션한다. */
 const HIDDEN_NAV_KEY = 'miceplans.sidebar.hiddenNav';
@@ -421,12 +427,15 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
 }
 
 export function AppShell({ active, children }: { active: SidebarKey; children: ReactNode }): ReactNode {
+  const [sidebarHidden, setSidebarHidden] = useState(false);
   return (
-    <div className="flex min-h-screen w-full bg-surface max-md:flex-col">
-      <div className="sticky top-0 h-screen shrink-0 self-start max-md:static max-md:h-auto max-md:min-h-0">
-        <Sidebar active={active} />
+    <SidebarToggleContext.Provider value={() => setSidebarHidden((v) => !v)}>
+      <div className="flex min-h-screen w-full bg-surface max-md:flex-col">
+        <div className={`sticky top-0 h-screen shrink-0 self-start max-md:static max-md:h-auto max-md:min-h-0 ${sidebarHidden ? 'hidden max-md:block' : ''}`}>
+          <Sidebar active={active} />
+        </div>
+        <main className="min-w-0 flex-1">{children}</main>
       </div>
-      <main className="min-w-0 flex-1">{children}</main>
-    </div>
+    </SidebarToggleContext.Provider>
   );
 }
