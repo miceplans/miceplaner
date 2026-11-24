@@ -331,6 +331,9 @@ importers:
       '@miceplans/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@miceplans/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@miceplans/editor-schema':
         specifier: workspace:*
         version: link:../../packages/editor-schema
