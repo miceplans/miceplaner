@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MonthCalendar, PERSONAL_TODOS } from '@miceplans/ui';
+import { MonthCalendar, usePersonalTodos } from '@miceplans/ui';
 import { getToken } from '../../lib/api';
 import { useGetMe } from '../../lib/api/generated/endpoints';
 import { useScheduleNoteStore } from './schedule-note-store';
@@ -50,7 +50,8 @@ export function ScheduleViewCalendar({
     }
   }, [todosOn]);
 
-  const todos = todosOn ? PERSONAL_TODOS : [];
+  const personalTodos = usePersonalTodos();
+  const todos = todosOn ? personalTodos.todos : [];
   if (mine) {
     return <MonthCalendar gridGap={gridGap} padX={padX} personal todos={todos} peekMembers={peekMembers} peekStore={peekStore} />;
   }
