@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react';
 import { useEventItemsList } from '../../../lib/api/generated/endpoints';
 import { BOARD_COLUMNS, buildBoardItems, groupBoardItems, type BoardColumnKey } from './task-board';
-import type { CheckItem } from './event-checklist';
-import type { RequestRow } from './event-products';
+import type { CheckItem } from './event-checklist-model';
+import type { RequestRow } from './event-products-model';
 
 const A = '/assets/event-detail';
 const CARD = 'rounded-xl bg-surface shadow-card';

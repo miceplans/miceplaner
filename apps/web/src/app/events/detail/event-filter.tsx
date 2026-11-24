@@ -4,7 +4,8 @@ import { useContext } from 'react';
 
 import { Input, Select } from '@miceplans/ui';
 
-import { ItemAccessContext, type CheckItem } from './event-checklist';
+import { ItemAccessContext } from './event-checklist';
+import type { CheckItem } from './event-checklist-model';
 
 type SortKey = '기본' | '마감일 빠른순' | '마감일 늦은순';
 type StatusFilter = '전체' | '예정' | '지연' | '완료';

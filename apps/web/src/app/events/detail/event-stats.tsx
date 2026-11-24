@@ -1,6 +1,6 @@
 'use client';
 
-import { countLeaves, type CheckItem, type Progress } from './event-checklist';
+import { countLeaves, type CheckItem, type Progress } from './event-checklist-model';
 import { parseDue } from './event-filter';
 
 type Leaf = { done: boolean; late: boolean; owner?: string };
