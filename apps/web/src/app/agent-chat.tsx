@@ -1,10 +1,13 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { AgentFab } from '@miceplans/ui';
-import { AiChatPanel } from './ai-chat/ai-chat-panel';
 import { isPublicPath } from './auth-guard';
+
+// 패널은 FAB을 눌러 열 때만 받는다. 루트 레이아웃에 정적으로 묶여 모든 페이지 번들에 들어가지 않게 한다.
+const AiChatPanel = dynamic(() => import('./ai-chat/ai-chat-panel').then((module) => module.AiChatPanel), { ssr: false });
 
 export function AgentChat() {
   const [open, setOpen] = useState(false);
