@@ -9,6 +9,7 @@ import {
   scheduleNoteDto, saveScheduleNoteBody,
   eventProductDto, saveEventProductBody, eventCalendarBlockDto, saveEventCalendarBlockBody,
   noticeDto, createNoticeBody,
+  partnerDto, savePartnerBody, partnerFieldDto, savePartnerFieldBody,
 } from '@miceplans/contracts';
 import { portalEventDto, portalProgramDto, publicEventDto } from '@miceplans/contracts/portal';
 
@@ -28,6 +29,7 @@ export const API_SCHEMAS: Record<string, ZodType> = {
   ScheduleNoteDto: scheduleNoteDto, SaveScheduleNoteBody: saveScheduleNoteBody,
   EventProductDto: eventProductDto, SaveEventProductBody: saveEventProductBody, EventCalendarBlockDto: eventCalendarBlockDto, SaveEventCalendarBlockBody: saveEventCalendarBlockBody,
   NoticeDto: noticeDto, CreateNoticeBody: createNoticeBody,
+  PartnerDto: partnerDto, SavePartnerBody: savePartnerBody, PartnerFieldDto: partnerFieldDto, SavePartnerFieldBody: savePartnerFieldBody,
 };
 
 const NAME_OF = new Map<ZodType, string>(Object.entries(API_SCHEMAS).map(([name, schema]) => [schema, name]));

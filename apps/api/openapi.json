@@ -3087,6 +3087,216 @@
           "event-lists"
         ]
       }
+    },
+    "/partners": {
+      "get": {
+        "operationId": "partnersList",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PartnerDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "협력사 목록 (내부 직원)",
+        "tags": [
+          "partners"
+        ]
+      }
+    },
+    "/partners/{id}": {
+      "put": {
+        "operationId": "partnersSave",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePartnerBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "협력사 저장 (없으면 생성, 마지막 저장 우선, 내부 직원)",
+        "tags": [
+          "partners"
+        ]
+      },
+      "delete": {
+        "operationId": "partnersRemove",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "협력사 삭제 (soft delete, 내부 직원, 감사 로그)",
+        "tags": [
+          "partners"
+        ]
+      }
+    },
+    "/partner-fields": {
+      "get": {
+        "operationId": "partnersListFields",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PartnerFieldDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "협력사 분야 태그 목록 (내부 직원)",
+        "tags": [
+          "partners"
+        ]
+      },
+      "post": {
+        "operationId": "partnersCreateField",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePartnerFieldBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerFieldDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "분야 태그 추가 (내부 직원, 같은 이름이면 409)",
+        "tags": [
+          "partners"
+        ]
+      }
+    },
+    "/partner-fields/{id}": {
+      "put": {
+        "operationId": "partnersRenameField",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePartnerFieldBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerFieldDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "분야 태그 이름 변경 (쓰는 협력사의 분야도 함께 변경)",
+        "tags": [
+          "partners"
+        ]
+      },
+      "delete": {
+        "operationId": "partnersRemoveField",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "분야 태그 삭제 (soft delete, 감사 로그, 협력사에 적힌 값은 유지)",
+        "tags": [
+          "partners"
+        ]
+      }
     }
   },
   "info": {
@@ -6252,6 +6462,121 @@
         "required": [
           "title",
           "body"
+        ],
+        "additionalProperties": false
+      },
+      "PartnerDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "manager": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "memo": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "field",
+          "manager",
+          "phone",
+          "email",
+          "memo",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SavePartnerBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "field": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "manager": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "memo": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "name",
+          "field",
+          "manager",
+          "phone",
+          "email",
+          "memo"
+        ],
+        "additionalProperties": false
+      },
+      "PartnerFieldDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "SavePartnerFieldBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          }
+        },
+        "required": [
+          "name"
         ],
         "additionalProperties": false
       }

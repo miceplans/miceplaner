@@ -1,112 +1,125 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlowTopbar, Input, PageFrame, Select, Textarea } from '@miceplans/ui';
-import { PARTNER_FIELDS, PARTNER_FIELD_BADGE, PARTNERS, type Partner, type PartnerField } from '../../data/partners';
+import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { ConfirmDialog, FlowTopbar, Input, PageFrame, Select, Textarea, toast } from '@miceplans/ui';
+import type { PartnerDto, PartnerFieldDto, SavePartnerBody } from '@miceplans/contracts';
+import { ApiError, getToken } from '../../lib/api';
+import {
+  getPartnersListFieldsQueryKey,
+  getPartnersListQueryKey,
+  partnersCreateField,
+  partnersRemove,
+  partnersRemoveField,
+  partnersRenameField,
+  partnersSave,
+  usePartnersList,
+  usePartnersListFields,
+} from '../../lib/api/generated/endpoints';
+import { LocalPartnersNotice } from './local-partners-notice';
 
 type Filter = string;
+type EditableKey = keyof SavePartnerBody;
 
-const FIELDS_KEY = 'miceplans.partners.fields';
-const LIST_KEY = 'miceplans.partners.list';
+const EMPTY: SavePartnerBody = { name: '', field: '', manager: '', phone: '', email: '', memo: '' };
+const bodyOf = ({ name, field, manager, phone, email, memo }: SavePartnerBody): SavePartnerBody => ({ name, field, manager, phone, email, memo });
+const errorText = (error: unknown, fallback: string) => (error instanceof ApiError ? error.message : fallback);
 
-type EditableKey = 'name' | 'field' | 'manager' | 'phone' | 'email' | 'memo';
-
-const EMPTY: Omit<Partner, 'id' | 'events'> = { name: '', field: '', manager: '', phone: '', email: '', memo: '' };
-
-/** localStorage에 저장된 값을 읽는다. 없거나 깨지면 fallback이다. */
-function load<T>(key: string, fallback: T): T {
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
+/** 외부 협력사 (명세 F-14). 서버에 저장해 내부 직원이 함께 쓴다. */
 export function PartnersView() {
-  const [fields, setFields] = useState<PartnerField[]>(PARTNER_FIELDS);
-  const [partners, setPartners] = useState<Partner[]>(PARTNERS);
-  const [form, setForm] = useState<(Omit<Partner, 'id' | 'events'> & { id?: string }) | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const queryClient = useQueryClient();
+  const partnersQuery = usePartnersList({ query: { enabled: getToken() !== null } });
+  const fieldsQuery = usePartnersListFields({ query: { enabled: getToken() !== null } });
+  const partners = useMemo(() => partnersQuery.data ?? [], [partnersQuery.data]);
+  const fieldList = useMemo(() => fieldsQuery.data ?? [], [fieldsQuery.data]);
+  const fields = useMemo(() => fieldList.map((f) => f.name), [fieldList]);
+  const [form, setForm] = useState<(SavePartnerBody & { id?: string }) | null>(null);
+  const [saving, setSaving] = useState(false);
   const [tagModal, setTagModal] = useState(false);
   const [editing, setEditing] = useState<string | null>(null); // 수정 중인 태그, '' 는 새 태그
   const [draft, setDraft] = useState('');
   const [filter, setFilter] = useState<Filter>('전체');
+  const [deleting, setDeleting] = useState<Pick<PartnerDto, 'id' | 'name'> | null>(null);
+  const [deletingField, setDeletingField] = useState<PartnerFieldDto | null>(null);
 
-  useEffect(() => {
-    setFields(load(FIELDS_KEY, PARTNER_FIELDS));
-    setPartners(load(LIST_KEY, PARTNERS));
-    setLoaded(true);
-  }, []);
-
-  // 타이핑·셀 수정마다 디스크에 쓰지 않도록 마지막 변경만 잠시 뒤에 저장하고, 페이지를 떠날 때 즉시 비운다.
-  const pendingSave = useRef<{ timer: number; fields: PartnerField[]; partners: Partner[] } | null>(null);
-  const flush = useCallback(() => {
-    const pending = pendingSave.current;
-    if (!pending) return;
-    window.clearTimeout(pending.timer);
-    pendingSave.current = null;
-    try {
-      window.localStorage.setItem(FIELDS_KEY, JSON.stringify(pending.fields));
-      window.localStorage.setItem(LIST_KEY, JSON.stringify(pending.partners));
-    } catch {
-      /* 저장 실패는 무시한다. */
-    }
-  }, []);
-  const persist = useCallback(
-    (nextFields: PartnerField[], nextPartners: Partner[]) => {
-      if (pendingSave.current) window.clearTimeout(pendingSave.current.timer);
-      pendingSave.current = { fields: nextFields, partners: nextPartners, timer: window.setTimeout(flush, 400) };
-    },
-    [flush],
-  );
-  useEffect(() => {
-    window.addEventListener('pagehide', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      flush();
-    };
-  }, [flush]);
-
-  useEffect(() => {
-    if (!loaded) return;
-    persist(fields, partners);
-  }, [fields, partners, loaded, persist]);
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: getPartnersListQueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getPartnersListFieldsQueryKey() }),
+    ]);
 
   const commit = () => {
     const name = draft.trim();
     const from = editing;
     setEditing(null);
     if (from === null || !name || name === from || name === '전체' || fields.includes(name)) return;
-    if (from === '') {
-      setFields([...fields, name]);
-      return;
-    }
-    setFields(fields.map((f) => (f === from ? name : f)));
-    setPartners(partners.map((p) => (p.field === from ? { ...p, field: name } : p)));
-    if (filter === from) setFilter(name);
+    const target = fieldList.find((f) => f.name === from);
+    if (from !== '' && !target) return;
+    void (async () => {
+      try {
+        if (target) await partnersRenameField(target.id, { name });
+        else await partnersCreateField({ name });
+        if (target && filter === from) setFilter(name);
+      } catch (error) {
+        toast.error(errorText(error, '[500] 태그를 저장하지 못했습니다.'));
+      }
+      await refresh();
+    })();
   };
 
-  const remove = (f: string) => {
-    if (partners.some((p) => p.field === f) && !window.confirm(`'${f}' 태그를 쓰는 협력사가 있습니다. 삭제할까요?`)) return;
-    setFields(fields.filter((x) => x !== f));
-    if (filter === f) setFilter('전체');
-  };
-  const save = () => {
-    if (!form) return;
-    const data = { ...form, name: form.name.trim(), field: form.field || fields[0] || '' };
-    if (!data.name) return;
-    if (data.id) {
-      setPartners(partners.map((p) => (p.id === data.id ? { ...p, ...data, id: p.id } : p)));
-    } else {
-      setPartners([...partners, { ...data, id: `p${Date.now()}`, events: '' }]);
+  const removeField = async (f: PartnerFieldDto) => {
+    setDeletingField(null);
+    try {
+      await partnersRemoveField(f.id);
+      if (filter === f.name) setFilter('전체');
+    } catch (error) {
+      toast.error(errorText(error, '[500] 태그를 삭제하지 못했습니다.'));
     }
-    setForm(null);
+    await refresh();
   };
-  const removePartner = () => {
-    if (!form?.id || !window.confirm(`'${form.name}' 협력사를 삭제할까요?`)) return;
-    setPartners(partners.filter((p) => p.id !== form.id));
+  const remove = (f: string) => {
+    const target = fieldList.find((x) => x.name === f);
+    if (!target) return;
+    if (partners.some((p) => p.field === f)) setDeletingField(target);
+    else void removeField(target);
+  };
+  /** 저장된 뒤에만 창을 닫아 실패해도 입력한 내용이 남게 한다. */
+  const save = async () => {
+    if (!form || saving) return;
+    const body = bodyOf({ ...form, name: form.name.trim(), field: form.field || fields[0] || '' });
+    if (!body.name) return;
+    setSaving(true);
+    try {
+      await partnersSave(form.id ?? crypto.randomUUID(), body);
+      await refresh();
+      setForm(null);
+    } catch (error) {
+      toast.error(errorText(error, '[500] 협력사를 저장하지 못했습니다.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+  /** 셀 하나를 바꾼다. 화면에 먼저 반영하고 실패하면 서버 값으로 되돌린다. */
+  const saveCell = async (partner: PartnerDto, key: EditableKey, value: string) => {
+    if (partner[key] === value) return;
+    const next = { ...partner, [key]: value };
+    queryClient.setQueryData<PartnerDto[]>(getPartnersListQueryKey(), (list) => list?.map((x) => (x.id === partner.id ? next : x)));
+    try {
+      await partnersSave(partner.id, bodyOf(next));
+    } catch (error) {
+      toast.error(errorText(error, '[500] 협력사를 저장하지 못했습니다.'));
+    }
+    await refresh();
+  };
+  const removePartner = async (id: string) => {
+    setDeleting(null);
     setForm(null);
+    try {
+      await partnersRemove(id);
+    } catch (error) {
+      toast.error(errorText(error, '[500] 협력사를 삭제하지 못했습니다.'));
+    }
+    await refresh();
   };
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
@@ -124,6 +137,7 @@ export function PartnersView() {
   return (
     <PageFrame topbar={<FlowTopbar title="외부 협력사" />}>
       <div className="flex min-h-px flex-1 flex-col items-start gap-[16px] px-[24px] py-[20px]">
+        {partnersQuery.isSuccess && fieldsQuery.isSuccess ? <LocalPartnersNotice partners={partners} fields={fields} onMoved={() => void refresh()} /> : null}
         <div className="flex w-full items-center gap-[12px]">
           <div className="flex items-center gap-[6px]" role="tablist" aria-label="분야별 필터">
             {['전체', ...fields].map((f) => {
@@ -210,11 +224,12 @@ export function PartnersView() {
                   const v = (next ?? cellEdit.value).trim();
                   setCellEdit(null);
                   if (key === 'name' && !v) return;
-                  setPartners(partners.map((x) => (x.id === p.id ? { ...x, [key]: v } : x)));
+                  void saveCell(p, key, v);
                 };
                 const keys = {
                   onBlur: () => done(),
                   onKeyDown: (e: React.KeyboardEvent) => {
+                    if (e.nativeEvent.isComposing) return;
                     if (e.key === 'Enter' && key !== 'memo') done();
                     if (e.key === 'Escape') setCellEdit(null);
                   },
@@ -268,7 +283,7 @@ export function PartnersView() {
                 className={`group flex w-full shrink-0 items-center gap-[12px] px-[16px] py-[10px] ${i < rows.length - 1 ? 'border-b border-solid border-border' : ''}`}
               >
                 <div className="flex w-[180px] shrink-0 items-center text-sm font-semibold text-fg">{cell('name', 'w-full', p.name)}</div>
-                <div className={`flex h-[22px] w-[90px] shrink-0 items-center rounded-sm px-[8px] text-2xs font-bold ${PARTNER_FIELD_BADGE}`}>
+                <div className={`flex h-[22px] w-[90px] shrink-0 items-center rounded-sm px-[8px] text-2xs font-bold text-fg-secondary`}>
                   {cell('field', 'w-[80px]', p.field)}
                 </div>
                 <div className="flex w-[110px] shrink-0 text-xs font-medium text-fg-secondary">{cell('manager', 'w-full', p.manager)}</div>
@@ -281,7 +296,7 @@ export function PartnersView() {
                     aria-label={`${p.name} 수정`}
                     onClick={() => {
                       setCellEdit(null);
-                      setForm(p);
+                      setForm({ ...bodyOf(p), id: p.id });
                     }}
                     className="flex h-[24px] items-center rounded-sm bg-surface-chip px-[8px] text-2xs text-fg-secondary hover:text-fg"
                   >
@@ -290,9 +305,7 @@ export function PartnersView() {
                   <button
                     type="button"
                     aria-label={`${p.name} 삭제`}
-                    onClick={() => {
-                      if (window.confirm(`'${p.name}' 협력사를 삭제할까요?`)) setPartners(partners.filter((x) => x.id !== p.id));
-                    }}
+                    onClick={() => setDeleting(p)}
                     className="invisible text-xs text-fg-tertiary hover:text-fg focus-visible:visible group-focus-within:visible group-hover:visible"
                   >
                     ×
@@ -303,7 +316,15 @@ export function PartnersView() {
           })}
           {rows.length === 0 ? (
             <div className="flex w-full items-center justify-center px-[16px] py-[28px]">
-              <span className="text-xs text-fg-tertiary">조건에 맞는 협력사가 없습니다.</span>
+              <span className="text-xs text-fg-tertiary">
+                {partnersQuery.isError
+                  ? errorText(partnersQuery.error, '[500] 협력사를 불러오지 못했습니다.')
+                  : partnersQuery.isPending
+                    ? '협력사를 불러오는 중입니다.'
+                    : partners.length
+                      ? '조건에 맞는 협력사가 없습니다.'
+                      : '등록된 협력사가 없습니다.'}
+              </span>
             </div>
           ) : null}
         </div>
@@ -412,7 +433,7 @@ export function PartnersView() {
             onClick={(e) => e.stopPropagation()}
             onSubmit={(e) => {
               e.preventDefault();
-              save();
+              void save();
             }}
             className="flex w-[440px] flex-col gap-[12px] rounded-lg bg-surface p-[20px]"
           >
@@ -454,7 +475,7 @@ export function PartnersView() {
             </label>
             <div className="flex items-center gap-[8px] pt-[4px]">
               {form.id ? (
-                <button type="button" onClick={removePartner} className="h-[30px] rounded-sm px-[12px] text-xs text-fg-tertiary hover:text-fg">
+                <button type="button" onClick={() => setDeleting({ id: form.id!, name: form.name })} className="h-[30px] rounded-sm px-[12px] text-xs text-fg-tertiary hover:text-fg">
                   삭제
                 </button>
               ) : null}
@@ -462,12 +483,23 @@ export function PartnersView() {
               <button type="button" onClick={() => setForm(null)} className="h-[30px] rounded-sm bg-surface-chip px-[12px] text-xs text-fg-secondary">
                 취소
               </button>
-              <button type="submit" disabled={!form.name.trim()} className="h-[30px] rounded-sm bg-brand px-[12px] text-xs font-medium text-fg-inverse disabled:opacity-40">
-                저장
+              <button type="submit" disabled={saving || !form.name.trim()} className="h-[30px] rounded-sm bg-brand px-[12px] text-xs font-medium text-fg-inverse disabled:opacity-40">
+                {saving ? '저장 중…' : '저장'}
               </button>
             </div>
           </form>
         </div>
+      ) : null}
+      {deleting ? (
+        <ConfirmDialog title={`'${deleting.name}' 협력사를 삭제할까요?`} body="모든 직원의 목록에서 사라집니다." onConfirm={() => void removePartner(deleting.id)} onClose={() => setDeleting(null)} />
+      ) : null}
+      {deletingField ? (
+        <ConfirmDialog
+          title={`'${deletingField.name}' 태그를 삭제할까요?`}
+          body="이 태그를 쓰는 협력사가 있습니다. 협력사에 적힌 분야는 그대로 남습니다."
+          onConfirm={() => void removeField(deletingField)}
+          onClose={() => setDeletingField(null)}
+        />
       ) : null}
     </PageFrame>
   );

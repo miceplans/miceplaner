@@ -15,3 +15,4 @@ export * from './rate-limit-repository';
 export * from './schedule-note-repository';
 export * from './notice-repository';
 export * from './event-list-repository';
+export * from './partner-repository';

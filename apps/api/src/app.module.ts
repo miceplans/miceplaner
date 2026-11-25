@@ -20,6 +20,7 @@ import { PortalModule } from './portal/portal.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ScheduleNotesModule } from './schedule-notes/schedule-notes.module';
 import { EventListsModule } from './event-lists/event-lists.module';
+import { PartnersModule } from './partners/partners.module';
 
 @Controller()
 class HealthController {
@@ -48,6 +49,7 @@ class HealthController {
     ImportModule,
     ScheduleNotesModule,
     EventListsModule,
+    PartnersModule,
   ],
   controllers: [HealthController],
   providers: [
