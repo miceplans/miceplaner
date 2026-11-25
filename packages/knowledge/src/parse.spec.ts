@@ -88,14 +88,31 @@ describe('teiEmbedder', () => {
       calls.push(inputs.length);
       return new Response(JSON.stringify(inputs.map(vec)), { status: 200 });
     }) as unknown as typeof fetch;
-    const out = await teiEmbedder('http://tei/', fake)(Array.from({ length: 70 }, (_, i) => `t${i}`));
+    const out = await teiEmbedder('http://tei/', { fetch: fake })(Array.from({ length: 70 }, (_, i) => `t${i}`));
     expect(calls).toEqual([32, 32, 6]);
     expect(out).toHaveLength(70);
+    calls.length = 0;
+    await teiEmbedder('http://tei/', { fetch: fake, batchSize: 4 })(Array.from({ length: 9 }, (_, i) => `t${i}`));
+    expect(calls).toEqual([4, 4, 1]);
+  });
+
+  it('API 키가 있으면 Bearer로 보내고 제한 시간을 건다', async () => {
+    let init: RequestInit | undefined;
+    const fake = (async (_u: unknown, i: RequestInit) => {
+      init = i;
+      return new Response(JSON.stringify([vec()]), { status: 200 });
+    }) as unknown as typeof fetch;
+    await teiEmbedder('http://tei', { apiKey: 'k1', timeoutMs: 1000, fetch: fake })(['a']);
+    expect((init!.headers as Record<string, string>).authorization).toBe('Bearer k1');
+    expect(init!.signal).toBeInstanceOf(AbortSignal);
+    await teiEmbedder('http://tei', { fetch: fake })(['a']);
+    expect((init!.headers as Record<string, string>).authorization).toBeUndefined();
+    expect(init!.signal).toBeUndefined();
   });
 
   it('오류 응답이나 잘못된 차원은 던진다', async () => {
-    await expect(teiEmbedder('http://tei', (async () => new Response('x', { status: 503 })) as unknown as typeof fetch)(['a'])).rejects.toThrow('503');
-    await expect(teiEmbedder('http://tei', (async () => new Response(JSON.stringify([[1, 2]]))) as unknown as typeof fetch)(['a'])).rejects.toThrow('차원');
+    await expect(teiEmbedder('http://tei', { fetch: (async () => new Response('x', { status: 503 })) as unknown as typeof fetch })(['a'])).rejects.toThrow('503');
+    await expect(teiEmbedder('http://tei', { fetch: (async () => new Response(JSON.stringify([[1, 2]]))) as unknown as typeof fetch })(['a'])).rejects.toThrow('차원');
   });
 
   it('pgvector 리터럴로 직렬화한다', () => expect(toVectorLiteral([0.5, 1])).toBe('[0.5,1]'));

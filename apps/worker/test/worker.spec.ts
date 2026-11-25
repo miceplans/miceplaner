@@ -7,10 +7,13 @@ import { connectTestAdmin, type TestAdmin } from '@miceplans/db/testing';
 import { openProducer, runWorker, type Producer } from '@miceplans/queue';
 import { EMBEDDING_DIM, type Embedder } from '@miceplans/knowledge/embed';
 import { fsStore, type ObjectStore } from '@miceplans/storage';
+import { backfillEmbeddings } from '../src/backfill';
 import { embedDocHandler, parseFileHandler } from '../src/handlers';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const PM = id(3011);
+const ADMIN = id(3012);
+const adminCtx: DbContext = { workspaceId: 'w1', userId: ADMIN, role: 'super_admin' };
 const EVENT = id(3101);
 const CO = id(3201);
 const ctx: DbContext = { workspaceId: 'w1', userId: PM, role: 'member' };
@@ -40,6 +43,7 @@ const status = (fileId: string) => withContext(app, ctx, (db) => getFile(db, fil
 beforeAll(async () => {
   admin = await connectTestAdmin(process.env.TEST_PG_ADMIN_URL!);
   await admin.query(`INSERT INTO users (id, name, email) VALUES ($1, 'pm', 'w-pm@x.test')`, [PM]);
+  await admin.query(`INSERT INTO users (id, name, email, role) VALUES ($1, 'admin', 'w-admin@x.test', 'super_admin')`, [ADMIN]);
   await admin.query(`INSERT INTO clients (id, name) VALUES ($1, '워커 고객사')`, [CO]);
   await admin.query(`INSERT INTO events (id, client_id, name, start_date, end_date) VALUES ($1, $2, 'w-event', '2026-03-13', '2026-03-16')`, [EVENT, CO]);
   await admin.query(`INSERT INTO event_members VALUES ($1,$2,'pm')`, [EVENT, PM]);
@@ -95,6 +99,13 @@ describe('파일 변환 worker', () => {
   });
 });
 
+describe('임베딩 백필', () => {
+  it('Super Admin이 아닌 주체로는 실행하지 않는다', async () => {
+    await expect(backfillEmbeddings({ pool: app, embedder: fakeEmbedder }, ctx)).rejects.toThrow('Super Admin');
+    await expect(backfillEmbeddings({ pool: app, embedder: fakeEmbedder }, { ...adminCtx, userId: PM })).rejects.toThrow('Super Admin이 아니다');
+  });
+});
+
 describe.skipIf(!process.env.TEST_PG_EXTERNAL_URL)('임베딩 worker (pgvector 서버 필요)', () => {
   it('변환된 문서의 청크가 임베딩되고 dense 검색으로 찾힌다', async () => {
     expect(vector).toBe(true);
@@ -106,5 +117,15 @@ describe.skipIf(!process.env.TEST_PG_EXTERNAL_URL)('임베딩 worker (pgvector �
     const hits = await withContext(app, ctx, (db) => searchChunksDense(db, query, { limit: 3 }));
     expect(hits.map((h) => h.docId)).toContain(docId); // 같은 축의 다른 문서와 동률일 수 있다
     expect(embedCalls.length).toBeGreaterThan(0);
+  });
+  it('백필은 임베딩이 빈 청크만 채운다', async () => {
+    const fileId = await upload('backfill.txt', '백필 대상 문서다.');
+    await expect.poll(async () => (await status(fileId))?.status, { timeout: 15_000, interval: 200 }).toBe('ready');
+    const docId = (await status(fileId))!.docId!;
+    await expect.poll(async () => (await admin.query('SELECT count(*)::int AS n FROM knowledge_chunks WHERE embedding IS NULL')).rows[0]!.n, { timeout: 15_000, interval: 200 }).toBe(0);
+    await admin.query('UPDATE knowledge_chunks SET embedding = NULL WHERE doc_id = $1', [docId]);
+    const result = await backfillEmbeddings({ pool: app, embedder: fakeEmbedder }, adminCtx);
+    expect(result).toEqual({ docs: 1, failed: [] });
+    expect((await admin.query('SELECT count(*)::int AS n FROM knowledge_chunks WHERE embedding IS NULL')).rows[0]!.n).toBe(0);
   });
 });

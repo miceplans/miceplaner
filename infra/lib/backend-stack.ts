@@ -16,12 +16,19 @@ export interface BackendProps extends StackProps {
   /** `com.amazonaws.global.cloudfront.origin-facing` 관리형 접두사 목록 ID(리전별). */
   cloudFrontPrefixListId: string;
   instanceType?: string;
+  /** 임베딩(TEI) 전용 인스턴스 유형. BGE-M3(fp32)는 메모리 2.5~3GB가 필요해 4GB 이상이어야 한다. */
+  embedInstanceType?: string;
 }
 
 const REALTIME_PORT = 3400;
 const COLLAB_PORT = 3300;
 const PARAM_PATH = '/miceplans/prod';
 const HOST_AMI = 'ami-04eb46ea118fea29a';
+const EMBED_PORT = 8080;
+/** TEI arm64 CPU 이미지(2026-11-24 기준 cpu-arm64-1.9). 태그가 바뀌어도 같은 이미지를 쓰도록 다이제스트로 고정한다. */
+const TEI_IMAGE = 'ghcr.io/huggingface/text-embeddings-inference:cpu-arm64-1.9@sha256:798cd7615e060a72ccbdf19aa0ada52289c6a0147490195bafaece6ce04d70f1';
+/** BGE-M3 모델 리비전. 바꾸면 기존 벡터와 호환되지 않으므로 전체 재임베딩(백필)이 필요하다. */
+const BGE_M3_REVISION = '5617a9f61b028005a4858fdac845db406aefb181';
 
 /**
  * 상시 프로세스(realtime·collab·worker)를 EC2 한 대의 Docker로 돌린다 (ADR: 서버 비용 최소화).
@@ -164,6 +171,93 @@ EOF`,
     const realtimeCdn = distribution('Realtime', REALTIME_PORT);
     const collabCdn = distribution('Collab', COLLAB_PORT);
 
+    // ── 임베딩(TEI, BGE-M3) 전용 인스턴스 ─────────────────────────────────────
+    // 공용 호스트(t4g.micro, 1GB)에는 모델이 올라가지 않아 따로 둔다(2026-11-24 결정, 월 약 $30).
+    // Vercel API(질의 임베딩)와 worker(문서 임베딩)가 함께 쓰므로 CloudFront HTTPS로 열고, TEI `--api-key`로 막는다.
+    // 키는 SSM SecureString `${PARAM_PATH}/TEI_API_KEY`에 운영자가 넣는다(CloudFormation은 SecureString을 만들 수 없다).
+    const embedSg = new ec2.SecurityGroup(this, 'EmbedSg', { vpc, description: 'miceplans embeddings: CloudFront origin only', allowAllOutbound: true });
+    embedSg.addIngressRule(ec2.Peer.prefixList(props.cloudFrontPrefixListId), ec2.Port.tcp(EMBED_PORT), 'CloudFront origin-facing');
+    const embedRole = new iam.Role(this, 'EmbedInstanceRole', {
+      assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
+      managedPolicies: [iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore')],
+    });
+    // 다른 운영 비밀은 읽지 않는다. API 키 하나만 허용한다.
+    embedRole.addToPolicy(new iam.PolicyStatement({ actions: ['ssm:GetParameter'], resources: [`arn:${this.partition}:ssm:${this.region}:${this.account}:parameter${PARAM_PATH}/TEI_API_KEY`] }));
+
+    const embedUserData = ec2.UserData.forLinux();
+    embedUserData.addCommands(
+      'set -euo pipefail',
+      'dnf install -y docker',
+      'systemctl enable --now docker',
+      // 모델 적재 순간의 메모리 여유를 위해 스왑 2GB를 둔다.
+      'fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo "/swapfile none swap sw 0 0" >> /etc/fstab',
+      'mkdir -p /opt/tei/data && chmod 700 /opt/tei',
+      // --max-batch-tokens 기본값(16384)은 워밍업에서 4GB를 넘겨 OOM(137)으로 죽는다. 4096이면 상주 약 3.5GB로 뜬다(2026-11-24 실측).
+      // 시작할 때마다 SSM에서 키를 읽는다. 키가 아직 없으면 systemd가 30초 뒤 다시 시도하므로 스택 배포와 키 등록 순서가 자유롭다.
+      `cat > /opt/tei/start.sh <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+token="$(curl -s -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' http://169.254.169.254/latest/api/token)"
+region="$(curl -s -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/placement/region)"
+umask 077
+key="$(aws ssm get-parameter --region "$region" --name ${PARAM_PATH}/TEI_API_KEY --with-decryption --query Parameter.Value --output text)"
+printf 'API_KEY=%s\\n' "$key" > /opt/tei/env
+docker rm -f tei >/dev/null 2>&1 || true
+exec docker run --rm --name tei --env-file /opt/tei/env -p ${EMBED_PORT}:80 -v /opt/tei/data:/data --memory 3584m \\
+  ${TEI_IMAGE} \\
+  --model-id BAAI/bge-m3 --revision ${BGE_M3_REVISION} --max-client-batch-size 32 --max-batch-tokens 4096
+EOF`,
+      'chmod 700 /opt/tei/start.sh',
+      `cat > /etc/systemd/system/tei.service <<'EOF'
+[Unit]
+Description=Text Embeddings Inference (BGE-M3)
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+ExecStart=/opt/tei/start.sh
+ExecStop=/usr/bin/docker stop tei
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+EOF`,
+      'systemctl daemon-reload',
+      'systemctl enable --now tei.service',
+    );
+
+    const embedInstance = new ec2.Instance(this, 'EmbedHost', {
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+      instanceType: new ec2.InstanceType(props.embedInstanceType ?? 't4g.medium'),
+      machineImage: ec2.MachineImage.genericLinux({ 'ap-northeast-2': HOST_AMI }),
+      securityGroup: embedSg,
+      role: embedRole,
+      userData: embedUserData,
+      requireImdsv2: true,
+      associatePublicIpAddress: true,
+      // 이미지(약 1GB)와 모델 캐시(약 2.3GB)를 두고도 여유 있게 잡는다.
+      blockDevices: [{ deviceName: '/dev/xvda', volume: ec2.BlockDeviceVolume.ebs(30, { volumeType: ec2.EbsDeviceVolumeType.GP3, encrypted: true }) }],
+    });
+    const embedEip = new ec2.CfnEIP(this, 'EmbedIp', { instanceId: embedInstance.instanceId });
+    const embedOrigin = Fn.join('', ['ec2-', Fn.join('-', Fn.split('.', embedEip.ref)), `.${this.region}.compute.amazonaws.com`]);
+    const embedCdn = new cloudfront.Distribution(this, 'Embed', {
+      comment: 'miceplans Embed',
+      priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
+      httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
+      defaultBehavior: {
+        origin: new origins.HttpOrigin(embedOrigin, { protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY, httpPort: EMBED_PORT, readTimeout: Duration.seconds(60), keepaliveTimeout: Duration.seconds(60) }),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+        // Authorization 헤더를 원본에 넘긴다(TEI API 키).
+        originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+      },
+    });
+    // worker는 배포 때 이 경로의 값을 .env로 받는다. API(Vercel)에는 같은 값을 환경 변수로 넣는다(infra/README.md).
+    new ssm.StringParameter(this, 'TeiUrlParam', { parameterName: `${PARAM_PATH}/TEI_URL`, stringValue: `https://${embedCdn.distributionDomainName}` });
+
     const deployRole = new iam.Role(this, 'GithubDeployRole', {
       description: 'GitHub Actions (main) pushes ECR images and deploys via SSM',
       maxSessionDuration: Duration.hours(1),
@@ -187,5 +281,7 @@ EOF`,
     new CfnOutput(this, 'UploadsBucket', { value: uploads.bucketName });
     new CfnOutput(this, 'ApiFilesUserName', { value: apiFilesUser.userName });
     new CfnOutput(this, 'ParameterPath', { value: PARAM_PATH });
+    new CfnOutput(this, 'EmbedInstanceId', { value: embedInstance.instanceId });
+    new CfnOutput(this, 'EmbedUrl', { value: `https://${embedCdn.distributionDomainName}` });
   }
 }

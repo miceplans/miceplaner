@@ -112,6 +112,10 @@ export const config = {
   get teiUrl(): string {
     return process.env.TEI_URL ?? '';
   },
+  /** TEI `--api-key`. 운영 TEI는 CloudFront로 공개되므로 TEI_URL과 함께 둔다. */
+  get teiApiKey(): string {
+    return process.env.TEI_API_KEY ?? '';
+  },
   /** dense 검색에서 이 코사인 거리보다 먼 청크는 관련 없는 것으로 본다. 골든 셋으로 보정할 값이라 환경 변수로 조정한다. */
   get denseMaxDistance(): number {
     return Number(process.env.DENSE_MAX_DISTANCE ?? 0.5);
