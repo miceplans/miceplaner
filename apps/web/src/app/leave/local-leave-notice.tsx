@@ -38,7 +38,7 @@ export function LocalLeaveNotice() {
     }
     for (const date of local.comp) {
       try {
-        await leaveRequest({ kind: 'comp', startDate: date, endDate: date });
+        await leaveRequest({ kind: 'comp', startDate: date, endDate: date, reason: '', substituteId: null });
       } catch (error) {
         rest.comp.push(date);
         reason = leaveErrorText(error, '[500] 등록하지 못했습니다.');

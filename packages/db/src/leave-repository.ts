@@ -2,9 +2,9 @@ import type { PoolClient } from 'pg';
 import { isoTs } from './sql';
 import { leaveDays, type LeaveKind } from '@miceplans/domain';
 
-export type LeaveRow = { id: string; userId: string; date: string; kind: LeaveKind; days: number; createdAt: string };
+export type LeaveRow = { id: string; userId: string; date: string; kind: LeaveKind; days: number; reason: string; substituteId: string | null; createdAt: string };
 
-const COLUMNS = `id, user_id AS "userId", to_char(leave_date, 'YYYY-MM-DD') AS date, kind, days::float8 AS days, ${isoTs('created_at', 'createdAt')}`;
+const COLUMNS = `id, user_id AS "userId", to_char(leave_date, 'YYYY-MM-DD') AS date, kind, days::float8 AS days, reason, substitute_id AS "substituteId", ${isoTs('created_at', 'createdAt')}`;
 
 /** 내부 직원은 모두의 사용 내역을 본다. month(1~12)를 주면 그 달만 돌려준다. */
 export async function listLeave(client: PoolClient, year: number, month?: number): Promise<LeaveRow[]> {
@@ -42,10 +42,13 @@ export async function leaveBalances(client: PoolClient, year: number): Promise<L
 }
 
 /** 본인 명의로만 신청된다 (RLS). 잔여 일수 초과는 DB가 check_violation으로 거부한다. */
-export async function requestLeave(client: PoolClient, userId: string, kind: LeaveKind, dates: string[]): Promise<LeaveRow[]> {
+export async function requestLeave(client: PoolClient, userId: string, kind: LeaveKind, dates: string[], detail: { reason?: string; substituteId?: string | null } = {}): Promise<LeaveRow[]> {
   const out: LeaveRow[] = [];
   for (const date of dates) {
-    const { rows } = await client.query<LeaveRow>(`INSERT INTO leave_requests (user_id, leave_date, kind, days) VALUES ($1, $2, $3, $4) RETURNING ${COLUMNS}`, [userId, date, kind, leaveDays(kind)]);
+    const { rows } = await client.query<LeaveRow>(
+      `INSERT INTO leave_requests (user_id, leave_date, kind, days, reason, substitute_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${COLUMNS}`,
+      [userId, date, kind, leaveDays(kind), detail.reason ?? '', detail.substituteId ?? null],
+    );
     out.push(rows[0]!);
   }
   return out;

@@ -426,7 +426,11 @@ describe('휴가·연차 (F-12)', () => {
     await api().post('/leave').set(as('member')).send({ kind: 'full', startDate: '2026-10-19', endDate: '2026-10-19' }).expect(409);
   });
   it('연차 현황의 used는 대휴를 제외하고 월별 합계를 낸다', async () => {
-    await api().post('/leave').set(as('member')).send({ kind: 'am-half', startDate: '2026-10-22', endDate: '2026-10-22' }).expect(201);
+    const half = await api().post('/leave').set(as('member')).send({ kind: 'am-half', startDate: '2026-10-22', endDate: '2026-10-22', reason: ' 병원 ', substituteId: U.pm }).expect(201);
+    expect(half.body[0]).toMatchObject({ reason: '병원', substituteId: U.pm });
+    const seen = (await api().get('/leave?year=2026&month=10').set(as('staff')).expect(200)).body.find((r: { id: string }) => r.id === half.body[0].id);
+    expect(seen).toMatchObject({ reason: '병원', substituteId: U.pm });
+    await api().post('/leave').set(as('member')).send({ kind: 'pm-half', startDate: '2026-10-22', endDate: '2026-10-22', substituteId: U.member }).expect(409);
     const res = await api().get('/leave/balances?year=2026').set(as('staff')).expect(200);
     const mine = res.body.find((b: { userId: string }) => b.userId === U.member);
     expect(mine).toMatchObject({ used: 3.5, total: 15 });

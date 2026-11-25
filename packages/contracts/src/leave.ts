@@ -10,6 +10,9 @@ export const leaveRecordDto = z.object({
   date: isoDate,
   kind: leaveKind,
   days: z.number(),
+  /** 내부 직원 전원이 본다 (2026-11-25 결정). */
+  reason: z.string(),
+  substituteId: uuid.nullable(),
   createdAt: isoDateTime,
 });
 export type LeaveRecordDto = z.infer<typeof leaveRecordDto>;
@@ -36,7 +39,14 @@ const weekday = isoDate.refine((d) => !isWeekend(d), '주말에는 휴가를 신
 
 /** 기간 신청은 평일마다 한 건씩 만든다. 반차·반반차는 하루만 신청한다. */
 export const requestLeaveBody = z
-  .object({ kind: leaveKind, startDate: weekday, endDate: weekday })
+  .object({
+    kind: leaveKind,
+    startDate: weekday,
+    endDate: weekday,
+    reason: z.string().trim().max(500, '[400] 사유는 500자를 넘을 수 없습니다.').default(''),
+    /** 본인이 아닌 재직 중인 내부 직원. 검증은 DB가 한다. */
+    substituteId: uuid.nullable().default(null),
+  })
   .refine((v) => v.endDate >= v.startDate, { message: '종료일은 시작일 이후여야 한다', path: ['endDate'] })
   .refine((v) => v.kind === 'full' || v.kind === 'comp' || v.startDate === v.endDate, { message: '반차·반반차는 하루만 신청할 수 있다', path: ['endDate'] });
 export type RequestLeaveBody = z.infer<typeof requestLeaveBody>;

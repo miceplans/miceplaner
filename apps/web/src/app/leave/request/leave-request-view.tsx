@@ -2,11 +2,11 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { BackLink, DatePicker, FlowTopbar, PageFrame, Select, toast } from '@miceplans/ui';
+import { BackLink, DatePicker, FlowTopbar, PageFrame, Select, Textarea, toast } from '@miceplans/ui';
 import { LEAVE_KINDS, LEAVE_TODAY, LEAVE_ME, remainingOf, type LeaveEmployee, type LeaveKind } from '../data';
 import { leaveErrorText, useRefreshLeave } from '../use-work-check';
 import { getToken } from '../../../lib/api';
-import { useGetMe, useLeaveBalances, useLeaveRequest } from '../../../lib/api/generated/endpoints';
+import { useDirectoryUsers, useGetMe, useLeaveBalances, useLeaveRequest } from '../../../lib/api/generated/endpoints';
 
 const field = 'w-full';
 
@@ -33,6 +33,8 @@ export function LeaveRequestView() {
   const [kind, setKind] = useState<LeaveKind>('full');
   const [start, setStart] = useState(initialDate);
   const [end, setEnd] = useState(initialDate);
+  const [reason, setReason] = useState('');
+  const [substituteId, setSubstituteId] = useState('');
   const [sent, setSent] = useState(false);
   const request = useLeaveRequest();
   const refresh = useRefreshLeave();
@@ -53,6 +55,8 @@ export function LeaveRequestView() {
   }));
   const found = employees.find((e) => e.id === meQuery.data?.id);
   const ME = found ?? LEAVE_ME;
+  const users = useDirectoryUsers({ query: { enabled: getToken() !== null, staleTime: 60_000 } });
+  const colleagues = (users.data ?? []).filter((u) => u.role !== 'client' && u.id !== meQuery.data?.id);
 
   const isComp = kind === 'comp';
   const perDay = LEAVE_KINDS.find((k) => k.kind === kind)?.days ?? 1;
@@ -75,12 +79,18 @@ export function LeaveRequestView() {
       return;
     }
     if (request.isPending) return;
+    if (!reason.trim()) {
+      toast.error('[400] 사유를 입력해 주세요.');
+      return;
+    }
     // 서버는 시작·종료일이 평일이어야 받으므로 기간 앞뒤의 주말을 뺀다.
     request.mutate(
-      { data: { kind, startDate: dates[0]!, endDate: dates.at(-1)! } },
+      { data: { kind, startDate: dates[0]!, endDate: dates.at(-1)!, reason: reason.trim(), substituteId: substituteId || null } },
       {
         onSuccess: () => {
           setSent(true);
+          setReason('');
+          setSubstituteId('');
           refresh();
         },
         onError: (err) => toast.error(leaveErrorText(err, '[500] 휴무계를 제출하지 못했습니다.')),
@@ -136,6 +146,33 @@ export function LeaveRequestView() {
               ) : null}
             </div>
             <p className="m-0 text-sm text-fg-secondary">총 {formatDays(days)}일 사용</p>
+          </div>
+
+          <label className="flex flex-col gap-[8px]">
+            <span className={label}>사유 <span className="font-normal text-fg-tertiary">(모든 직원에게 보입니다)</span></span>
+            <Textarea
+              size="lg"
+              required={!sent}
+              rows={4}
+              maxLength={500}
+              value={reason}
+              onChange={(e) => { setReason(e.target.value); setSent(false); }}
+              placeholder="사유를 입력해 주세요"
+              className={field}
+            />
+          </label>
+
+          <div className="flex flex-col gap-[8px]">
+            <span className={label}>대체 근무자 <span className="font-normal text-fg-tertiary">(선택)</span></span>
+            <Select
+              size="lg"
+              aria-label="대체 근무자"
+              searchable
+              className={field}
+              value={substituteId}
+              onChange={(e) => { setSubstituteId(e.target.value); setSent(false); }}
+              options={[{ value: '', label: '지정 안 함' }, ...colleagues.map((c) => ({ value: c.id, label: c.jobTitle ? `${c.name} · ${c.jobTitle}` : c.name }))]}
+            />
           </div>
 
           <div className="flex flex-col gap-[8px]">

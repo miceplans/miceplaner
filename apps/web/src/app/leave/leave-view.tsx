@@ -94,7 +94,7 @@ export function LeaveView() {
         </div>
         <LeaveCalendar employees={employees} me={meEmployee} />
         <p className="m-0 text-2xs text-fg-tertiary">잔여 연차가 {LOW_REMAINING_DAYS}일 이하인 직원은 빨간색으로 표시됩니다.</p>
-        <p className="m-0 text-2xs text-fg-tertiary">캘린더의 토·일 날짜를 누른 후 주말 근무를 체크할 수 있으며, 근무 1일당 대휴 1일이 발생해 다른 날짜에 대휴로 사용할 수 있습니다. 내 휴가를 누르면 신청을 취소할 수 있습니다.</p>
+        <p className="m-0 text-2xs text-fg-tertiary">캘린더의 토·일 날짜를 누른 후 주말 근무를 체크할 수 있으며, 근무 1일당 대휴 1일이 발생해 다른 날짜에 대휴로 사용할 수 있습니다. 휴가를 누르면 사유와 대체 근무자를 보고, 내 휴가는 취소할 수 있습니다.</p>
       </div>
     </PageFrame>
   );
