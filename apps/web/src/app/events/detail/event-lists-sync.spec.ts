@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EventItemDto } from '@miceplans/contracts';
-import type { CheckItem } from './event-checklist-model';
+import { canEditItem, canToggleItem, resolveOwners, toggleItem, type CheckItem } from './event-checklist-model';
 import { blockBody, blockFromDto, diffRows, diffTrees, fromMinute, toMinute, treeFromItems, withUuidIds } from './event-lists-sync';
 
 const uid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -33,6 +33,22 @@ describe('treeFromItems', () => {
     expect(tree[0]).toMatchObject({ title: '리허설', date: '2026-12-01', start: 1, end: 2 });
     expect(tree[0]!.children!.map((c) => [c.title, c.workflowStatus, c.done])).toEqual([['조명', '완료', true], ['음향', '진행', false]]);
     expect(tree[0]!.children![1]).toMatchObject({ assignee: '김담당', owner: '김' });
+  });
+});
+
+describe('담당자가 있는 할 일의 권한', () => {
+  const names: Record<string, string> = { [uid(200)]: '작성자', [uid(300)]: '김담당' };
+  const load = (over: Partial<EventItemDto>) => resolveOwners(treeFromItems([dto({ kind: 'program', ...over })], (id) => names[id]), ['작성자', '김담당'])[0]!;
+
+  it('담당자는 완료하고 만든 사람은 수정하며, 다른 사람은 둘 다 못 한다', () => {
+    const item = load({ assigneeId: uid(300) });
+    expect([canToggleItem(item, '김담당'), canEditItem(item, '김담당')]).toEqual([true, false]);
+    expect([canToggleItem(item, '작성자'), canEditItem(item, '작성자')]).toEqual([false, true]);
+    expect([canToggleItem(item, '이다른'), canEditItem(item, '이다른')]).toEqual([false, false]);
+    expect(toggleItem([item], item.id, '김담당')[0]!.done).toBe(true);
+  });
+  it('담당자가 없는 항목은 지금처럼 화면에서 제한하지 않는다', () => {
+    expect(canEditItem(load({}), '이다른')).toBe(true);
   });
 });
 

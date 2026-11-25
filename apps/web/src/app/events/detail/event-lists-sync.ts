@@ -65,6 +65,8 @@ export function treeFromItems(items: EventItemDto[], nameOf: (userId: string) =>
           start: fromMinute(it.startMinute),
           end: fromMinute(it.endMinute),
           assignee,
+          // 담당자가 있는 항목은 만든 사람이 수정하고 담당자가 완료한다. 넣지 않으면 resolveOwners가 담당자를 만든 사람으로 본다.
+          createdBy: assignee ? nameOf(it.createdBy) : undefined,
           owner: assignee?.slice(0, 1),
           workflowStatus: WORKFLOW_OF[it.status],
           part: it.part ?? undefined,

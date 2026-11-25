@@ -245,7 +245,9 @@ export function EventDetailView() {
     setEventItems(schedule);
     return () => setEventItems(undefined);
   }, [schedule]);
-  const access = useMemo(() => ({ me: CURRENT_USER.name, members: assignable }), [assignable]);
+  // 담당자·만든 사람 판정은 로그인 사용자 이름으로 한다. 최종 권한은 서버가 사용자 ID로 다시 검사한다.
+  const myName = me.data?.name ?? CURRENT_USER.name;
+  const access = useMemo(() => ({ me: myName, members: assignable }), [myName, assignable]);
   // '할 일' 카드: 스케줄 아래의 할 일·하위 할 일 중 완료되지 않은 것을 마감일 순으로 보여 주고, 체크하면 완료 처리한다.
   // 스케줄 트리는 서버 항목(program → task → subtask)에서 만들어지므로 따로 서버 Task를 합치지 않는다.
   const openTodos = useMemo(() => {
