@@ -2,9 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { ConfirmDialog, toast } from '@miceplans/ui';
 import { LEAVE_KINDS, LEAVE_TODAY, type LeaveEmployee } from './data';
-import { useWorkCheck } from './use-work-check';
-import { useLeaveList } from '../../lib/api/generated/endpoints';
+import { leaveErrorText, useRefreshLeave, useWorkCheck } from './use-work-check';
+import { useLeaveCancel, useLeaveList } from '../../lib/api/generated/endpoints';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const KIND_BY_ID = new Map(LEAVE_KINDS.map((k, i) => [k.kind, { ...k, order: i }]));
@@ -18,29 +19,28 @@ export function LeaveCalendar({ employees, me }: { employees: LeaveEmployee[]; m
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const { weekendWork, toggleWeekendWork, compUsed, compEarned, compRemaining } = useWorkCheck();
+  const { weekendWork, toggleWeekendWork } = useWorkCheck();
+  const { compEarned } = me;
+  const compRemaining = me.compEarned - me.compUsed;
+  const refresh = useRefreshLeave();
+  const cancelLeave = useLeaveCancel();
+  const [canceling, setCanceling] = useState<{ id: string; label: string } | null>(null);
   const leaveList = useLeaveList({ year, month });
 
   const workSet = useMemo(() => new Set(weekendWork), [weekendWork]);
   const nameById = useMemo(() => new Map(employees.map((e) => [e.id, e.name])), [employees]);
 
   const recordsByDate = useMemo(() => {
-    const map = new Map<string, { name: string; kind: NonNullable<ReturnType<typeof KIND_BY_ID.get>> }[]>();
+    const map = new Map<string, { id: string; mine: boolean; name: string; kind: NonNullable<ReturnType<typeof KIND_BY_ID.get>> }[]>();
     for (const r of leaveList.data ?? []) {
       const kind = KIND_BY_ID.get(r.kind);
       const name = nameById.get(r.userId);
       if (!kind || !name) continue;
-      map.set(r.date, [...(map.get(r.date) ?? []), { name, kind }]);
-    }
-    const compKind = KIND_BY_ID.get('comp');
-    if (compKind) {
-      for (const r of compUsed) {
-        map.set(r.date, [...(map.get(r.date) ?? []), { name: nameById.get(r.employeeId) ?? me.name, kind: compKind }]);
-      }
+      map.set(r.date, [...(map.get(r.date) ?? []), { id: r.id, mine: r.userId === me.id, name, kind }]);
     }
     for (const list of map.values()) list.sort((a, b) => a.kind.order - b.kind.order);
     return map;
-  }, [leaveList.data, nameById, compUsed, me.name]);
+  }, [leaveList.data, nameById, me.id]);
 
   const firstWeekday = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -126,16 +126,52 @@ export function LeaveCalendar({ employees, me }: { employees: LeaveEmployee[]; m
                   <span className="min-w-px flex-1 truncate">근무</span>
                 </span>
               ) : null}
-              {list.map((r, ri) => (
-                <span key={ri} title={`${r.name} · ${r.kind.label}`} className="flex w-full items-center gap-[4px] text-2xs text-fg">
-                  <img alt={r.kind.label} src={r.kind.icon} className="size-[14px] shrink-0" />
-                  <span className="min-w-px flex-1 truncate">{r.name}</span>
-                </span>
-              ))}
+              {list.map((r) => {
+                const body = (
+                  <>
+                    <img alt={r.kind.label} src={r.kind.icon} className="size-[14px] shrink-0" />
+                    <span className="min-w-px flex-1 truncate text-left">{r.name}</span>
+                  </>
+                );
+                return r.mine ? (
+                  <button
+                    key={r.id}
+                    type="button"
+                    title={`${r.name} · ${r.kind.label} · 누르면 취소`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCanceling({ id: r.id, label: `${month}월 ${day}일 ${r.kind.label}` });
+                    }}
+                    className="flex w-full cursor-pointer items-center gap-[4px] rounded-sm border-0 bg-transparent p-0 text-2xs font-medium text-fg hover:bg-surface-chip"
+                  >
+                    {body}
+                  </button>
+                ) : (
+                  <span key={r.id} title={`${r.name} · ${r.kind.label}`} className="flex w-full items-center gap-[4px] text-2xs text-fg">
+                    {body}
+                  </span>
+                );
+              })}
             </div>
           );
         })}
       </div>
+      {canceling && (
+        <ConfirmDialog
+          title={`${canceling.label} 신청을 취소할까요?`}
+          body="취소하면 사용 일수에서 빠집니다."
+          confirmLabel="신청 취소"
+          cancelLabel="닫기"
+          onClose={() => setCanceling(null)}
+          onConfirm={() => {
+            cancelLeave.mutate(
+              { id: canceling.id },
+              { onSuccess: refresh, onError: (error) => toast.error(leaveErrorText(error, '[500] 신청을 취소하지 못했습니다.')) },
+            );
+            setCanceling(null);
+          }}
+        />
+      )}
     </div>
   );
 }

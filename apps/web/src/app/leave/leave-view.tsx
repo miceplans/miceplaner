@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { Button, FlowTopbar, PageFrame } from '@miceplans/ui';
 import { LeaveCalendar } from './leave-calendar';
+import { LocalLeaveNotice } from './local-leave-notice';
 import { LEAVE_ME, LOW_REMAINING_DAYS, MONTH_LABELS, remainingOf, type LeaveEmployee } from './data';
 import { getToken } from '../../lib/api';
 import { useGetMe, useLeaveBalances } from '../../lib/api/generated/endpoints';
@@ -24,6 +25,8 @@ export function LeaveView() {
         total: b.total,
         used: b.used,
         monthly: b.monthly,
+        compEarned: b.compEarned,
+        compUsed: b.compUsed,
       })),
     [balances.data],
   );
@@ -36,6 +39,7 @@ export function LeaveView() {
         <div className="flex w-full justify-end">
           <Button href="/leave/request">휴무계 작성</Button>
         </div>
+        <LocalLeaveNotice />
 
         <div className="flex w-full flex-col items-start rounded-lg border border-solid border-border">
           <div className="flex h-[36px] w-full shrink-0 items-center gap-[12px] border-b border-solid border-border bg-surface-sunken px-[16px] text-2xs font-semibold tracking-[0.4px] text-fg-tertiary">
@@ -90,7 +94,7 @@ export function LeaveView() {
         </div>
         <LeaveCalendar employees={employees} me={meEmployee} />
         <p className="m-0 text-2xs text-fg-tertiary">잔여 연차가 {LOW_REMAINING_DAYS}일 이하인 직원은 빨간색으로 표시됩니다.</p>
-        <p className="m-0 text-2xs text-fg-tertiary">캘린더의 토·일 날짜를 누른 후 주말 근무를 체크할 수 있으며, 근무 1일당 대휴 1일이 발생해 다른 날짜에 대휴로 사용할 수 있습니다.</p>
+        <p className="m-0 text-2xs text-fg-tertiary">캘린더의 토·일 날짜를 누른 후 주말 근무를 체크할 수 있으며, 근무 1일당 대휴 1일이 발생해 다른 날짜에 대휴로 사용할 수 있습니다. 내 휴가를 누르면 신청을 취소할 수 있습니다.</p>
       </div>
     </PageFrame>
   );

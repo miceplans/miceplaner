@@ -2,11 +2,11 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { BackLink, DatePicker, FlowTopbar, PageFrame, Select, Textarea, toast } from '@miceplans/ui';
+import { BackLink, DatePicker, FlowTopbar, PageFrame, Select, toast } from '@miceplans/ui';
 import { LEAVE_KINDS, LEAVE_TODAY, LEAVE_ME, remainingOf, type LeaveEmployee, type LeaveKind } from '../data';
-import { useWorkCheck } from '../use-work-check';
+import { leaveErrorText, useRefreshLeave } from '../use-work-check';
 import { getToken } from '../../../lib/api';
-import { useGetMe, useLeaveBalances } from '../../../lib/api/generated/endpoints';
+import { useGetMe, useLeaveBalances, useLeaveRequest } from '../../../lib/api/generated/endpoints';
 
 const field = 'w-full';
 
@@ -14,11 +14,6 @@ const label = 'text-sm font-medium text-fg';
 
 function formatDays(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0$/, '');
-}
-
-/** 시작~종료일의 평일 수. */
-function weekdaysBetween(start: string, end: string): number {
-  return weekdayDatesBetween(start, end).length;
 }
 
 /** 시작~종료일의 평일 날짜 목록(YYYY-MM-DD). */
@@ -38,14 +33,12 @@ export function LeaveRequestView() {
   const [kind, setKind] = useState<LeaveKind>('full');
   const [start, setStart] = useState(initialDate);
   const [end, setEnd] = useState(initialDate);
-  const [reason, setReason] = useState('');
-  const [substitute, setSubstitute] = useState('');
   const [sent, setSent] = useState(false);
-  const [submittedDays, setSubmittedDays] = useState(0);
-  const { compEarned, compUsedDays, compRemaining, addCompUsed } = useWorkCheck();
+  const request = useLeaveRequest();
+  const refresh = useRefreshLeave();
 
-  // 로그인 사용자의 연차 잔여일과 대체 근무자 후보는 연차 API에서 가져온다.
-  const year = new Date().getFullYear();
+  // 로그인 사용자의 잔여일은 쓰려는 날짜의 연도 기준으로 연차 API에서 가져온다.
+  const year = Number(start.slice(0, 4));
   const balances = useLeaveBalances({ year });
   const meQuery = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
   const employees: LeaveEmployee[] = (balances.data ?? []).map((b) => ({
@@ -55,22 +48,25 @@ export function LeaveRequestView() {
     total: b.total,
     used: b.used,
     monthly: b.monthly,
+    compEarned: b.compEarned,
+    compUsed: b.compUsed,
   }));
-  const ME = employees.find((e) => e.id === meQuery.data?.id) ?? LEAVE_ME;
-  const COLLEAGUES = employees.filter((e) => e.id !== ME.id);
+  const found = employees.find((e) => e.id === meQuery.data?.id);
+  const ME = found ?? LEAVE_ME;
 
   const isComp = kind === 'comp';
   const perDay = LEAVE_KINDS.find((k) => k.kind === kind)?.days ?? 1;
   const multiDay = perDay === 1;
   // 날짜 범위를 도는 계산은 입력이 바뀔 때만 실행한다.
-  const days = useMemo(() => (multiDay ? weekdaysBetween(start, end) : perDay), [multiDay, start, end, perDay]);
-  const remaining = isComp ? compRemaining : remainingOf(ME) - submittedDays;
+  const dates = useMemo(() => weekdayDatesBetween(start, multiDay ? end : start), [multiDay, start, end]);
+  const days = dates.length * perDay;
+  const remaining = isComp ? ME.compEarned - ME.compUsed : remainingOf(ME);
   const error = useMemo(() => {
-    if (days <= 0) return '[400] 사용 일수가 0일입니다. 날짜를 확인해 주세요.';
-    if (isComp && compEarned === 0) return '[400] 주말 근무를 체크하면 대휴 1일이 발생합니다.';
-    if (days > remaining) return isComp ? '[400] 잔여 대휴를 초과했습니다.' : '[400] 잔여 연차를 초과했습니다.';
+    if (days <= 0) return '[400] 사용 일수가 0일입니다. 주말에는 신청할 수 없으니 날짜를 확인해 주세요.';
+    // 대휴 한도는 연도를 넘겨 누적되므로 올해 값만 아는 화면에서는 막지 않고 서버가 판정한다.
+    if (found && !isComp && days > remaining) return '[400] 잔여 연차를 초과했습니다.';
     return null;
-  }, [days, isComp, compEarned, remaining]);
+  }, [days, found, isComp, remaining]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,18 +74,22 @@ export function LeaveRequestView() {
       toast.error(error);
       return;
     }
-    if (isComp) {
-      addCompUsed(weekdayDatesBetween(start, end).map((date) => ({ date, employeeId: ME.id, kind: 'comp' as const })));
-    } else {
-      setSubmittedDays(submittedDays + days);
-    }
-    setSent(true);
-    setReason('');
-    setSubstitute('');
+    if (request.isPending) return;
+    // 서버는 시작·종료일이 평일이어야 받으므로 기간 앞뒤의 주말을 뺀다.
+    request.mutate(
+      { data: { kind, startDate: dates[0]!, endDate: dates.at(-1)! } },
+      {
+        onSuccess: () => {
+          setSent(true);
+          refresh();
+        },
+        onError: (err) => toast.error(leaveErrorText(err, '[500] 휴무계를 제출하지 못했습니다.')),
+      },
+    );
   };
 
-  const usableDays = isComp ? compEarned : ME.total;
-  const usedDays = isComp ? compUsedDays : ME.total - remaining;
+  const usableDays = isComp ? ME.compEarned : ME.total;
+  const usedDays = isComp ? ME.compUsed : ME.used;
   const usedRate = usableDays > 0 ? Math.min(100, (usedDays / usableDays) * 100) : 0;
 
   return (
@@ -119,7 +119,7 @@ export function LeaveRequestView() {
               size="lg"
               className={field}
               value={kind}
-              onChange={(e) => setKind(e.target.value as LeaveKind)}
+              onChange={(e) => { setKind(e.target.value as LeaveKind); setSent(false); }}
               options={LEAVE_KINDS.map((k) => ({ value: k.kind, label: `${k.label} (${formatDays(k.days)}일)` }))}
             />
           </div>
@@ -127,36 +127,20 @@ export function LeaveRequestView() {
           <div className="flex flex-col gap-[8px]">
             <span className={label}>사용 기간</span>
             <div className="flex items-center gap-[8px]">
-              <DatePicker size="lg" aria-label="시작일" value={start} onChange={(v) => { setStart(v); if (v > end) setEnd(v); }} className={field} />
+              <DatePicker size="lg" aria-label="시작일" value={start} onChange={(v) => { setStart(v); if (v > end) setEnd(v); setSent(false); }} className={field} />
               {multiDay ? (
                 <>
                   <span className="text-fg-tertiary">~</span>
-                  <DatePicker size="lg" aria-label="종료일" value={end} min={start} onChange={setEnd} className={field} />
+                  <DatePicker size="lg" aria-label="종료일" value={end} min={start} onChange={(v) => { setEnd(v); setSent(false); }} className={field} />
                 </>
               ) : null}
             </div>
             <p className="m-0 text-sm text-fg-secondary">총 {formatDays(days)}일 사용</p>
           </div>
 
-          <label className="flex flex-col gap-[8px]">
-            <span className={label}>사유</span>
-            <Textarea size="lg" required rows={4} value={reason} onChange={(e) => { setReason(e.target.value); setSent(false); }} placeholder="사유를 입력해 주세요" className={field} />
-          </label>
-
           <div className="flex flex-col gap-[8px]">
-            <span className={label}>대체 근무자 <span className="font-normal text-fg-tertiary">(선택)</span></span>
-            <Select
-              size="lg"
-              className={field}
-              value={substitute}
-              onChange={(e) => setSubstitute(e.target.value)}
-              options={[{ value: '', label: '지정 안 함' }, ...COLLEAGUES.map((c) => ({ value: c.name, label: `${c.name} · ${c.role}` }))]}
-            />
-          </div>
-
-          <div className="flex flex-col gap-[8px]">
-            <button type="submit" className="h-[44px] w-full rounded-lg bg-fg text-base font-medium text-surface">
-              제출
+            <button type="submit" disabled={request.isPending || sent} className="h-[44px] w-full rounded-lg bg-fg text-base font-medium text-surface disabled:opacity-50">
+              {request.isPending ? '제출 중…' : '제출'}
             </button>
             {sent ? <p className="m-0 text-center text-sm text-fg-secondary">제출되었습니다.</p> : null}
           </div>
