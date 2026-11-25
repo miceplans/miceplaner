@@ -3,11 +3,15 @@ import type { PortalEventDto, PortalProgramDto } from '@miceplans/contracts/port
 import {
   calendarWeeks,
   chipsByDay,
+  daysUntil,
   ddayLabel,
   eventState,
   formatDay,
   formatMonth,
-  formatRange,
+  formatMonthDay,
+  formatPeriod,
+  formatPeriodLong,
+  gaugeFill,
   inclusiveDays,
   nearestEvent,
   programState,
@@ -15,6 +19,7 @@ import {
   eventWeekBars,
   shortRange,
   sortPrograms,
+  stepWindowStart,
   todayIso,
 } from './portal';
 
@@ -87,21 +92,51 @@ describe('ddayLabel', () => {
   });
 });
 
+describe('daysUntil', () => {
+  it('달을 넘겨도 실제 일수를 센다', () => {
+    expect(daysUntil('2026-12-22', '2026-11-25')).toBe(27);
+    expect(daysUntil('2026-03-01', '2026-02-28')).toBe(1);
+  });
+});
+
 describe('날짜 표시', () => {
   it('일·월·전체 날짜 형식', () => {
     expect(formatDay('2026-11-18')).toBe('18');
     expect(formatMonth('2026-11-18')).toBe('11월');
   });
 
-  it('같은 달 기간은 일자만, 다른 달은 월까지 표시한다', () => {
-    expect(formatRange('2026-11-18', '2026-11-20')).toBe('2026.11.18 ~ 20');
-    expect(formatRange('2026-11-18', '2026-12-02')).toBe('2026.11.18 ~ 12.02');
-    expect(formatRange('2026-11-18', '2027-01-05')).toBe('2026.11.18 ~ 2027.01.05');
+  it('Figma 목록·상세 기간 형식', () => {
+    expect(formatPeriod('2026-03-13', '2026-03-16')).toBe('03.13 – 03.16');
+    expect(formatPeriod('2026-04-18', '2026-04-18')).toBe('04.18');
+    expect(formatPeriod('2026-12-30', '2027-01-02')).toBe('2026.12.30 – 2027.01.02');
+    expect(formatPeriodLong('2025-03-13', '2025-03-16')).toBe('2025. 03. 13 – 03. 16');
+    expect(formatPeriodLong('2025-03-13', '2025-03-13')).toBe('2025. 03. 13');
+    expect(formatPeriodLong('2025-12-30', '2026-01-02')).toBe('2025. 12. 30 – 2026. 01. 02');
+    expect(formatMonthDay('2026-03-10')).toBe('3/10');
   });
 
   it('양끝 포함 일수를 센다', () => {
     expect(inclusiveDays('2026-11-18', '2026-11-20')).toBe(3);
     expect(inclusiveDays('2026-11-18', '2026-11-18')).toBe(1);
+    expect(inclusiveDays('2026-11-30', '2026-12-03')).toBe(4);
+  });
+});
+
+describe('stepWindowStart', () => {
+  it('현재 단계와 직전 단계가 보이게 구간을 고른다', () => {
+    expect(stepWindowStart([true, false, false], 5)).toBe(0);
+    expect(stepWindowStart([true, true, true, false, false, false, false, false], 5)).toBe(2);
+    expect(stepWindowStart([true, true, true, true, true, true, true], 5)).toBe(2);
+    expect(stepWindowStart([], 5)).toBe(0);
+  });
+});
+
+describe('gaugeFill', () => {
+  it('비율을 반 칸 단위로 채운다', () => {
+    expect(gaugeFill(0, 4)).toEqual([0, 0, 0, 0]);
+    expect(gaugeFill(0.5, 4)).toEqual([1, 1, 0, 0]);
+    expect(gaugeFill(0.4, 4)).toEqual([1, 0.5, 0, 0]);
+    expect(gaugeFill(1, 4)).toEqual([1, 1, 1, 1]);
   });
 });
 

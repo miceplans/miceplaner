@@ -1,10 +1,12 @@
-import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, Inject, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { markPortalNotificationsReadBody, type MarkPortalNotificationsReadBody } from '@miceplans/contracts/portal';
 import { Public } from '../auth/public.decorator';
 import { Auth, type AuthUser } from '../common/auth';
 import { config } from '../config';
 import { RateLimit, RateLimitGuard } from '../common/rate-limit';
 import { Returns } from '../common/openapi';
+import { ZodBody } from '../common/zod';
 import { PortalService } from './portal.service';
 
 @ApiTags('portal')
@@ -25,6 +27,21 @@ export class PortalController {
   @Returns('PortalProgramDto', { array: true })
   programs(@Auth() user: AuthUser) {
     return this.portal.programs(user);
+  }
+
+  @Get('notifications')
+  @ApiOperation({ summary: '내 알림함 (공개 Program의 공개·일정 변경, 최근 30일)', operationId: 'portalNotifications' })
+  @Returns('PortalNotificationDto', { array: true })
+  notifications(@Auth() user: AuthUser) {
+    return this.portal.notifications(user);
+  }
+
+  @Post('notifications/read')
+  @HttpCode(200)
+  @ApiOperation({ summary: '내 알림 읽음 처리', operationId: 'portalMarkNotificationsRead' })
+  @Returns('UpdatedCount')
+  markNotificationsRead(@Auth() user: AuthUser, @ZodBody(markPortalNotificationsReadBody) body: MarkPortalNotificationsReadBody) {
+    return this.portal.markNotificationsRead(user, body);
   }
 
   @Public()
