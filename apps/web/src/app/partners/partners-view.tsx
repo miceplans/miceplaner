@@ -200,6 +200,7 @@ export function PartnersView() {
             <span className="w-[140px] shrink-0">연락처</span>
             <span className="w-[260px] shrink-0">이메일</span>
             <span className="min-w-0 flex-1">메모</span>
+            <span className="w-[72px] shrink-0" aria-hidden="true" />
           </div>
           {rows.map((p, i) => {
             const cell = (key: EditableKey, width: string, text: string) => {
@@ -274,16 +275,29 @@ export function PartnersView() {
                 <div className="flex w-[140px] shrink-0 text-xs text-fg-secondary">{cell('phone', 'w-full', p.phone)}</div>
                 <div className="flex w-[260px] shrink-0 text-xs text-fg-secondary">{cell('email', 'w-full', p.email)}</div>
                 <div className="flex min-w-0 flex-1 text-2xs text-fg-tertiary">{cell('memo', 'w-full', p.memo)}</div>
-                <button
-                  type="button"
-                  aria-label={`${p.name} 삭제`}
-                  onClick={() => {
-                    if (window.confirm(`'${p.name}' 협력사를 삭제할까요?`)) setPartners(partners.filter((x) => x.id !== p.id));
-                  }}
-                  className="hidden shrink-0 text-xs text-fg-tertiary hover:text-fg group-hover:block"
-                >
-                  ×
-                </button>
+                <div className="flex w-[72px] shrink-0 items-center justify-end gap-[8px]">
+                  <button
+                    type="button"
+                    aria-label={`${p.name} 수정`}
+                    onClick={() => {
+                      setCellEdit(null);
+                      setForm(p);
+                    }}
+                    className="flex h-[24px] items-center rounded-sm bg-surface-chip px-[8px] text-2xs text-fg-secondary hover:text-fg"
+                  >
+                    수정
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`${p.name} 삭제`}
+                    onClick={() => {
+                      if (window.confirm(`'${p.name}' 협력사를 삭제할까요?`)) setPartners(partners.filter((x) => x.id !== p.id));
+                    }}
+                    className="invisible text-xs text-fg-tertiary hover:text-fg focus-visible:visible group-focus-within:visible group-hover:visible"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             );
           })}

@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { MonthCalendar, usePersonalTodos } from '@miceplans/ui';
+import { useEffect, useMemo, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
+import { MonthCalendar, usePersonalTodos, type CalendarEvent, type PersonalTodo } from '@miceplans/ui';
 import { getToken } from '../../lib/api';
-import { useGetMe } from '../../lib/api/generated/endpoints';
+import { eventItemsList, getEventItemsListQueryKey, useEventsList, useGetMe } from '../../lib/api/generated/endpoints';
+import { PersonalTodoDialog } from './personal-todo-dialog';
 import { useScheduleNoteStore } from './schedule-note-store';
 
 const LS_TODOS = 'miceplans:schedule-calendar:todo';
@@ -87,32 +89,109 @@ export function ScheduleViewCalendar({
   }, [cursor]);
 
   const personalTodos = usePersonalTodos();
-  const todos = todosOn ? personalTodos.todos : [];
+  const myTasks = useMyTaskTodos(me.data?.id ?? null);
+  const [managing, setManaging] = useState(false);
+  const todos = todosOn ? [...personalTodos.todos, ...myTasks] : EMPTY_TODOS;
+  // 전체 행사의 기간을 달력에 막대로 보여 준다. 할 일과 같은 행사 목록 캐시를 쓴다.
+  const eventsQuery = useEventsList(undefined, { query: { enabled: getToken() !== null } });
+  const calendarEvents = useMemo<CalendarEvent[]>(
+    () =>
+      (eventsQuery.data ?? []).map((ev) => ({
+        id: ev.id,
+        title: ev.name,
+        start: ev.startDate,
+        end: ev.endDate,
+        color: ev.color,
+        href: `/events/detail?id=${ev.id}`,
+      })),
+    [eventsQuery.data],
+  );
+
+  const manageButton = (
+    <button
+      type="button"
+      onClick={() => setManaging(true)}
+      className="ml-[6px] flex h-[32px] items-center gap-[6px] rounded-sm border border-solid border-border bg-surface px-[10px] text-sm font-medium text-fg-secondary hover:bg-surface-muted"
+    >
+      <span className="text-base leading-none">+</span> 할 일
+    </button>
+  );
+  const dialog = managing ? <PersonalTodoDialog todos={personalTodos.todos} onChange={personalTodos.updateTodos} onClose={() => setManaging(false)} /> : null;
+
   if (mine) {
-    return <MonthCalendar gridGap={gridGap} padX={padX} personal todos={todos} initialMonth={cursor} onMonthChange={setCursor} peekMembers={peekMembers} peekStore={peekStore} />;
+    return (
+      <>
+        {dialog}
+        <MonthCalendar gridGap={gridGap} padX={padX} personal todos={todos} initialMonth={cursor} onMonthChange={setCursor} peekMembers={peekMembers} peekStore={peekStore} headerAddon={manageButton} />
+      </>
+    );
   }
 
   return (
-    <MonthCalendar
-      gridGap={gridGap}
-      padX={padX}
-      todos={todos}
-      initialMonth={cursor}
-      onMonthChange={setCursor}
-      peekMembers={peekMembers}
-      peekStore={peekStore}
-      headerAddon={
-        <button
-          type="button"
-          aria-pressed={todosOn}
-          onClick={() => setTodosOn((v) => !v)}
-          className={`ml-[6px] flex h-[32px] items-center gap-[7px] rounded-sm border border-solid px-[10px] text-sm font-medium ${
-            todosOn ? 'border-brand bg-brand-tint text-brand' : 'border-border bg-surface text-fg-secondary hover:bg-surface-muted'
-          }`}
-        >
-          내 할 일 표시
-        </button>
-      }
-    />
+    <>
+      {dialog}
+      <MonthCalendar
+        gridGap={gridGap}
+        padX={padX}
+        todos={todos}
+        events={calendarEvents}
+        initialMonth={cursor}
+        onMonthChange={setCursor}
+        peekMembers={peekMembers}
+        peekStore={peekStore}
+        headerAddon={
+          <>
+            <button
+              type="button"
+              aria-pressed={todosOn}
+              onClick={() => setTodosOn((v) => !v)}
+              className={`ml-[6px] flex h-[32px] items-center gap-[7px] rounded-sm border border-solid px-[10px] text-sm font-medium ${
+                todosOn ? 'border-brand bg-brand-tint text-brand' : 'border-border bg-surface text-fg-secondary hover:bg-surface-muted'
+              }`}
+            >
+              내 할 일 표시
+            </button>
+            {manageButton}
+          </>
+        }
+      />
+    </>
   );
+}
+
+const EMPTY_TODOS: PersonalTodo[] = [];
+
+/**
+ * 내가 담당인 서버 Task·Subtask 중 완료·취소되지 않고 날짜가 있는 항목을 캘린더용 할 일로 바꾼다.
+ * 시작일~마감일이 모두 있으면 기간(빗금 바), 하나만 있으면 그 날짜의 마감 항목으로 표시한다.
+ * 할 일 보드와 같은 쿼리 키를 써서 캐시를 공유한다.
+ */
+function useMyTaskTodos(meId: string | null): PersonalTodo[] {
+  const events = useEventsList(undefined, { query: { enabled: meId !== null } });
+  const eventList = useMemo(() => events.data ?? [], [events.data]);
+  const itemQueries = useQueries({
+    queries: eventList.map((ev) => ({
+      queryKey: getEventItemsListQueryKey(ev.id),
+      queryFn: () => eventItemsList(ev.id),
+      staleTime: 30_000,
+      enabled: meId !== null,
+    })),
+  });
+
+  if (meId === null) return EMPTY_TODOS;
+  const list: PersonalTodo[] = [];
+  eventList.forEach((ev, i) => {
+    for (const it of itemQueries[i]?.data ?? []) {
+      if (it.kind === 'program' || it.assigneeId !== meId) continue;
+      if (it.status === '완료' || it.status === '취소') continue;
+      const title = `[${ev.name}] ${it.title}`;
+      const id = `task:${it.id}`;
+      if (it.startsOn && it.dueOn && it.startsOn < it.dueOn) {
+        list.push({ id, title, start: it.startsOn, end: it.dueOn });
+      } else if (it.dueOn || it.startsOn) {
+        list.push({ id, title, due: (it.dueOn ?? it.startsOn)! });
+      }
+    }
+  });
+  return list;
 }

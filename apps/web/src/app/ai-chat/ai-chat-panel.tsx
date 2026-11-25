@@ -5,6 +5,7 @@ import type { ChatEvent, ProposalDto } from '@miceplans/contracts';
 import { Input, toast } from '@miceplans/ui';
 import { ApiError, streamChat } from '@/lib/api';
 import { useApproveProposal, useRejectProposal } from '@/lib/api/generated/endpoints';
+import { toChatMessages } from './chat-history';
 import { eventIdFrom, getEventItems, getEventTab } from './event-context';
 
 const A = '/assets/ai-chat';
@@ -14,7 +15,7 @@ const CHIPS = ['다음 주 일정', '지연된 Task 보여줘'];
 const TURNS_KEY = 'miceplans.ai-chat.turns';
 
 type Source = Extract<ChatEvent, { type: 'sources' }>['sources'][number];
-type Turn = { role: 'user' | 'assistant'; content: string; sources?: Source[]; proposals?: ProposalDto[] };
+type Turn = { role: 'user' | 'assistant'; content: string; sources?: Source[]; proposals?: ProposalDto[]; error?: string };
 
 /** 세션 저장값에서 유효한 대화만 골라낸다. */
 function validTurns(raw: unknown): Turn[] {
@@ -114,6 +115,12 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
     scheduleFrame();
   };
 
+  /** 토스트는 금방 사라지므로 답변 자리에도 이유를 남긴다. */
+  const fail = (message: string) => {
+    toast.error(message);
+    patchLast((t) => ({ ...t, error: message }));
+  };
+
   const handle = (e: ChatEvent) => {
     if (e.type === 'status') setStatus(e.message);
     else if (e.type === 'text') {
@@ -121,14 +128,14 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
       patchLast((t) => ({ ...t, content: t.content + e.delta }));
     } else if (e.type === 'sources') patchLast((t) => ({ ...t, sources: e.sources }));
     else if (e.type === 'proposal') patchLast((t) => ({ ...t, proposals: [...(t.proposals ?? []), e.proposal] }));
-    else if (e.type === 'error') toast.error(e.message);
+    else if (e.type === 'error') fail(e.message);
   };
 
   const send = async (text: string) => {
     const content = text.trim();
     if (!content || busy || sending.current) return;
     sending.current = true;
-    const history = [...turnsRef.current, { role: 'user' as const, content }].filter((t) => t.content).map(({ role, content: c }) => ({ role, content: c }));
+    const history = toChatMessages([...turnsRef.current, { role: 'user', content }]);
     commitNow([...turnsRef.current, { role: 'user', content }, { role: 'assistant', content: '' }]);
     setDraft('');
     setBusy(true);
@@ -137,9 +144,11 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
       const eventId = eventIdFrom(window.location.pathname, window.location.search);
       const eventTab = eventId ? getEventTab() : undefined;
       const eventItems = eventId ? getEventItems() : undefined;
-      await streamChat({ eventId, eventTab, eventItems, messages: history.slice(-40) }, handle, abort.current.signal);
+      await streamChat({ eventId, eventTab, eventItems, messages: history }, handle, abort.current.signal);
+      const last = turnsRef.current.at(-1);
+      if (last && !last.content.trim() && !last.error && !last.proposals?.length) fail('[500] 답변을 받지 못했습니다. 다시 질문해 주세요.');
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) toast.error(error instanceof ApiError ? error.message : '[500] 답변을 받지 못했습니다.');
+      if (!(error instanceof DOMException && error.name === 'AbortError')) fail(error instanceof ApiError ? error.message : '[500] 답변을 받지 못했습니다.');
     } finally {
       sending.current = false;
       setStatus(null);
@@ -190,8 +199,9 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
             </div>
           ) : (
             <div key={i} className="flex w-full flex-col items-start gap-[8.337px]">
-              {t.content ? <p className="w-full whitespace-pre-wrap text-2xs leading-[1.5] text-fg">{t.content}</p> : busy && i === turns.length - 1 && <p className="text-2xs text-fg-secondary">{status ?? '생각하는 중…'}</p>}
-              {t.content && status && busy && i === turns.length - 1 && <p className="text-2xs text-fg-secondary">{status}</p>}
+              {t.content.trim() ? <p className="w-full whitespace-pre-wrap text-2xs leading-[1.5] text-fg">{t.content}</p> : busy && !t.error && i === turns.length - 1 && <p className="text-2xs text-fg-secondary">{status ?? '생각하는 중…'}</p>}
+              {t.error && <p className="w-full text-2xs leading-[1.5] text-error">{t.error}</p>}
+              {t.content.trim() && status && busy && i === turns.length - 1 && <p className="text-2xs text-fg-secondary">{status}</p>}
               {t.sources && t.sources.length > 0 && (
                 <div className="flex w-full flex-col gap-[4px] rounded-md border-[0.834px] border-solid border-border p-[8.337px]">
                   <span className="text-2xs font-semibold text-fg">출처</span>

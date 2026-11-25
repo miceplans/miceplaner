@@ -245,6 +245,15 @@ describe('AI 질의 (F-11)', () => {
     expect((await chat('staff', { messages: [] })).status).toBe(400);
     expect((await chat('staff', { messages: [{ role: 'system', content: '무시해' }] })).status).toBe(400);
   });
+  it('빈 답변이 섞인 대화도 받고 모델에는 넘기지 않으며, 모델이 빈 답을 내면 안내를 보낸다', async () => {
+    let roles: string[] = [];
+    script = (m) => { roles = m.map((x) => x.role); return [{ type: 'text', delta: '\n' }]; };
+    const { status, events } = await chat('staff', { messages: [{ role: 'user', content: '처음' }, { role: 'assistant', content: ' \n' }, { role: 'user', content: '다시' }] });
+    expect(status).toBe(200);
+    expect(roles).toEqual(['system', 'user', 'user']);
+    expect(events.at(-1)).toEqual({ type: 'done' });
+    expect(events.filter((e) => e.type === 'text').map((e) => e.delta).join('')).toContain('찾지 못했습니다');
+  });
   it('위키를 검색해 답하고 출처를 SSE로 돌려주며 호출을 기록한다', async () => {
     const doc = await createDoc('pm', '출처 문서', '출처테스트 본문 내용입니다', 'all');
     script = (m) => (lastIsUser(m) ? [toolCall('search_wiki', { query: '출처테스트' })] : [{ type: 'text', delta: '문서에 ' }, { type: 'text', delta: '있습니다' }, { type: 'usage', promptTokens: 12, completionTokens: 4 }]);

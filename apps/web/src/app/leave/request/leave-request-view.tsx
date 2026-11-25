@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { DatePicker, FlowTopbar, PageFrame, Select, Textarea, toast } from '@miceplans/ui';
+import { BackLink, DatePicker, FlowTopbar, PageFrame, Select, Textarea, toast } from '@miceplans/ui';
 import { LEAVE_KINDS, LEAVE_TODAY, LEAVE_ME, remainingOf, type LeaveEmployee, type LeaveKind } from '../data';
 import { useWorkCheck } from '../use-work-check';
 import { getToken } from '../../../lib/api';
@@ -93,7 +93,7 @@ export function LeaveRequestView() {
   const usedRate = usableDays > 0 ? Math.min(100, (usedDays / usableDays) * 100) : 0;
 
   return (
-    <PageFrame topbar={<FlowTopbar showToggle title="휴무계" />} mainClassName="bg-surface">
+    <PageFrame topbar={<FlowTopbar showToggle leading={<BackLink href="/leave" />} title="휴무계" />} mainClassName="bg-surface">
       <div className="flex min-h-px flex-1 flex-col items-center overflow-auto px-[24px] py-[48px]">
         <form onSubmit={submit} className="flex w-full max-w-[520px] flex-col gap-[28px]">
           <div className="flex flex-col gap-[6px]">

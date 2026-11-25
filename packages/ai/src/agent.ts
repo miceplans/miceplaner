@@ -23,6 +23,9 @@ export type AgentOptions = {
   signal?: AbortSignal;
 };
 
+/** 모델이 아무 글자 없이 끝냈을 때 대신 보내는 안내. 빈 답변은 사용자에게 멈춘 것처럼 보인다. */
+export const EMPTY_ANSWER_NOTICE = '질문에 답할 내용을 찾지 못했습니다. 행사명·문서명·기간처럼 찾을 대상을 더 구체적으로 알려 주세요.';
+
 const MAX_RESULT_CHARS = 24_000;
 
 export const toolSpecs: ToolSpec[] = Object.entries(AGENT_TOOLS).map(([name, t]) => ({
@@ -51,6 +54,10 @@ export async function runAgent({ llm, messages, handlers, onText, onTool, onRetr
         promptTokens += chunk.promptTokens;
         completionTokens += chunk.completionTokens;
       }
+    }
+    if (calls.length === 0 && !stepText.trim()) {
+      onText?.(EMPTY_ANSWER_NOTICE);
+      stepText = EMPTY_ANSWER_NOTICE;
     }
     text += stepText;
     history.push({ role: 'assistant', content: stepText || null, ...(calls.length ? { toolCalls: calls } : {}) });

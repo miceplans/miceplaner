@@ -5,6 +5,8 @@ import { expectedVersion, isoDate, isoDateTime, uuid } from './common';
 export const itemKind = z.enum(ITEM_KINDS);
 export const itemStatus = z.enum(ITEM_STATUSES);
 export const productPart = z.enum(PRODUCT_PARTS);
+/** 자정 기준 분. 스케줄의 시작·종료 시각에 쓴다. */
+export const dayMinute = z.number().int().min(0).max(1440);
 
 /** Program·Task·Subtask 공통 응답. Client에는 이 DTO를 쓰지 않고 portal 계약을 쓴다. */
 export const eventItemDto = z.object({
@@ -18,6 +20,8 @@ export const eventItemDto = z.object({
   status: itemStatus,
   startsOn: isoDate.nullable(),
   dueOn: isoDate.nullable(),
+  startMinute: dayMinute.nullable(),
+  endMinute: dayMinute.nullable(),
   assigneeId: uuid.nullable(),
   clientVisible: z.boolean(),
   version: z.number().int().positive(),
@@ -30,10 +34,13 @@ export type EventItemDto = z.infer<typeof eventItemDto>;
 
 const period = (v: { startsOn?: string | null; dueOn?: string | null }) => !v.startsOn || !v.dueOn || v.dueOn >= v.startsOn;
 const periodIssue = { message: '마감일은 시작일 이후여야 한다', path: ['dueOn'] };
+const minutes = (v: { startMinute?: number | null; endMinute?: number | null }) => v.startMinute == null || v.endMinute == null || v.endMinute > v.startMinute;
+const minutesIssue = { message: '종료 시각은 시작 시각 이후여야 한다', path: ['endMinute'] };
 
-/** parentId는 Program이면 없어야 하고 Task·Subtask면 있어야 한다. 상위 종류 검증은 서버·DB가 한다. */
+/** parentId는 Program이면 없어야 하고 Task·Subtask면 있어야 한다. 상위 종류 검증은 서버·DB가 한다. id는 웹이 미리 정한 uuid를 쓸 때만 보낸다. */
 export const createItemBody = z
   .object({
+    id: uuid.optional(),
     kind: itemKind,
     parentId: uuid.nullable().default(null),
     title: z.string().trim().min(1).max(200),
@@ -42,13 +49,16 @@ export const createItemBody = z
     status: itemStatus.default('할 일'),
     startsOn: isoDate.nullable().default(null),
     dueOn: isoDate.nullable().default(null),
+    startMinute: dayMinute.nullable().default(null),
+    endMinute: dayMinute.nullable().default(null),
     assigneeId: uuid.nullable().default(null),
   })
   .refine((v) => (v.kind === 'program') === (v.parentId === null), { message: 'Program만 상위 항목이 없다', path: ['parentId'] })
-  .refine(period, periodIssue);
+  .refine(period, periodIssue)
+  .refine(minutes, minutesIssue);
 export type CreateItemBody = z.infer<typeof createItemBody>;
 
-/** 제목·설명·상태·파트는 마지막 저장 우선. 담당자·마감일·공개 상태는 별도 엔드포인트에서 version을 검사한다. */
+/** 제목·설명·상태·파트·시작/종료 시각은 마지막 저장 우선. 담당자·마감일·공개 상태는 별도 엔드포인트에서 version을 검사한다. */
 export const updateItemBody = z
   .object({
     title: z.string().trim().min(1).max(200),
@@ -56,8 +66,11 @@ export const updateItemBody = z
     part: productPart.nullable(),
     status: itemStatus,
     startsOn: isoDate.nullable(),
+    startMinute: dayMinute.nullable(),
+    endMinute: dayMinute.nullable(),
   })
-  .partial();
+  .partial()
+  .refine(minutes, minutesIssue);
 export type UpdateItemBody = z.infer<typeof updateItemBody>;
 
 export const assignItemBody = z.object({ assigneeId: uuid.nullable(), expectedVersion });

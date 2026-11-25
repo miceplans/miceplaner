@@ -3,7 +3,8 @@
 import { useContext, useState } from 'react';
 import { ConfirmDialog, Input, Select } from '@miceplans/ui';
 
-import { AssigneeBadge, EditableTitle, ItemAccessContext, addRoot, assignItem, canEditItem, canToggleItem, removeItem, renameItem, toggleItem, type CheckItem } from './event-checklist';
+import { AssigneeBadge, EditableTitle, ItemAccessContext } from './event-checklist';
+import { addRoot, assignItem, canEditItem, canToggleItem, removeItem, renameItem, toggleItem, type CheckItem } from './event-checklist-model';
 import { matchPart, type PartFilter } from './event-parts';
 import { DEFAULT_FILTER, applyFilter, isFilterActive, type ItemFilter } from './event-filter';
 

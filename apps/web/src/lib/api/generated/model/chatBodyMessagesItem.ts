@@ -9,9 +9,6 @@ import type { ChatBodyMessagesItemRole } from './chatBodyMessagesItemRole';
 
 export type ChatBodyMessagesItem = {
   role: ChatBodyMessagesItemRole;
-  /**
-     * @minLength 1
-     * @maxLength 8000
-     */
+  /** @maxLength 8000 */
   content: string;
 };

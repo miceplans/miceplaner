@@ -3,7 +3,13 @@ import { PROPOSAL_KINDS, PROPOSAL_STATUSES } from '@miceplans/domain';
 import { isoDateTime, uuid } from './common';
 import { searchHitDto } from './knowledge';
 
-export const chatMessage = z.object({ role: z.enum(['user', 'assistant']), content: z.string().trim().min(1).max(8_000) });
+/**
+ * 질문은 비울 수 없다. 답변은 비어 있어도 받고 서버가 버린다. 답을 못 받은 턴이 대화에 남아 있다는 이유로
+ * 이어지는 질문까지 모두 거절하지 않기 위해서다.
+ */
+export const chatMessage = z
+  .object({ role: z.enum(['user', 'assistant']), content: z.string().trim().max(8_000, '[400] 메시지는 8,000자를 넘을 수 없습니다.') })
+  .refine((m) => m.role === 'assistant' || m.content.length > 0, { message: '[400] 질문을 입력해 주세요.', path: ['content'] });
 
 /**
  * 행사 상세 화면에 보이는 스케줄·할 일 한 줄. 이 목록은 브라우저(local-first)에만 저장돼 서버 도구로 조회할 수 없어

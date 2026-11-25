@@ -2,8 +2,21 @@
 
 import type { ReactNode } from 'react';
 import { useSidebarToggle } from './sidebar';
+import { TopbarSearch } from './topbar-search';
 
 const A = '/assets/flow';
+
+/** 상단바 좌측의 뒤로가기. 바로 열린 화면에서도 갈 곳이 있도록 방문 기록 대신 상위 화면 주소로 간다. */
+export function BackLink({ href, label = '뒤로가기' }: { href: string; label?: string }): ReactNode {
+  return (
+    <a href={href} className="flex h-[28px] shrink-0 items-center gap-[4px] rounded-sm px-[8px] text-base text-fg-secondary no-underline hover:bg-surface-chip hover:text-fg">
+      <svg viewBox="0 0 16 16" fill="none" className="size-[14px]" aria-hidden="true">
+        <path d="M10 3 5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <span className="whitespace-nowrap">{label}</span>
+    </a>
+  );
+}
 
 /** 상단바. 좌측(leading/breadcrumb)만 페이지마다 다르다. */
 export function FlowTopbar({
@@ -42,14 +55,7 @@ export function FlowTopbar({
         ) : null}
       </div>
       <div className="h-px min-w-px flex-1" />
-      <div className="flex h-[32px] w-[280px] shrink-0 items-center gap-[8px] rounded-sm bg-surface-chip px-[10px] max-md:order-3 max-md:w-full">
-        <img alt="" src={`${A}/search-icon.svg`} className="size-[15px]" />
-        <p className="whitespace-nowrap text-base text-fg-tertiary">검색</p>
-        <div className="h-px min-w-px flex-1" />
-        {showKbd ? (
-          <div className="flex h-[20px] items-center justify-center rounded-xs bg-surface px-[5px] text-2xs text-fg-secondary">⌘K</div>
-        ) : null}
-      </div>
+      <TopbarSearch showKbd={showKbd} className="max-md:order-3 max-md:w-full" />
       <a href="/events/new" className="flex h-[30px] shrink-0 items-center gap-[6px] rounded-sm bg-brand px-[12px]">
         <img alt="" src={`${A}/plus-icon.svg`} className="size-[14px]" />
         <span className="whitespace-nowrap text-base font-semibold text-fg-inverse">행사 추가</span>

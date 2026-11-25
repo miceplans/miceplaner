@@ -1,6 +1,6 @@
 import type { EventItemDto } from '@miceplans/contracts';
-import type { CheckItem } from './event-checklist';
-import type { RequestRow } from './event-products';
+import type { CheckItem } from './event-checklist-model';
+import type { RequestRow } from './event-products-model';
 
 export type BoardColumnKey = '진행' | '검토 대기' | '완료' | '보류';
 

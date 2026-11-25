@@ -23,7 +23,7 @@ const SidebarUserContext = createContext<SidebarUser | null>(null);
 export const SidebarUserProvider = SidebarUserContext.Provider;
 
 /** 사이드바 '최근' 목록의 항목. 앱이 최근 행사 등으로 Provider로 주입한다. */
-export type SidebarRecentItem = { name: string; dot: string; start?: Date; href?: string };
+export type SidebarRecentItem = { name: string; dot: string; start?: Date; end?: Date; href?: string };
 const SidebarRecentContext = createContext<SidebarRecentItem[]>([]);
 export const SidebarRecentProvider = SidebarRecentContext.Provider;
 
@@ -57,10 +57,12 @@ const NAV: { key: SidebarKey; label: string; icon: string; size: number; href: s
 // 오늘 기준 D-day 계산에 사용한다.
 const TODAY = new Date(new Date().setHours(0, 0, 0, 0));
 
-function dDayOf(start: Date): string {
+/** 시작 전 D-n, 시작일 D-Day, 종료일까지 진행, 그 뒤 종료 (packages/domain dDayLabel과 같은 규칙). */
+function dDayOf(start: Date, end: Date = start): string {
   const diff = Math.round((start.getTime() - TODAY.getTime()) / 86400000);
   if (diff === 0) return 'D-Day';
-  return diff > 0 ? `D-${diff}` : '종료';
+  if (diff > 0) return `D-${diff}`;
+  return end.getTime() >= TODAY.getTime() ? '진행' : '종료';
 }
 
 function isSidebarKey(value: unknown): value is SidebarKey {
@@ -273,7 +275,7 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
               <>
                 <img alt="" src={`${A}/${r.dot}.svg`} className="size-[8px]" />
                 <span className="truncate whitespace-nowrap text-base font-medium text-fg-secondary">{r.name}</span>
-                {r.start && <span className="rounded-sm bg-brand-tint px-[5px] py-px text-2xs font-semibold text-brand">{dDayOf(r.start)}</span>}
+                {r.start && <span className="rounded-sm bg-brand-tint px-[5px] py-px text-2xs font-semibold text-brand">{dDayOf(r.start, r.end)}</span>}
               </>
             );
             return r.href ? (
