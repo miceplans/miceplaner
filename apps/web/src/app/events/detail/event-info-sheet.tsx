@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { getLocalStore } from '../../../lib/local-store';
+import { useRef, useState } from 'react';
+import { createPersistedStore, scopedStores, usePersisted } from '@miceplans/ui/persisted-store';
 
 type Grid = string[][];
 
@@ -52,36 +52,28 @@ async function readFile(file: File): Promise<Grid> {
   return rows.map((r) => r.map((v) => (v == null ? '' : v instanceof Date ? v.toISOString().slice(0, 10) : String(v))));
 }
 
-function validGrid(raw: unknown): Grid | undefined {
-  if (!Array.isArray(raw)) return undefined;
-  return raw.map((row) => (Array.isArray(row) ? row.map((cell) => String(cell ?? '')) : []));
+function decodeGrid(raw: unknown): Grid {
+  if (!Array.isArray(raw)) return normalize([]);
+  return normalize(raw.map((row) => (Array.isArray(row) ? row.map((cell) => String(cell ?? '')) : [])));
 }
+
+/** 행사마다 표 하나. 행사 id가 없으면 디스크를 건드리지 않고 화면에만 둔다. */
+const gridStoreOf = scopedStores((eventId) =>
+  createPersistedStore<Grid>({
+    key: lsKey(eventId),
+    fallback: normalize([]),
+    decode: (raw) => decodeGrid(eventId ? raw : undefined),
+    encode: (grid) => (eventId ? grid : undefined),
+    delay: 400,
+  }),
+);
 
 /** 엑셀로 올린 행사 정보를 엑셀 모양 표에서 바로 고친다. 편집은 잠시 멈추면 저장된다. */
 export function EventInfoSheet({ eventId, canEdit = true }: { eventId: string; canEdit?: boolean }) {
-  const store = getLocalStore<Grid>({ key: lsKey(eventId), fallback: normalize([]), validate: validGrid });
-  const [grid, setGrid] = useState<Grid>(() => normalize([]));
-  const [ready, setReady] = useState(false);
+  const [grid, setGrid] = usePersisted(gridStoreOf(eventId));
   const [error, setError] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const refs = useRef(new Map<string, HTMLInputElement>());
-
-  // 저장값은 hydration 이후에 적용해 서버 렌더 결과와 맞춘다. 행사 id가 없으면 저장 자체를 건드리지 않는다.
-  useEffect(() => {
-    if (!eventId) {
-      setGrid(normalize([]));
-      setReady(false);
-      return;
-    }
-    setGrid(normalize(store.get()));
-    setReady(true);
-  }, [store, eventId]);
-
-  // 키 입력마다 디스크를 직접 쓰지 않고 저장소에 맡겨 지연 저장·pagehide 비우기를 쓴다.
-  useEffect(() => {
-    if (!ready || !eventId) return;
-    store.set(grid);
-  }, [grid, ready, store, eventId]);
 
   const set = (r: number, c: number, v: string) =>
     setGrid((g) => g.map((row, ri) => (ri === r ? row.map((x, ci) => (ci === c ? v : x)) : row)));
