@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type DragEvent, type ReactNode } from 'react';
+import { createContext, useContext, useState, type DragEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Dialog } from './dialog';
+import { createPersistedStore, usePersisted } from './persisted-store';
 
 export type SidebarKey =
   | 'events'
@@ -69,28 +70,24 @@ function isSidebarKey(value: unknown): value is SidebarKey {
   return typeof value === 'string' && NAV.some((n) => n.key === value);
 }
 
-function readNavOrder(): SidebarKey[] {
+/** 저장값을 읽는다. null이면 기본 구성이다. */
+function decodeNavOrder(raw: unknown): SidebarKey[] | null {
+  // 중복·삭제된 키를 제거하고, 새 기본 메뉴는 구성 화면에서 추가할 수 있게 둔다.
+  if (Array.isArray(raw)) return raw.filter(isSidebarKey).filter((key, index, all) => all.indexOf(key) === index);
+  if (raw !== undefined) return null;
   try {
-    const savedOrder = window.localStorage.getItem(NAV_ORDER_KEY);
-    if (savedOrder) {
-      const parsed: unknown = JSON.parse(savedOrder);
-      if (!Array.isArray(parsed)) return NAV.map((n) => n.key);
-
-      // 중복·삭제된 키를 제거하고, 새 기본 메뉴는 구성 화면에서 추가할 수 있게 둔다.
-      return parsed.filter(isSidebarKey).filter((key, index, all) => all.indexOf(key) === index);
-    }
-
     // 기존 "표시 설정" 사용자는 현재 표시 중인 순서를 그대로 이어받는다.
-    const raw = window.localStorage.getItem(HIDDEN_NAV_KEY);
-    if (!raw) return NAV.map((n) => n.key);
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return NAV.map((n) => n.key);
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(HIDDEN_NAV_KEY) ?? 'null');
+    if (!Array.isArray(parsed)) return null;
     const hidden = parsed.filter(isSidebarKey);
     return NAV.filter((n) => !hidden.includes(n.key)).map((n) => n.key);
   } catch {
-    return NAV.map((n) => n.key);
+    return null;
   }
 }
+
+const DEFAULT_NAV_ORDER = NAV.map((n) => n.key);
+const navOrderStore = createPersistedStore<SidebarKey[] | null>({ key: NAV_ORDER_KEY, fallback: null, decode: decodeNavOrder, encode: (order) => order ?? undefined });
 
 /* ---------- 사이드바 구성 요소(내부 앱·Client 포털 공용) ---------- */
 
@@ -159,30 +156,18 @@ export function SidebarNavLink({
 }
 
 export function Sidebar({ active, className = '' }: { active: SidebarKey; className?: string }): ReactNode {
-  const [navOrder, setNavOrder] = useState<SidebarKey[]>(NAV.map((n) => n.key));
+  const [savedOrder, saveNavOrder] = usePersisted(navOrderStore);
+  const navOrder = savedOrder ?? DEFAULT_NAV_ORDER;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [draggedKey, setDraggedKey] = useState<SidebarKey | null>(null);
   const [dropTargetKey, setDropTargetKey] = useState<SidebarKey | null>(null);
-
-  useEffect(() => {
-    setNavOrder(readNavOrder());
-  }, []);
 
   const user = useContext(SidebarUserContext);
   const recent = useContext(SidebarRecentContext);
   const allowedNav = NAV.filter((n) => !n.adminOnly || user?.role === 'super_admin');
   const visibleNav = navOrder.map((key) => allowedNav.find((n) => n.key === key)).filter((n): n is (typeof NAV)[number] => Boolean(n));
   const availableNav = allowedNav.filter((n) => !navOrder.includes(n.key));
-
-  const saveNavOrder = (next: SidebarKey[]) => {
-    setNavOrder(next);
-    try {
-      window.localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(next));
-    } catch {
-      // localStorage를 쓸 수 없는 환경에서는 세션 동안만 반영한다.
-    }
-  };
 
   const moveNav = (key: SidebarKey, direction: -1 | 1) => {
     const from = navOrder.indexOf(key);
@@ -236,10 +221,8 @@ export function Sidebar({ active, className = '' }: { active: SidebarKey; classN
   };
 
   const resetNav = () => {
-    const defaults = NAV.map((n) => n.key);
-    setNavOrder(defaults);
+    saveNavOrder(null);
     try {
-      window.localStorage.removeItem(NAV_ORDER_KEY);
       window.localStorage.removeItem(HIDDEN_NAV_KEY);
     } catch {
       // localStorage를 쓸 수 없는 환경에서는 세션 동안만 반영한다.

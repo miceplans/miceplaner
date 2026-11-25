@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Checkbox, ConfirmDialog, Dialog, Input } from '@miceplans/ui';
-import { getLocalStore, useLocalStore, type LocalStore } from '../../../lib/local-store';
+import { createPersistedStore, scopedStores, usePersisted } from '@miceplans/ui/persisted-store';
 
 /** 표에 사용자가 추가하는 속성(컬럼). 노션처럼 이름과 유형을 정하고 이름 변경·삭제를 할 수 있다. */
 export type PropType = 'text' | 'number' | 'date' | 'checkbox';
@@ -25,22 +25,15 @@ type Store = { props: CustomProp[]; values: Record<string, Record<string, string
 const EMPTY: Store = { props: [], values: {} };
 const keyOf = (scope: string) => `miceplans.table-props.${scope}`;
 
-function validStore(raw: unknown): Store | undefined {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+function decodeStore(raw: unknown): Store {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return EMPTY;
   const store = raw as Store;
-  if (!Array.isArray(store.props)) return undefined;
+  if (!Array.isArray(store.props)) return EMPTY;
   return store;
 }
 
 /** scope마다 저장소 하나를 돌려준다. 같은 scope를 쓰는 표 인스턴스가 메모리 캐시를 공유한다. */
-const storeByScope = new Map<string, LocalStore<Store>>();
-function storeOf(scope: string): LocalStore<Store> {
-  const cached = storeByScope.get(scope);
-  if (cached) return cached;
-  const store = getLocalStore<Store>({ key: keyOf(scope), fallback: EMPTY, validate: validStore });
-  storeByScope.set(scope, store);
-  return store;
-}
+const storeOf = scopedStores((scope) => createPersistedStore<Store>({ key: keyOf(scope), fallback: EMPTY, decode: decodeStore, delay: 400 }));
 
 /**
  * 표별 사용자 정의 속성과 셀 값을 다루는 훅. scope는 행사·표 단위 식별자다.
@@ -48,23 +41,22 @@ function storeOf(scope: string): LocalStore<Store> {
  * TODO: API와 RLS가 정해지면 서버 저장으로 바꾸고, 속성 변경은 권한·감사 로그 대상으로 다룬다.
  */
 export function useCustomProps(scope: string) {
-  const store = storeOf(scope);
-  const state = useLocalStore(store);
+  const [state, update] = usePersisted(storeOf(scope));
 
   return {
     props: state.props,
     getValue: (rowId: string, propId: string) => state.values[rowId]?.[propId] ?? '',
     addProp: (name: string, type: PropType) =>
-      store.update((s) => ({ ...s, props: [...s.props, { id: `p${Date.now()}`, name: name.trim(), type }] })),
+      update((s) => ({ ...s, props: [...s.props, { id: `p${Date.now()}`, name: name.trim(), type }] })),
     renameProp: (id: string, name: string) =>
-      store.update((s) => ({ ...s, props: s.props.map((p) => (p.id === id ? { ...p, name: name.trim() } : p)) })),
+      update((s) => ({ ...s, props: s.props.map((p) => (p.id === id ? { ...p, name: name.trim() } : p)) })),
     removeProp: (id: string) =>
-      store.update((s) => ({
+      update((s) => ({
         props: s.props.filter((p) => p.id !== id),
         values: Object.fromEntries(Object.entries(s.values).map(([row, v]) => [row, Object.fromEntries(Object.entries(v).filter(([k]) => k !== id))])),
       })),
     setValue: (rowId: string, propId: string, value: string) =>
-      store.update((s) => ({ ...s, values: { ...s.values, [rowId]: { ...s.values[rowId], [propId]: value } } })),
+      update((s) => ({ ...s, values: { ...s.values, [rowId]: { ...s.values[rowId], [propId]: value } } })),
   };
 }
 

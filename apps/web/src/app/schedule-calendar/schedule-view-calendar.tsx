@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { MonthCalendar, usePersonalTodos, type CalendarEvent, type PersonalTodo } from '@miceplans/ui';
+import { createPersistedStore, usePersisted } from '@miceplans/ui/persisted-store';
 import { getToken } from '../../lib/api';
 import { eventItemsList, getEventItemsListQueryKey, useEventsList, useGetMe } from '../../lib/api/generated/endpoints';
 import { PersonalTodoDialog } from './personal-todo-dialog';
@@ -11,34 +12,27 @@ import { useScheduleNoteStore } from './schedule-note-store';
 const LS_TODOS = 'miceplans:schedule-calendar:todo';
 const LS_CURSOR = 'miceplans.schedule-calendar.cursor';
 
-/** 저장된 내 할 일 표시 여부를 읽는다. 저장값이 없거나 깨지면 표시한다. */
-function loadTodoPref(): boolean {
-  try {
-    const raw = window.localStorage.getItem(LS_TODOS);
-    if (raw) return JSON.parse(raw) !== false;
-  } catch {
-    // 깨진 저장값은 무시하고 기본값(표시)을 쓴다
-  }
-  return true;
-}
+type Cursor = { year: number; month: number };
 
-/** 저장된 커서 월을 읽는다. 유효하지 않으면 이번 달을 쓴다. */
-function loadCursor(): { year: number; month: number } {
-  try {
-    const raw = window.localStorage.getItem(LS_CURSOR);
-    const parsed: unknown = raw ? JSON.parse(raw) : null;
-    if (parsed && typeof parsed === 'object') {
-      const { year, month } = parsed as { year?: unknown; month?: unknown };
-      if (typeof year === 'number' && Number.isInteger(year) && typeof month === 'number' && month >= 1 && month <= 12) {
-        return { year, month };
-      }
-    }
-  } catch {
-    // 깨진 저장값은 무시한다
-  }
+function thisMonth(): Cursor {
   const now = new Date();
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
+
+/** 저장된 커서 월을 읽는다. 유효하지 않으면 이번 달을 쓴다. */
+function decodeCursor(raw: unknown): Cursor {
+  if (raw && typeof raw === 'object') {
+    const { year, month } = raw as { year?: unknown; month?: unknown };
+    if (typeof year === 'number' && Number.isInteger(year) && typeof month === 'number' && month >= 1 && month <= 12) {
+      return { year, month };
+    }
+  }
+  return thisMonth();
+}
+
+/** 내 할 일 표시 여부. 저장값이 없거나 깨지면 표시한다. */
+const todosOnStore = createPersistedStore<boolean>({ key: LS_TODOS, fallback: true, decode: (raw) => raw !== false });
+const cursorStore = createPersistedStore<Cursor>({ key: LS_CURSOR, fallback: thisMonth(), decode: decodeCursor });
 
 /**
  * 월간 일정 캘린더. 현재 월을 생성해 보여주며 이전/다음 달 이동은 MonthCalendar가 처리한다.
@@ -54,39 +48,15 @@ export function ScheduleViewCalendar({
   gridGap?: number;
   padX?: number;
 }) {
-  const [todosOn, setTodosOn] = useState(true);
+  const [todosOn, setTodosOn] = usePersisted(todosOnStore);
   const me = useGetMe({ query: { enabled: getToken() !== null, staleTime: Infinity } });
   const peekMembers = me.data?.name ? [me.data.name] : [];
   const peekStore = useScheduleNoteStore();
 
-  /* 새로고침 후에도 표시 설정을 유지한다 (hydration 직후 저장값 적용) */
-  useEffect(() => {
-    setTodosOn(loadTodoPref());
-  }, []);
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(LS_TODOS, JSON.stringify(todosOn));
-    } catch {
-      // 저장 실패는 무시한다
-    }
-  }, [todosOn]);
-
   // 이전/다음 달로 옮긴 커서 월을 저장해 새로고침 후에도 그 월을 보여준다.
-  // 첫 렌더는 서버 결과와 맞추고, hydration 뒤 저장값을 적용한다.
-  const [cursor, setCursor] = useState(() => {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() + 1 };
-  });
-  useEffect(() => {
-    setCursor(loadCursor());
-  }, []);
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(LS_CURSOR, JSON.stringify(cursor));
-    } catch {
-      // 저장 실패는 무시한다
-    }
-  }, [cursor]);
+  // MonthCalendar는 처음 받은 월만 쓰므로, 저장값을 읽은 뒤 key를 바꿔 다시 시작한다.
+  const [cursor, setCursor, cursorReady] = usePersisted(cursorStore);
+  const calendarKey = cursorReady ? 'saved' : 'initial';
 
   const personalTodos = usePersonalTodos();
   const myTasks = useMyTaskTodos(me.data?.id ?? null);
@@ -122,7 +92,7 @@ export function ScheduleViewCalendar({
     return (
       <>
         {dialog}
-        <MonthCalendar gridGap={gridGap} padX={padX} personal todos={todos} initialMonth={cursor} onMonthChange={setCursor} peekMembers={peekMembers} peekStore={peekStore} headerAddon={manageButton} />
+        <MonthCalendar key={calendarKey} gridGap={gridGap} padX={padX} personal todos={todos} initialMonth={cursor} onMonthChange={setCursor} peekMembers={peekMembers} peekStore={peekStore} headerAddon={manageButton} />
       </>
     );
   }
@@ -135,6 +105,7 @@ export function ScheduleViewCalendar({
         padX={padX}
         todos={todos}
         events={calendarEvents}
+        key={calendarKey}
         initialMonth={cursor}
         onMonthChange={setCursor}
         peekMembers={peekMembers}

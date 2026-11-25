@@ -1,8 +1,8 @@
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          'use client';
 
-import { useEffect, useMemo, useState, type DragEvent } from 'react';
+import { useMemo, useState, type DragEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Input, Select, StatusPill, toast, type StatusKey } from '@miceplans/ui';
+import { Input, Select, StatusPill, createPersistedStore, toast, usePersisted, type StatusKey } from '@miceplans/ui';
 import {
   getClientAccountsListQueryKey, getDirectoryClientsQueryKey, useClientAccountsLink, useClientAccountsList, useDirectoryClients,
   useDirectoryCreateClient, useEventsList, useGetMe,
@@ -63,27 +63,16 @@ function reorder<T>(list: T[], from: number, to: number): T[] {
 
 const ORDER_KEY = 'miceplans.client-list.order';
 
-function loadOrder(): string[] {
-  try {
-    const raw = window.localStorage.getItem(ORDER_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
+const orderStore = createPersistedStore<string[]>({
+  key: ORDER_KEY,
+  fallback: [],
+  decode: (raw) => (Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string') : []),
+});
 
 function applyOrder(list: Client[], ids: string[]): Client[] {
   const byId = new Map(list.map((c) => [c.id, c]));
   const ordered = ids.map((id) => byId.get(id)).filter((c): c is Client => Boolean(c));
   return [...ordered, ...list.filter((c) => !ids.includes(c.id))];
-}
-
-function saveOrder(list: Client[]) {
-  try {
-    window.localStorage.setItem(ORDER_KEY, JSON.stringify(list.map((c) => c.id)));
-  } catch {
-    // localStorage를 쓸 수 없는 환경에서는 저장을 생략한다.
-  }
 }
 
 const accountLabel = (a: ClientAccountDto) => `${a.name} (${a.email})${a.companyName ? ` · 신청 회사: ${a.companyName}` : ''}`;
@@ -110,9 +99,7 @@ export function ClientListView() {
     () => toRows(clientsQuery.data ?? [], eventsQuery.data ?? []),
     [clientsQuery.data, eventsQuery.data],
   );
-  const [order, setOrder] = useState<string[]>([]);
-  // 저장된 순서는 hydration 이후에 적용해 서버 렌더 결과와 맞춘다.
-  useEffect(() => { setOrder(loadOrder()); }, []);
+  const [order, setOrder] = usePersisted(orderStore);
   const clients = useMemo(() => applyOrder(base, order), [base, order]);
   const loading = clientsQuery.isPending;
   const loadFailed = clientsQuery.isError || eventsQuery.isError;
@@ -158,7 +145,6 @@ export function ClientListView() {
   const dropClient = (toId: string) => {
     if (!drag) return;
     const next = reorder(clients, clients.findIndex((client) => client.id === drag.from), clients.findIndex((client) => client.id === toId));
-    saveOrder(next);
     setOrder(next.map((c) => c.id));
     setDrag(null);
   };

@@ -21,6 +21,7 @@ MICEPLANNER는 행사 운영 데이터와 사내 지식을 다루며, 내부 직
 | UI | Tailwind CSS, Radix, TanStack Query, Zustand, React Hook Form, Zod | 웹과 포털의 공용 UI |
 | 업무 API | NestJS | REST와 OpenAPI |
 | 웹 API 클라이언트 | orval + TanStack Query | `apps/api`가 내보낸 `openapi.json`(`pnpm api:spec`)에서 fetch 클라이언트와 Query 훅을 생성한다. 토큰·401·오류 메시지는 `apps/web/src/lib/api/http.ts` 한곳에서 처리하고, SSE(`/ai/chat`)는 스트림이라 직접 구현한다. 생성 결과(`apps/web/src/lib/api/generated`)와 `openapi.json`은 커밋한다. |
+| 웹 클라이언트 상태 | Zustand | 서버 데이터는 TanStack Query에만 두고 Zustand에 복사하지 않는다. 화면 사이에 공유하거나 브라우저에 보존하는 상태는 `packages/ui/src/persisted-store.ts`(`persist` 기반)로 만든 스토어에 두고, 한 컴포넌트 안의 상태는 `useState`를 쓴다. 저장 키와 값 형식은 기존 사용자 데이터와 호환되게 유지한다. 세션 토큰, 서버 이전용 일회성 마이그레이션, 위키 협업 문서(Hocuspocus로 교체 예정)는 대상이 아니다. |
 | 일반 실시간 | Socket.IO (`apps/realtime`, AWS EC2 상시 서비스) | 행사·태스크·일정·알림 갱신. 서버리스 API가 아니라 별도 단일 프로세스가 연결·방 상태를 가진다. API는 내부 HTTP(`POST /internal/emit`, 공유 비밀)로 푸시만 보낸다. |
 | AI 스트리밍 | SSE | 토큰 단위 응답 |
 | 협업 편집 | TipTap, Yjs, Hocuspocus | 본문 동시 편집·커서·접속자 |

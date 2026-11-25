@@ -1,31 +1,22 @@
 'use client';
 
-import { useSyncExternalStore, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { create } from 'zustand';
 
 type ToastItem = { id: number; message: string; tone: 'error' | 'info' };
 
 const DURATION_MS = 5000;
-let items: ToastItem[] = [];
 let seq = 0;
-const listeners = new Set<() => void>();
 
-const emit = () => listeners.forEach((l) => l());
-const subscribe = (l: () => void) => {
-  listeners.add(l);
-  return () => listeners.delete(l);
-};
+const useToasts = create<{ items: ToastItem[] }>()(() => ({ items: [] }));
 
-const dismiss = (id: number) => {
-  items = items.filter((t) => t.id !== id);
-  emit();
-};
+const dismiss = (id: number) => useToasts.setState((s) => ({ items: s.items.filter((t) => t.id !== id) }));
 
 const push = (tone: ToastItem['tone'], message: string) => {
   // 같은 메시지가 이미 떠 있으면 중복해서 쌓지 않는다.
-  if (items.some((t) => t.message === message && t.tone === tone)) return;
+  if (useToasts.getState().items.some((t) => t.message === message && t.tone === tone)) return;
   const id = ++seq;
-  items = [...items, { id, message, tone }].slice(-4);
-  emit();
+  useToasts.setState((s) => ({ items: [...s.items, { id, message, tone }].slice(-4) }));
   setTimeout(() => dismiss(id), DURATION_MS);
 };
 
@@ -35,11 +26,9 @@ export const toast = {
   info: (message: string) => push('info', message),
 };
 
-const EMPTY: ToastItem[] = [];
-
 /** 앱 루트에 한 번 마운트한다. */
 export function ToastViewport(): ReactNode {
-  const list = useSyncExternalStore(subscribe, () => items, () => EMPTY);
+  const list = useToasts((s) => s.items);
   if (list.length === 0) return null;
   return (
     <div className="pointer-events-none fixed bottom-[24px] left-1/2 z-[100] flex w-[min(420px,calc(100vw-32px))] -translate-x-1/2 flex-col gap-[8px]">
