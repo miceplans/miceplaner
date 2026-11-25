@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { ToastViewport } from '@miceplans/ui';
 import { AgentChat } from './agent-chat';
 import { AuthGuard } from './auth-guard';
+import { GlobalSearch } from './global-search';
 import { Providers } from './providers';
 import './globals.css';
 
@@ -15,7 +16,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="ko">
       <body>
         <Providers>
-          <AuthGuard>{children}</AuthGuard>
+          <GlobalSearch>
+            <AuthGuard>{children}</AuthGuard>
+          </GlobalSearch>
           <AgentChat />
         </Providers>
         <ToastViewport />

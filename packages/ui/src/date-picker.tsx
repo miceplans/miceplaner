@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { buildMonthWeeks, shiftMonth } from './schedule';
+import { buildMonthWeeks, shiftMonth } from './month-calendar';
 import type { FieldSize } from './field';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];

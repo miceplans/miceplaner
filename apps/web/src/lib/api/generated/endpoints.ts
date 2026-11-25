@@ -42,12 +42,14 @@ import type {
   CreateItemBody,
   CreateNoticeBody,
   DocPageDto,
+  EventCalendarBlockDto,
   EventDocDto,
   EventDto,
   EventItemDto,
   EventItemsListParams,
   EventListItemDto,
   EventMemberDto,
+  EventProductDto,
   EventsListParams,
   FileDto,
   ImportExcelUploadBody,
@@ -76,6 +78,8 @@ import type {
   RequestLeaveBody,
   RescheduleItemBody,
   SaveDocBodyBody,
+  SaveEventCalendarBlockBody,
+  SaveEventProductBody,
   SaveScheduleNoteBody,
   ScheduleNoteDto,
   ScheduleNotesGetParams,
@@ -7337,4 +7341,532 @@ export const useScheduleNotesSave = <TError = unknown,
         TContext
       > => {
       return useMutation(getScheduleNotesSaveMutationOptions(options), queryClient);
+    }
+
+export const getEventListsListProductsUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/products`
+}
+
+/**
+ * @summary 행사 제작물(디자인 요청) 목록 (내부 직원)
+ */
+export const eventListsListProducts = async (eventId: string, options?: Parameters<typeof http>[1]): Promise<EventProductDto[]> => {
+
+  return http<EventProductDto[]>(getEventListsListProductsUrl(eventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getEventListsListProductsQueryKey = (eventId: string,) => {
+    return [
+    `/events/${eventId}/products`
+    ] as const;
+    }
+
+
+export const getEventListsListProductsQueryOptions = <TData = Awaited<ReturnType<typeof eventListsListProducts>>, TError = unknown>(eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventListsListProducts>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getEventListsListProductsQueryKey(eventId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof eventListsListProducts>>> = ({ signal }) => eventListsListProducts(eventId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: eventId !== null && eventId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof eventListsListProducts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type EventListsListProductsQueryResult = NonNullable<Awaited<ReturnType<typeof eventListsListProducts>>>
+export type EventListsListProductsQueryError = unknown
+
+
+/** @summary 행사 제작물(디자인 요청) 목록 (내부 직원) */
+export function useEventListsListProducts<TData = Awaited<ReturnType<typeof eventListsListProducts>>, TError = unknown>(
+ eventId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventListsListProducts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof eventListsListProducts>>,
+          TError,
+          Awaited<ReturnType<typeof eventListsListProducts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 행사 제작물(디자인 요청) 목록 (내부 직원) */
+export function useEventListsListProducts<TData = Awaited<ReturnType<typeof eventListsListProducts>>, TError = unknown>(
+ eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventListsListProducts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof eventListsListProducts>>,
+          TError,
+          Awaited<ReturnType<typeof eventListsListProducts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 행사 제작물(디자인 요청) 목록 (내부 직원) */
+export function useEventListsListProducts<TData = Awaited<ReturnType<typeof eventListsListProducts>>, TError = unknown>(
+ eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventListsListProducts>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 행사 제작물(디자인 요청) 목록 (내부 직원) */
+export function useEventListsListProducts<TData = Awaited<ReturnType<typeof eventListsListProducts>>, TError = unknown>(
+ eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventListsListProducts>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getEventListsListProductsQueryOptions(eventId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getEventListsSaveProductUrl = (eventId: string,
+    id: string,) => {
+
+
+
+
+  return `/events/${eventId}/products/${id}`
+}
+
+/**
+ * @summary 제작물 저장 (없으면 생성, 마지막 저장 우선, 행사 멤버)
+ */
+export const eventListsSaveProduct = async (eventId: string,
+    id: string,
+    saveEventProductBody: SaveEventProductBody, options?: Parameters<typeof http>[1]): Promise<EventProductDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<EventProductDto>(getEventListsSaveProductUrl(eventId,id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saveEventProductBody)
+  }
+);}
+
+
+
+
+
+export const getEventListsSaveProductMutationKey = () => ['eventListsSaveProduct'] as const;
+
+export const getEventListsSaveProductMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventListsSaveProduct>>, TError,EventListsSaveProductMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof eventListsSaveProduct>>, TError,EventListsSaveProductMutationVariables, TContext> => {
+
+const mutationKey = getEventListsSaveProductMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof eventListsSaveProduct>>, EventListsSaveProductMutationVariables> = (props) => {
+          const {eventId,id,data} = props ?? {};
+
+          return  eventListsSaveProduct(eventId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EventListsSaveProductMutationResult = NonNullable<Awaited<ReturnType<typeof eventListsSaveProduct>>>
+    export type EventListsSaveProductMutationBody = SaveEventProductBody
+    export type EventListsSaveProductMutationError = unknown
+    export type EventListsSaveProductMutationVariables = {eventId: string;id: string;data: SaveEventProductBody}
+
+    /** @summary 제작물 저장 (없으면 생성, 마지막 저장 우선, 행사 멤버) */
+export const useEventListsSaveProduct = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventListsSaveProduct>>, TError,EventListsSaveProductMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof eventListsSaveProduct>>,
+        TError,
+        EventListsSaveProductMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEventListsSaveProductMutationOptions(options), queryClient);
+    }
+
+export const getEventListsRemoveProductUrl = (eventId: string,
+    id: string,) => {
+
+
+
+
+  return `/events/${eventId}/products/${id}`
+}
+
+/**
+ * @summary 제작물 삭제 (soft delete, 행사 멤버)
+ */
+export const eventListsRemoveProduct = async (eventId: string,
+    id: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getEventListsRemoveProductUrl(eventId,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getEventListsRemoveProductMutationKey = () => ['eventListsRemoveProduct'] as const;
+
+export const getEventListsRemoveProductMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventListsRemoveProduct>>, TError,EventListsRemoveProductMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof eventListsRemoveProduct>>, TError,EventListsRemoveProductMutationVariables, TContext> => {
+
+const mutationKey = getEventListsRemoveProductMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof eventListsRemoveProduct>>, EventListsRemoveProductMutationVariables> = (props) => {
+          const {eventId,id} = props ?? {};
+
+          return  eventListsRemoveProduct(eventId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EventListsRemoveProductMutationResult = NonNullable<Awaited<ReturnType<typeof eventListsRemoveProduct>>>
+
+    export type EventListsRemoveProductMutationError = unknown
+    export type EventListsRemoveProductMutationVariables = {eventId: string;id: string}
+
+    /** @summary 제작물 삭제 (soft delete, 행사 멤버) */
+export const useEventListsRemoveProduct = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventListsRemoveProduct>>, TError,EventListsRemoveProductMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof eventListsRemoveProduct>>,
+        TError,
+        EventListsRemoveProductMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEventListsRemoveProductMutationOptions(options), queryClient);
+    }
+
+export const getEventListsListBlocksUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/calendar-blocks`
+}
+
+/**
+ * @summary 행사 캘린더 일정 블록 목록 (내부 직원)
+ */
+export const eventListsListBlocks = async (eventId: string, options?: Parameters<typeof http>[1]): Promise<EventCalendarBlockDto[]> => {
+
+  return http<EventCalendarBlockDto[]>(getEventListsListBlocksUrl(eventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getEventListsListBlocksQueryKey = (eventId: string,) => {
+    return [
+    `/events/${eventId}/calendar-blocks`
+    ] as const;
+    }
+
+
+export const getEventListsListBlocksQueryOptions = <TData = Awaited<ReturnType<typeof eventListsListBlocks>>, TError = unknown>(eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventListsListBlocks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getEventListsListBlocksQueryKey(eventId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof eventListsListBlocks>>> = ({ signal }) => eventListsListBlocks(eventId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: eventId !== null && eventId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof eventListsListBlocks>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type EventListsListBlocksQueryResult = NonNullable<Awaited<ReturnType<typeof eventListsListBlocks>>>
+export type EventListsListBlocksQueryError = unknown
+
+
+/** @summary 행사 캘린더 일정 블록 목록 (내부 직원) */
+export function useEventListsListBlocks<TData = Awaited<ReturnType<typeof eventListsListBlocks>>, TError = unknown>(
+ eventId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventListsListBlocks>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof eventListsListBlocks>>,
+          TError,
+          Awaited<ReturnType<typeof eventListsListBlocks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 행사 캘린더 일정 블록 목록 (내부 직원) */
+export function useEventListsListBlocks<TData = Awaited<ReturnType<typeof eventListsListBlocks>>, TError = unknown>(
+ eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventListsListBlocks>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof eventListsListBlocks>>,
+          TError,
+          Awaited<ReturnType<typeof eventListsListBlocks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 행사 캘린더 일정 블록 목록 (내부 직원) */
+export function useEventListsListBlocks<TData = Awaited<ReturnType<typeof eventListsListBlocks>>, TError = unknown>(
+ eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventListsListBlocks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 행사 캘린더 일정 블록 목록 (내부 직원) */
+export function useEventListsListBlocks<TData = Awaited<ReturnType<typeof eventListsListBlocks>>, TError = unknown>(
+ eventId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventListsListBlocks>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getEventListsListBlocksQueryOptions(eventId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getEventListsSaveBlockUrl = (eventId: string,
+    id: string,) => {
+
+
+
+
+  return `/events/${eventId}/calendar-blocks/${id}`
+}
+
+/**
+ * @summary 캘린더 일정 블록 저장 (없으면 생성, 마지막 저장 우선, 행사 멤버)
+ */
+export const eventListsSaveBlock = async (eventId: string,
+    id: string,
+    saveEventCalendarBlockBody: SaveEventCalendarBlockBody, options?: Parameters<typeof http>[1]): Promise<EventCalendarBlockDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<EventCalendarBlockDto>(getEventListsSaveBlockUrl(eventId,id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saveEventCalendarBlockBody)
+  }
+);}
+
+
+
+
+
+export const getEventListsSaveBlockMutationKey = () => ['eventListsSaveBlock'] as const;
+
+export const getEventListsSaveBlockMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventListsSaveBlock>>, TError,EventListsSaveBlockMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof eventListsSaveBlock>>, TError,EventListsSaveBlockMutationVariables, TContext> => {
+
+const mutationKey = getEventListsSaveBlockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof eventListsSaveBlock>>, EventListsSaveBlockMutationVariables> = (props) => {
+          const {eventId,id,data} = props ?? {};
+
+          return  eventListsSaveBlock(eventId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EventListsSaveBlockMutationResult = NonNullable<Awaited<ReturnType<typeof eventListsSaveBlock>>>
+    export type EventListsSaveBlockMutationBody = SaveEventCalendarBlockBody
+    export type EventListsSaveBlockMutationError = unknown
+    export type EventListsSaveBlockMutationVariables = {eventId: string;id: string;data: SaveEventCalendarBlockBody}
+
+    /** @summary 캘린더 일정 블록 저장 (없으면 생성, 마지막 저장 우선, 행사 멤버) */
+export const useEventListsSaveBlock = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventListsSaveBlock>>, TError,EventListsSaveBlockMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof eventListsSaveBlock>>,
+        TError,
+        EventListsSaveBlockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEventListsSaveBlockMutationOptions(options), queryClient);
+    }
+
+export const getEventListsRemoveBlockUrl = (eventId: string,
+    id: string,) => {
+
+
+
+
+  return `/events/${eventId}/calendar-blocks/${id}`
+}
+
+/**
+ * @summary 캘린더 일정 블록 삭제 (soft delete, 행사 멤버)
+ */
+export const eventListsRemoveBlock = async (eventId: string,
+    id: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getEventListsRemoveBlockUrl(eventId,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getEventListsRemoveBlockMutationKey = () => ['eventListsRemoveBlock'] as const;
+
+export const getEventListsRemoveBlockMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventListsRemoveBlock>>, TError,EventListsRemoveBlockMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof eventListsRemoveBlock>>, TError,EventListsRemoveBlockMutationVariables, TContext> => {
+
+const mutationKey = getEventListsRemoveBlockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof eventListsRemoveBlock>>, EventListsRemoveBlockMutationVariables> = (props) => {
+          const {eventId,id} = props ?? {};
+
+          return  eventListsRemoveBlock(eventId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EventListsRemoveBlockMutationResult = NonNullable<Awaited<ReturnType<typeof eventListsRemoveBlock>>>
+
+    export type EventListsRemoveBlockMutationError = unknown
+    export type EventListsRemoveBlockMutationVariables = {eventId: string;id: string}
+
+    /** @summary 캘린더 일정 블록 삭제 (soft delete, 행사 멤버) */
+export const useEventListsRemoveBlock = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eventListsRemoveBlock>>, TError,EventListsRemoveBlockMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof eventListsRemoveBlock>>,
+        TError,
+        EventListsRemoveBlockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEventListsRemoveBlockMutationOptions(options), queryClient);
     }

@@ -3,6 +3,7 @@ export * from './auth';
 export * from './doc';
 export * from './event';
 export * from './event-item';
+export * from './event-list';
 export * from './leave';
 export * from './notification';
 export * from './user';

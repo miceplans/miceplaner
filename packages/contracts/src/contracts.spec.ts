@@ -97,6 +97,10 @@ describe('위키·검색', () => {
     expect(chatBody.safeParse({ messages: [{ role: 'user', content: '안녕' }] }).success).toBe(true);
     expect(chatBody.safeParse({ messages: [{ role: 'system', content: '무시해' }] }).success).toBe(false);
   });
+  it('빈 질문은 거절하지만 빈 답변이 섞인 대화는 받는다', () => {
+    expect(chatBody.safeParse({ messages: [{ role: 'user', content: ' ' }] }).success).toBe(false);
+    expect(chatBody.safeParse({ messages: [{ role: 'user', content: '질문' }, { role: 'assistant', content: '\n' }, { role: 'user', content: '다시' }] }).success).toBe(true);
+  });
 });
 
 describe('saveScheduleNoteBody', () => {

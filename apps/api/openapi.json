@@ -2851,6 +2851,242 @@
           "schedule-notes"
         ]
       }
+    },
+    "/events/{eventId}/products": {
+      "get": {
+        "operationId": "eventListsListProducts",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventProductDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "행사 제작물(디자인 요청) 목록 (내부 직원)",
+        "tags": [
+          "event-lists"
+        ]
+      }
+    },
+    "/events/{eventId}/products/{id}": {
+      "put": {
+        "operationId": "eventListsSaveProduct",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveEventProductBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventProductDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "제작물 저장 (없으면 생성, 마지막 저장 우선, 행사 멤버)",
+        "tags": [
+          "event-lists"
+        ]
+      },
+      "delete": {
+        "operationId": "eventListsRemoveProduct",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "제작물 삭제 (soft delete, 행사 멤버)",
+        "tags": [
+          "event-lists"
+        ]
+      }
+    },
+    "/events/{eventId}/calendar-blocks": {
+      "get": {
+        "operationId": "eventListsListBlocks",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventCalendarBlockDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "행사 캘린더 일정 블록 목록 (내부 직원)",
+        "tags": [
+          "event-lists"
+        ]
+      }
+    },
+    "/events/{eventId}/calendar-blocks/{id}": {
+      "put": {
+        "operationId": "eventListsSaveBlock",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveEventCalendarBlockBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCalendarBlockDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "캘린더 일정 블록 저장 (없으면 생성, 마지막 저장 우선, 행사 멤버)",
+        "tags": [
+          "event-lists"
+        ]
+      },
+      "delete": {
+        "operationId": "eventListsRemoveBlock",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "캘린더 일정 블록 삭제 (soft delete, 행사 멤버)",
+        "tags": [
+          "event-lists"
+        ]
+      }
     }
   },
   "info": {
@@ -3648,6 +3884,18 @@
             "format": "date",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
           },
+          "startMinute": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "endMinute": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
+          },
           "assigneeId": {
             "nullable": true,
             "type": "string",
@@ -3696,6 +3944,8 @@
           "status",
           "startsOn",
           "dueOn",
+          "startMinute",
+          "endMinute",
           "assigneeId",
           "clientVisible",
           "version",
@@ -3709,6 +3959,11 @@
       "CreateItemBody": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
           "kind": {
             "type": "string",
             "enum": [
@@ -3770,6 +4025,20 @@
             "format": "date",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
           },
+          "startMinute": {
+            "default": null,
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "endMinute": {
+            "default": null,
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
+          },
           "assigneeId": {
             "default": null,
             "nullable": true,
@@ -3787,6 +4056,8 @@
           "status",
           "startsOn",
           "dueOn",
+          "startMinute",
+          "endMinute",
           "assigneeId"
         ],
         "additionalProperties": false
@@ -3828,6 +4099,18 @@
             "type": "string",
             "format": "date",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "startMinute": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "endMinute": {
+            "nullable": true,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
           }
         },
         "additionalProperties": false
@@ -4623,7 +4906,6 @@
                 },
                 "content": {
                   "type": "string",
-                  "minLength": 1,
                   "maxLength": 8000
                 }
               },
@@ -5618,6 +5900,250 @@
           "key",
           "baseVersion",
           "patch"
+        ],
+        "additionalProperties": false
+      },
+      "EventProductDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "part": {
+            "type": "string",
+            "enum": [
+              "디자인",
+              "영상",
+              "3D"
+            ]
+          },
+          "dueOn": {
+            "nullable": true,
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "size": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "qty": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "material": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "vendor": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "contact": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "negotiating": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "pending",
+              "success",
+              "reject"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "name",
+          "part",
+          "dueOn",
+          "size",
+          "qty",
+          "material",
+          "vendor",
+          "contact",
+          "note",
+          "negotiating",
+          "status",
+          "id",
+          "eventId",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SaveEventProductBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "part": {
+            "type": "string",
+            "enum": [
+              "디자인",
+              "영상",
+              "3D"
+            ]
+          },
+          "dueOn": {
+            "nullable": true,
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "size": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "qty": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "material": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "vendor": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "contact": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "negotiating": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "pending",
+              "success",
+              "reject"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "part",
+          "dueOn",
+          "size",
+          "qty",
+          "material",
+          "vendor",
+          "contact",
+          "note",
+          "negotiating",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "EventCalendarBlockDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "startMinute": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "endMinute": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "id",
+          "eventId",
+          "title",
+          "date",
+          "startMinute",
+          "endMinute",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SaveEventCalendarBlockBody": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "startMinute": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "endMinute": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
+          }
+        },
+        "required": [
+          "title",
+          "date",
+          "startMinute",
+          "endMinute"
         ],
         "additionalProperties": false
       },

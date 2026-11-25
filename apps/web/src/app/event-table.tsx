@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type DragEvent, type FormEvent } from 'react';
 import Link from 'next/link';
+import { dDayLabel } from '@miceplans/domain';
 import { Checkbox, DatePicker, Dialog, Input, Select, StatusPill, type StatusKey } from '@miceplans/ui';
 import { EMPTY_ATTR, type EventAttrType, useEventAttrs } from './event-attrs';
 import { eventColor } from '../lib/event-color';
@@ -87,17 +88,15 @@ function formatPeriod(start: string, end: string): string {
   return !end || end === start ? f(start) : `${f(start)} – ${f(end)}`;
 }
 
-function dDayBadge(startDate: string): { label: string; className: string } | null {
+function dDayBadge(startDate: string, endDate: string): { label: string; className: string } | null {
   if (!startDate) return null;
   const [y, m, d] = startDate.split('-').map(Number);
   if (!y || !m || !d) return null;
-  // 매번 계산해 자정을 지나도 D-day가 어긋나지 않게 한다.
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diff = Math.round((new Date(y, m - 1, d).getTime() - today.getTime()) / 86400000);
-  if (diff < 0) return { label: '종료', className: 'bg-surface-chip text-fg-secondary' };
-  if (diff === 0) return { label: 'D-Day', className: 'bg-brand text-fg-inverse' };
-  return { label: `D-${diff}`, className: 'bg-brand-tint text-brand' };
+  // 매번 계산해 자정을 지나도 D-day가 어긋나지 않게 한다. 시작일이 지나도 종료일까지는 진행으로 본다.
+  const label = dDayLabel(new Date(y, m - 1, d), new Date(), new Date(`${endDate || startDate}T00:00:00`));
+  if (label === '종료') return { label, className: 'bg-surface-chip text-fg-secondary' };
+  if (label === 'D-Day') return { label, className: 'bg-brand text-fg-inverse' };
+  return { label, className: 'bg-brand-tint text-brand' };
 }
 
 const EMPTY_FORM = { name: '', start: '', end: '', client: '', pm: '', am: '', design: '', status: '진행중' as StatusKey, place: '' };
@@ -262,7 +261,7 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
       {rows.map((e, i) => {
         const dragging = rowDrag?.from === i;
         const over = rowDrag && rowDrag.over === i && rowDrag.from !== i;
-        const dDay = e.priority ? dDayBadge(e.startDate) : null;
+        const dDay = e.priority ? dDayBadge(e.startDate, e.endDate) : null;
         return (
           <Link
             key={e.id}

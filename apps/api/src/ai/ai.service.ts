@@ -82,7 +82,7 @@ export class AiService {
         eventItems: eventId && body.eventItems ? (masker.redact(body.eventItems) as unknown[]) : undefined,
         me: { id: user.userId, token: masker.redactText(user.name) },
       }) },
-      ...body.messages.map((message) => ({ ...message, content: masker.redactText(message.content) })),
+      ...body.messages.filter((message) => message.content).map((message) => ({ ...message, content: masker.redactText(message.content) })),
     ];
     const handlers = this.handlers(user, sources, send, masker);
     let result: Awaited<ReturnType<typeof runAgent>> | undefined;

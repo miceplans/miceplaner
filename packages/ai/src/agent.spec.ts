@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runAgent, ToolError, type ToolHandlers } from './agent';
+import { EMPTY_ANSWER_NOTICE, runAgent, ToolError, type ToolHandlers } from './agent';
 import { anthropicCompatible } from './anthropic';
 import { createLlmClient } from './client';
 import { openAiCompatible, type ChatMsg, type LlmChunk, type LlmClient } from './llm';
@@ -44,6 +44,13 @@ describe('runAgent', () => {
     expect(seen[1]!.at(-1)).toMatchObject({ role: 'tool' });
     expect((seen[1]!.at(-1) as { content: string }).content).toContain('알 수 없는 도구');
     expect((seen[2]!.at(-1) as { content: string }).content).toContain('인자 오류');
+  });
+  it('모델이 공백만 내고 끝나면 안내 문구로 답한다', async () => {
+    const deltas: string[] = [];
+    const out = await runAgent({ llm: scripted([[call('search_wiki', { query: '없는 내용' })], [{ type: 'text', delta: '\n\n' }]]), messages: [], handlers: handlers(), onText: (d) => deltas.push(d) });
+    expect(out.text).toBe(EMPTY_ANSWER_NOTICE);
+    expect(deltas.join('').trim()).toBe(EMPTY_ANSWER_NOTICE);
+    expect(out.messages.at(-1)).toEqual({ role: 'assistant', content: EMPTY_ANSWER_NOTICE });
   });
   it('ToolError 메시지만 모델에 전달하고 내부 예외는 가린다', async () => {
     const seen: ChatMsg[][] = [];

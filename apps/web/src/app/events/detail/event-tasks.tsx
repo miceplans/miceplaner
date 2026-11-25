@@ -2,7 +2,8 @@
 
 import { useContext } from 'react';
 
-import { AssigneeBadge, Checklist, EditableTitle, ItemAccessContext, assignItem, canEditItem, renameItem, type CheckItem } from './event-checklist';
+import { AssigneeBadge, Checklist, EditableTitle, ItemAccessContext } from './event-checklist';
+import { assignItem, canEditItem, renameItem, type CheckItem } from './event-checklist-model';
 import { matchPart, type PartFilter } from './event-parts';
 import { DEFAULT_FILTER, applyFilter, isFilterActive, type ItemFilter } from './event-filter';
 import { statusOf } from './event-schedule-list';

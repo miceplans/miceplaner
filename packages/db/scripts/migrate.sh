@@ -23,6 +23,9 @@ renamed_from() {
     0015_event_creation.sql) echo 0010_event_creation.sql 0012_event_creation.sql ;;
     0016_client_applications.sql) echo 0013_client_applications.sql ;;
     0017_pm_transfer_notifications.sql) echo 0013_pm_transfer_notifications.sql ;;
+    0028_event_item_times.sql) echo 0027_event_item_times.sql ;;
+    0029_event_products.sql) echo 0028_event_products.sql ;;
+    0030_event_calendar_blocks.sql) echo 0029_event_calendar_blocks.sql ;;
     *) echo '' ;;
   esac
 }

@@ -41,6 +41,7 @@ function SidebarRecentEvents({ children }: { children: ReactNode }) {
         dot: RECENT_DOTS[i % RECENT_DOTS.length]!,
         href: `/events/detail?id=${e.id}`,
         start: new Date(`${e.startDate}T00:00:00`),
+        end: new Date(`${e.endDate}T00:00:00`),
       }));
   }, [events.data]);
   return <SidebarRecentProvider value={recent}>{children}</SidebarRecentProvider>;

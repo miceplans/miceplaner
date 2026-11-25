@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { EventItemDto } from '@miceplans/contracts';
 import { buildBoardItems, groupBoardItems, groupTasks, taskMeta } from './task-board';
-import type { CheckItem } from './event-checklist';
-import type { RequestRow } from './event-products';
+import type { CheckItem } from './event-checklist-model';
+import type { RequestRow } from './event-products-model';
 
 const item = (over: Partial<EventItemDto>): EventItemDto => ({
   id: crypto.randomUUID(),
@@ -15,6 +15,8 @@ const item = (over: Partial<EventItemDto>): EventItemDto => ({
   status: '할 일',
   startsOn: null,
   dueOn: null,
+  startMinute: null,
+  endMinute: null,
   assigneeId: null,
   clientVisible: false,
   version: 1,

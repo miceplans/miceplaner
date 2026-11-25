@@ -19,6 +19,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PortalModule } from './portal/portal.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ScheduleNotesModule } from './schedule-notes/schedule-notes.module';
+import { EventListsModule } from './event-lists/event-lists.module';
 
 @Controller()
 class HealthController {
@@ -46,6 +47,7 @@ class HealthController {
     DirectoryModule,
     ImportModule,
     ScheduleNotesModule,
+    EventListsModule,
   ],
   controllers: [HealthController],
   providers: [

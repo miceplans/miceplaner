@@ -91,7 +91,7 @@ Event 아래에 Program, Task, Subtask가 한 계층으로 이어지며, 각 단
 - 가입·로그인·Client 신청은 IP·이메일 기준 요청 제한(초과 시 429)을 적용한다.
 - API 문서(Swagger UI `/docs`, OpenAPI JSON `/docs-json`)는 운영(`NODE_ENV=production` 또는 Vercel)에서 기본으로 열지 않는다. `ENABLE_API_DOCS=true`일 때만 연다. 웹 클라이언트 생성용 `openapi.json`은 `pnpm api:spec`으로 따로 만든다.
 - 권한이 회수되면 세션을 무효화하고 Socket.IO 방에서 제거하며(상시 실시간 서비스가 내부 푸시로 처리한다), 열린 위키는 읽기 전용으로 전환하거나 연결을 종료한다.
-- Client 포털은 기본 접두사 `client`를 써 `client.<주 도메인>` 서브도메인으로 제공한다 (`CLIENT_PORTAL_PREFIX=client`). 정적 웹 배포(`apps/web/vercel.json`)는 이 호스트(`client.*`)의 `/`·`/login` 요청을 각각 `/client/calendar`·`/client/login`으로 redirect하고(루트는 로그인 없이 보이는 공개 캘린더로 보낸다, 2026-11-24 결정) `/apply`는 `/client/apply`로 rewrite한다. Vercel rewrite는 같은 경로의 정적 파일이 있으면 적용되지 않으므로(`index.html`·`login.html`), 내부 페이지와 겹치는 경로는 파일시스템보다 먼저 처리되는 redirect를 쓴다. 같은 호스트에서 `/client/*`·`/_next/*`·`/assets/*`·`/apply`가 아닌 경로(내부 화면)는 모두 `/client/dashboard`로 redirect해 Client 도메인에서 내부 화면이 열리지 않게 한다. 호스트 조건(`client\\..+`)은 `CLIENT_PORTAL_PREFIX`를 읽지 않고 고정돼 있으므로 접두사를 바꾸면 이 파일도 함께 바꾼다. 또한 `/client/events/<id>`는 정적 셸 `/client/events/_`로 연결해 행사 ID를 URL에서 읽게 한다. 포털 화면(대시보드·행사 목록·행사 상세·캘린더)은 로그인한 Client 세션으로 `GET /portal/events`·`GET /portal/programs`를 호출해 배정된 행사와 공개 Program만 보여 주며, 세션이 없으면 `/client/login`으로 보낸다. 단, 캘린더(`/client/calendar`)는 세션 없이도 열리며, 이때는 공개 캘린더(`GET /portal/public-events`)를 보여 준다(F-07, 2026-11-24 결정). 포털 알림·준비 항목·담당자 화면은 전용 API가 생길 때까지 비어 있다(후속 작업). API의 `CLIENT_PORTAL_ORIGIN`에는 해당 HTTPS origin을 등록한다. 신청자는 회사명·이름·이메일·비밀번호를 제출하고, Super Admin이 내부 알림에서 승인한 뒤 Client 계정이 활성화된다. Client 로그인은 포털 전용 이메일·비밀번호 로그인으로 처리하며 하이웍스 검증을 적용하지 않는다. 신청 이메일은 대기·활성 계정과 중복될 수 없다.
+- Client 포털은 기본 접두사 `client`를 써 `client.<주 도메인>` 서브도메인으로 제공한다 (`CLIENT_PORTAL_PREFIX=client`). 정적 웹 배포(`apps/web/vercel.json`)는 이 호스트(`client.*`)의 `/`·`/login` 요청을 각각 `/client/calendar`·`/client/login`으로 redirect하고(루트는 로그인 없이 보이는 공개 캘린더로 보낸다, 2026-11-24 결정) `/apply`는 `/client/apply`로 rewrite한다. Vercel rewrite는 같은 경로의 정적 파일이 있으면 적용되지 않으므로(`index.html`·`login.html`), 내부 페이지와 겹치는 경로는 파일시스템보다 먼저 처리되는 redirect를 쓴다. 같은 호스트에서 `/client/*`·`/_next/*`·`/assets/*`·`/apply`가 아닌 경로(내부 화면)는 모두 `/client/dashboard`로 redirect해 Client 도메인에서 내부 화면이 열리지 않게 한다. 호스트 조건(`client\\..+`)은 `CLIENT_PORTAL_PREFIX`를 읽지 않고 고정돼 있으므로 접두사를 바꾸면 이 파일도 함께 바꾼다. 또한 `/client/events/<id>`는 정적 셸 `/client/events/_`로 연결해 행사 ID를 URL에서 읽게 한다. 포털 화면(대시보드·행사 목록·행사 상세·캘린더)은 로그인한 Client 세션으로 `GET /portal/events`·`GET /portal/programs`를 호출해 배정된 행사와 공개 Program만 보여 주며, 세션이 없으면 `/client/login`으로 보낸다. 단, 캘린더(`/client/calendar`)는 세션 유무와 관계없이 누구나 열 수 있으며, 공개 캘린더(`GET /portal/public-events`)를 보여 준다(F-07, 2026-11-24 결정). 포털 알림·준비 항목·담당자 화면은 전용 API가 생길 때까지 비어 있다(후속 작업). API의 `CLIENT_PORTAL_ORIGIN`에는 해당 HTTPS origin을 등록한다. 신청자는 회사명·이름·이메일·비밀번호를 제출하고, Super Admin이 내부 알림에서 승인한 뒤 Client 계정이 활성화된다. Client 로그인은 포털 전용 이메일·비밀번호 로그인으로 처리하며 하이웍스 검증을 적용하지 않는다. 신청 이메일은 대기·활성 계정과 중복될 수 없다.
 
 ### F-02 행사 관리
 
@@ -140,11 +140,15 @@ Event 아래에 Program, Task, Subtask가 한 계층으로 이어지며, 각 단
 - 행사 상세의 할 일 탭은 스케줄 → 할일 → 하위 할일 계층으로 구성한다.
 - 행사 상세에서 새 일정을 추가할 때 제목과 함께 날짜·시작 시간·종료 시간·담당자를 지정할 수 있으며, 담당자는 해당 행사 인력 중에서 선택한다. 추가한 일정은 행사 상세 캘린더의 해당 날짜와 시간대에 함께 표시한다.
 - 행사 상세 하단의 업무 보드는 `GET /events/:eventId/items?kind=task` 실데이터와 행사 상세에서 만든 스케줄 하위 할 일·하위 할 일, 제작물을 합쳐 진행(할 일·진행 중·작성 중)·검토 대기(승인 대기)·완료(승인 완료)·보류(반려) 열로 보여 준다. 새 할 일의 기본 상태는 진행이다. 사용자는 할 일의 상태를 진행·검토 대기·완료·보류로 바꾸거나 삭제할 수 있으며, 삭제는 확인 후 하위 항목까지 적용한다. 취소된 Task는 표시하지 않는다. 열마다 2건을 보여 주고 나머지는 펼쳐 볼 수 있다. 스케줄 계층은 하위 항목이 모두 완료되면 상위 스케줄도 완료로 계산하며, 저장된 상위 상태가 하위 상태와 다르면 하위 상태를 기준으로 바로잡는다.
-- 행사 상세 상단의 D-day 표시는 시작 전 `D-n`, 시작일 `D-Day`, 시작일 다음 날부터 종료일까지 `진행`, 종료일이 지나면 `종료`다.
+- 행사 상세 상단·행사 목록·사이드바 '최근'의 D-day 표시는 시작 전 `D-n`, 시작일 `D-Day`, 시작일 다음 날부터 종료일까지 `진행`, 종료일이 지나면 `종료`다.
+- 행사 상세의 스케줄·할 일·하위 할 일, 디자인 요청(제작물) 표, 캘린더에서 직접 추가한 일정 블록은 서버에 저장해 기기와 상관없이 모든 내부 직원이 보고 행사 멤버만 고친다(RLS). 스케줄 → 할 일 → 하위 할 일은 `event_items`의 program → task → subtask이며, 스케줄의 시작·종료 시각은 자정 기준 분(`start_minute`·`end_minute`)으로 저장한다. 제작물은 `event_products`, 일정 블록은 `event_calendar_blocks`에 웹이 만든 uuid로 행 단위 저장하며 마지막 저장 우선이다(`PUT /events/:eventId/products/:id`, `PUT /events/:eventId/calendar-blocks/:id`). 할 일의 담당자·날짜 변경은 version 충돌을 검사하고, 저장이 실패하면 알린 뒤 서버 상태로 되돌린다. 하위 항목이 있는 상위 항목의 완료 상태는 하위 기준으로 화면에서 계산하며 서버로 보내지 않는다. 예전에 이 브라우저(`miceplans.event-lists.<eventId>`)에만 저장하던 값은 행사 상세를 처음 열 때 서버로 한 번 옮기고 지운다. (2026-11-24)
+- 사이드바 '할 일' 페이지(`/task-board`)는 모든 행사의 서버 할 일·하위 할 일을 보드·목록으로 보여 주며, 카드의 일정은 맨 위 스케줄 제목이다. 이 화면에서 할 일을 추가하면 고른 일정과 같은 이름의 스케줄 아래에 넣고, 없으면 스케줄을 새로 만든다. 일정은 추가할 때만 고를 수 있다. 추가 창은 저장이 끝난 뒤 닫히며, 실패하면 사유를 알리고 입력한 내용을 그대로 둔다. (2026-11-24, 2026-11-25 보완)
+- 디자인 요청 표의 '새 항목 추가'·'수정'·승인·반려는 팀 화면(기획팀·디자인팀)과 상관없이 행사 멤버와 Super Admin에게 보이고, 그 밖의 직원은 내용만 본다. 디자인팀도 행사 멤버면 요청을 직접 추가할 수 있다. (결정 2026-11-25)
 - 행사 상세 상단의 '할 일' 카드는 업무 보드와 같은 기준으로 서버 Task와 행사 상세에서 만든 스케줄 하위 할 일 중 완료되지 않은 것을 마감일 순으로 최대 8건 보여 준다.
 - 행사 추가 화면의 행사일은 `하루`(날짜 하나, 시작일=종료일) 또는 `기간`(시작일·종료일)으로 입력한다.
+- 홈 월간 캘린더는 전체 행사를 시작일~종료일 기간 막대(행사 색)로 표시하고, 막대를 누르면 행사 상세로 이동한다.
 - 캘린더 뷰는 기본 행사 보기와 작업 일정 보기를 전환할 수 있다. 작업 일정 보기의 항목은 `[행사명] 제작물명`으로 표시하며, 디자인 제작물은 파랑·영상 제작물은 빨강 채움색으로 구분한다. 내 일정 탭에서는 로그인 사용자가 담당인 일정만 달력에 표시한다.
-- 캘린더의 모든 보기에는 내 할 일이 함께 표시되며, 기간이 있는 할 일은 빗금 바, 마감일만 있는 할 일은 앞에 빗금 동그라미를 붙인 항목으로 구분한다.
+- 캘린더의 모든 보기에는 내 할 일이 함께 표시되며, 기간이 있는 할 일은 빗금 바, 마감일만 있는 할 일은 앞에 빗금 동그라미를 붙인 항목으로 구분한다. 내 할 일은 개인 Todo와 로그인 사용자가 담당인 서버 Task·Subtask(완료·취소 제외, 시작일·마감일 중 하나 이상 있는 것, `[행사명] 제목`으로 표시)를 합친 것이다. 캘린더의 '+ 할 일' 버튼으로 개인 Todo를 추가·완료 표시·삭제한다. 한 주 칸에 넘치는 항목은 날짜 옆에 `+N`으로 표시한다. (2026-11-24)
 - 캘린더 일정 상세 패널은 편집 모드에서 기간·장소·담당자·내 일정·설명·메모·Task·첨부 구성요소를 드래그해 순서를 바꾸고 삭제할 수 있다. 삭제한 구성요소는 다시 추가할 수 있으며, 배치는 브라우저에 저장한다.
 
 - 캘린더 일정 상세 패널의 담당자·설명·클라이언트 메모·할 일·하위 할 일·관련 링크는 패널에서 바로 수정할 수 있다. 담당자 후보는 행사 상세에서는 행사 인력, 메인 캘린더에서는 로그인 사용자이며 미지정도 허용한다. 패널 내용은 일정별로 서버(`schedule_notes`, `GET`·`PUT /schedule-notes`)에 저장해 내부 직원끼리 공유하며 Client는 볼 수 없다. 메인 캘린더의 날짜 메모는 내부 직원 누구나, 행사 상세 캘린더 일정 메모는 행사 멤버만 고친다(RLS). 바뀐 필드만 저장하며 설명·메모·할 일·링크는 마지막 저장 우선, 담당자는 version이 다르면 충돌로 안내하고 최신 담당자로 갱신한다. 담당자 변경은 감사 로그(`schedule_note.assignees`)를 남긴다. 링크는 http(s) 주소만 허용한다.
@@ -156,6 +160,7 @@ Event 아래에 Program, Task, Subtask가 한 계층으로 이어지며, 각 단
 
 - Todo의 생성·조회·수정·삭제는 본인 것만 가능하며 다른 사용자에게 노출되지 않는다.
 - Client는 개인 Todo를 사용하지 않는다.
+- Todo는 제목과 마감일(하루) 또는 기간(시작일·종료일)을 가지며 날짜는 `YYYY-MM-DD`로 저장한다.
 - Todo 변경은 네트워크 연결이나 서버 API 없이도 즉시 로컬에 반영된다. 브라우저 데이터 삭제·기기 교체 시 복구되지 않으며, 서버 동기화는 별도 요구가 확정될 때만 추가한다.
 
 ### F-06 알림 관리
@@ -187,7 +192,7 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 | --- | --- | --- |
 | 대시보드 | 지정된 행사와 Program 일정 요약(가장 임박한 행사, 다가오는 일정, 프로그램 진행 단계) | Program 이름과 일정 |
 | 행사 일정 | 지정된 행사의 Program(예: 개막식) 일정을 날짜순으로 표시 | Program 이름과 일정 |
-| 캘린더 | 로그인한 Client에게는 지정된 행사의 Program 일정을 달력으로 표시. 로그인하지 않은 방문자에게는 공개 표시한 회사 행사를 달력으로 표시(공개 캘린더) | 로그인: Program 이름과 일정 / 비로그인: 행사명과 기간 |
+| 캘린더 | 로그인 여부와 관계없이 누구나 공개 표시한 회사 행사를 달력으로 표시(공개 캘린더). 여러 날 행사는 이어진 기간 막대로, 달력 아래에 이 달의 행사 목록을 보여 준다 | 행사명과 기간 |
 | 마이스 플랜즈 행보 | MICEPLANNER가 수행한 과거 행사 실적을 소개 | 과거 실적 |
 
 수용 기준:
@@ -247,6 +252,7 @@ Client는 자신에게 지정된 행사만 조회할 수 있고, 행사 안에�
 - 한국어 검색 품질은 골든 셋으로 측정한다. FTS와 `pg_trgm` 품질이 부족하면 별도 검색 엔진 및 BGE-M3 native sparse를 재검토한다.
 - 한국어 lexical 처리는 형태소 분석기(Kiwi) 없이 한다. 색인은 `simple` tsvector로 원문 토큰을 저장하고, 질의는 `packages/knowledge`의 `queryTerms`가 조사를 떼고 불용어를 제거해 어간 접두 일치(`to_tsquery('simple', '행사':* | …)`)로 찾는다. 어형 변화로 놓친 항목은 `pg_trgm` 단어 유사도로 보완하며, 두 순위 목록은 RRF로 병합하고 문서당 가장 좋은 청크 하나만 돌려준다. Kiwi(WASM)는 상시 메모리가 700~900MB여서 도입하지 않았고, `apps/api/test/knowledge.spec.ts`의 골든 셋이 기준 미달일 때 재검토한다(6절).
 - 검색 대상은 위키 본문과 업로드 파일의 변환 결과다. 청크는 `knowledge_chunks`에 `event_id`를 유지하고 `event_docs` RLS를 그대로 따르므로 파일도 위키와 같은 열람 범위·권한 필터를 거친다.
+- 웹은 상단바 검색 버튼과 ⌘K(Ctrl+K)로 여는 통합 검색 창을 제공한다. 행사(행사명·고객사·장소·PM·AM)는 이미 받은 행사 목록에서 찾고, 문서(위키·자료 파일)는 `GET /search`에서 찾아 각각 행사 상세와 위키로 이동한다. 로그인 화면과 Client 포털에서는 열리지 않는다. (2026-11-25)
 - API: `GET /search?q=&eventId=&clientId=&since=&limit=`(내부 직원만). 결과의 문서·절·인용문이 곧 출처다.
 
 파일 업로드와 변환:
@@ -292,7 +298,7 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 - 구현은 `POST /ai/chat`(SSE: `text`·`tool`·`sources`·`proposal`·`status`·`done`·`error` 이벤트), `GET /events/:eventId/ai/proposals`, `POST /ai/proposals/:id/approve|reject`다. 도구는 질문한 사용자의 RLS 컨텍스트에서 실행되어 권한 밖 문서가 모델에 전달되지 않는다. `query_events`의 `status`는 행사 상태 열거형(`EVENT_STATUSES`)만 받는다. 자유 문자열이면 모델이 `보류중` 대신 `보류`를 보내 정확 일치 필터가 빈 결과를 낸다. 모델이 한 단계에서 여러 도구를 부르면 동시에 실행하고, 결과는 호출 순서대로 모델에 돌려준다. LLM이 과부하(429·502·503·529)로 거절해 재시도를 기다리는 동안에는 `status` 이벤트로 대기 안내를 보내고, 웹 패널은 이를 "생각하는 중…" 자리에 표시하며 대화 기록에는 저장하지 않는다. 모델이 쓰는 도구 계약은 `packages/contracts/src/agent-tools.ts`, 어댑터·에이전트 루프·평가는 `packages/ai`다.
 - AI 질의는 내부 직원 전체가 할 수 있고(Client 불가), 제안은 만든 사람과 PM·AM만 볼 수 있으며, 승인·반려는 PM·AM과 Super Admin만 한다. 결정된 제안은 다시 바꿀 수 없다.
 - 승인은 승인자의 권한으로 한 PostgreSQL 트랜잭션 안에서 반영한다. `task_drafts`는 Task·Subtask 생성(상위 항목 검증), `notification`은 알림 생성, `wiki_edit`은 본문 교체와 재색인이다. `wiki_edit`은 제안 당시 `baseVersion`과 다르면 409 `VERSION_CONFLICT`로 거부하고 제안은 대기로 남는다. Yjs 상태가 있는 문서는 API가 에이전트 참여자로서 Yjs 트랜잭션을 수행해 Yjs 원본·Markdown 파생본·재색인·승인 직전 `wiki_revisions`(reason `ai_proposal`)·제안 결정·감사 로그를 함께 커밋한다. 커밋 뒤 협업 서버는 활성 연결에 저장된 Yjs 상태를 전파할 뿐이며, 전파 실패는 이미 커밋된 결정을 되돌리지 않고 재접속 때 DB 원본으로 회복한다.
-- 웹의 Agent 패널(`apps/web/src/app/ai-chat/ai-chat-panel.tsx`)은 `/ai/chat` SSE를 스트리밍해 답변·출처·제안 카드를 보여주고 승인·반려 버튼을 제공한다. 행사 상세(`/events/detail?id=<uuid>`)에서는 그 행사 id를 맥락으로 보내고, 서버는 질문한 사용자의 RLS 컨텍스트로 행사 기본 정보(이름·기간·장소·상태, 예산 제외)를 조회해 시스템 프롬프트에 넣는다. 상세 화면이 보여 주는 탭 이름도 `eventTab`으로 함께 보내 모호한 질문을 그 탭 기준으로 해석하게 한다. 스케줄·할 일은 브라우저에만 저장되므로 화면의 목록(`eventItems`, 최대 300건: 단계·제목·담당자·상태·날짜·파트·상위)도 함께 보낸다. 서버는 담당자 이름과 질문한 사용자를 비식별 토큰으로 바꿔 넣어 "내가 담당인 할 일" 같은 질문에 답하게 한다. 웹 로그인 화면(`/login`)은 이메일·비밀번호 로그인과 가입을 제공하며, 성공한 세션 토큰은 탭 종료 시 사라지는 `sessionStorage['miceplans.token']`에 저장한다(`apps/web/src/lib/api.ts`). REST 호출은 orval이 생성한 TanStack Query 훅(`apps/web/src/lib/api/generated`)을 쓰며 API 주소는 `NEXT_PUBLIC_API_URL`이다. 제안 표시 형식·재제안 흐름은 7절에서 미확정이라 요약·상태·승인/반려만 제공한다.
+- 웹의 Agent 패널(`apps/web/src/app/ai-chat/ai-chat-panel.tsx`)은 `/ai/chat` SSE를 스트리밍해 답변·출처·제안 카드를 보여주고 승인·반려 버튼을 제공한다. 행사 상세(`/events/detail?id=<uuid>`)에서는 그 행사 id를 맥락으로 보내고, 서버는 질문한 사용자의 RLS 컨텍스트로 행사 기본 정보(이름·기간·장소·상태, 예산 제외)를 조회해 시스템 프롬프트에 넣는다. 상세 화면이 보여 주는 탭 이름도 `eventTab`으로 함께 보내 모호한 질문을 그 탭 기준으로 해석하게 한다. 화면의 스케줄·할 일 목록(`eventItems`, 최대 300건: 단계·제목·담당자·상태·날짜·파트·상위)도 함께 보낸다. 서버는 담당자 이름과 질문한 사용자를 비식별 토큰으로 바꿔 넣어 "내가 담당인 할 일" 같은 질문에 답하게 한다. 웹 로그인 화면(`/login`)은 이메일·비밀번호 로그인과 가입을 제공하며, 성공한 세션 토큰은 탭 종료 시 사라지는 `sessionStorage['miceplans.token']`에 저장한다(`apps/web/src/lib/api.ts`). REST 호출은 orval이 생성한 TanStack Query 훅(`apps/web/src/lib/api/generated`)을 쓰며 API 주소는 `NEXT_PUBLIC_API_URL`이다. 제안 표시 형식·재제안 흐름은 7절에서 미확정이라 요약·상태·승인/반려만 제공한다. 모델이 글자 없이 끝내면 서버가 안내 문구를 답으로 보내고, 실패 사유는 답변 자리에 남긴다. 비었거나 공백뿐인 답변은 대화 맥락에서 빼며, 이런 답변이 섞인 요청도 거절하지 않는다(빈 질문은 400). (2026-11-25)
 - 사용자당 분당 질의 한도(`AI_REQUESTS_PER_MINUTE`, 기본 20)로 LLM 비용을 제한한다. 카운터는 공개 인증 엔드포인트와 같은 PostgreSQL 고정 창 카운터(`hit_rate_limit`)라 서버리스 인스턴스가 여러 개여도 공유되며, 초과하면 스트리밍을 시작하기 전에 429다. 답변 전체에는 마감(`AI_CHAT_DEADLINE_MS`, 기본 50초)이 있어 넘기면 LLM 호출·재시도 대기를 중단하고 `error` 이벤트(`[504] ...`)로 스트림을 끝낸다. Vercel 함수 최대 실행 시간(60초)에 응답이 중간에 잘리지 않게 하기 위함이다. 호출 기록은 `ai_calls`(본인과 Super Admin만 조회)에 남는다. LLM 키 `LLM_API_KEY`는 서버 런타임에서만 읽고 없으면 AI 질의는 503이다. 주소·모델은 비밀이 아니라 코드 기본값(GLM Coding Plan의 Anthropic 호환 `https://api.z.ai/api/anthropic`, `glm-4.5-flash`)이며 `LLM_BASE_URL`·`LLM_MODEL`로 덮어쓸 수 있다. GLM 사고(thinking) 모드는 두 어댑터 모두 요청마다 끈다(`thinking: { type: 'disabled' }`). z.ai는 지정하지 않으면 켜는데, 켜면 답을 쓰기 전 추론만 LLM 호출마다 5~15초 걸리고(끄면 첫 글자까지 약 0.3초, 2026-11-24 측정) 그 동안 사용자에게 보이는 글자가 없으며, 에이전트는 도구 호출마다 LLM을 다시 부르므로 지연이 단계 수만큼 쌓인다. 평가 비교용으로만 `LLM_THINKING=true`로 켠다.
 - GLM은 OpenAI 호환 어댑터 뒤에서 사용한다. 대표 시나리오 20~30개로 첫 2주 안에 도구 호출 품질을 평가하고, 모델 또는 프롬프트 변경 때 같은 골든 셋을 다시 실행한다. 골든 셋은 `packages/ai/src/eval/cases.ts`(현재 22개)이고 `LLM_* pnpm --filter @miceplans/ai eval`로 실행한다. 합격선은 미확정(7절)이라 통과율만 보고한다. **실행 기록(2026-11-02, z.ai `/api/anthropic`, `glm-4.5-flash`): 20/22(91%).** 실패는 `tasks-progress`(query_tasks 미호출)와 `propose-notification`(propose_notification 미호출) 2건이다. **thinking 비교(2026-11-24, `glm-4.5-flash`): OpenAI 호환 `/api/coding/paas/v4` 켜짐 20/22(91%, 9분 24초) → 꺼짐 21/22(95%, 5분 20초), `/api/anthropic` 꺼짐 20/22(91%).** 꺼도 통과율이 떨어지지 않아 기본값을 끔으로 정했다. 꺼짐 실패는 `wiki-budget`(공통)과 `/api/anthropic`의 `propose-notification`이다. 이 계정에서는 유료 모델(`glm-5.3-flash`, `glm-4.7`, `glm-4.5` 등)이 `1113`(잔액·패키지 없음)으로 거절되고 무료 `glm-4.5-flash`만 응답해, 사용자 결정(2026-11-02)에 따라 `glm-4.5-flash`를 평가 모델로 삼았다. 다른 모델로 바꾸면 같은 골든 셋을 다시 실행한다(`LLM_* pnpm --filter @miceplans/ai eval`). 합격선은 미확정(7절)이다. 엔드포인트가 `/anthropic`으로 끝나면 Anthropic Messages 어댑터, 아니면 OpenAI 호환 어댑터를 쓴다(`createLlmClient`).
 
@@ -374,7 +380,7 @@ AI 에이전트는 권한 범위 내에서 행사 맥락, 일정, 태스크, 알
 
 다음 항목은 제품 동작에 영향을 주므로 각 기능 구현 전에 별도 계약으로 확정한다.
 
-- 행사, Program, Task, Subtask, 알림의 필수 필드와 상태값. 현재 `packages/db/migrations/0002_core.sql`과 `packages/contracts`는 웹 목업에서 가져온 초안이다: 행사 상태 `진행중·성공·확인중·실패·만료·보류중·제출·반려·종료`, 항목 상태 `할 일·진행 중·검토 대기·보류·취소·완료`, 제작 파트 `디자인·영상·3D`, 알림 종류 `assigned·schedule_changed·due_soon·member_changed·client_application`. 제작물·디자인 요청·표 속성은 모델이 미확정이라 스키마에 없다. 예산은 `events.budget`(원, null=미정)만 먼저 두었고 견적·마진은 미확정이다.
+- 행사, Program, Task, Subtask, 알림의 필수 필드와 상태값. 현재 `packages/db/migrations/0002_core.sql`과 `packages/contracts`는 웹 목업에서 가져온 초안이다: 행사 상태 `진행중·성공·확인중·실패·만료·보류중·제출·반려·종료`, 항목 상태 `할 일·진행 중·검토 대기·보류·취소·완료`, 제작 파트 `디자인·영상·3D`, 알림 종류 `assigned·schedule_changed·due_soon·member_changed·client_application`. 디자인 요청(제작물)은 화면의 표 항목(품명·파트·마감일·사이즈·수량·재질·발주업체·업체 담당자·비고·협의중·상태 `draft·pending·success·reject`)을 그대로 `event_products`에 저장한다(2026-11-24 결정). 표 속성은 모델이 미확정이라 스키마에 없다. 예산은 `events.budget`(원, null=미정)만 먼저 두었고 견적·마진은 미확정이다.
 - Program·Task·Subtask는 `event_items` 한 표에 `kind`와 `parent_id`로 저장하고 모든 행에 `event_id`를 유지한다. 삭제는 `soft_delete_event_item`·`soft_delete_event` 함수로 하며 하위 항목이 함께 삭제된다. 담당자는 행사 멤버만 지정할 수 있다.
 - Client 포털은 `portal_events()`·`portal_programs()`·`public_events()`만 사용한다. 앞의 둘은 지정된 행사의 `client_visible` Program에서 이름과 일정만, `public_events()`는 공개 표시한 행사의 이름·기간·대표색만 돌려준다. 내부 표에는 Client 정책이 없다.
 - 클라이언트 행사 일정의 시간대, 취소 및 변경 표기

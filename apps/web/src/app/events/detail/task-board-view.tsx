@@ -1,10 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useEventItemsList } from '../../../lib/api/generated/endpoints';
 import { BOARD_COLUMNS, buildBoardItems, groupBoardItems, type BoardColumnKey } from './task-board';
-import type { CheckItem } from './event-checklist';
-import type { RequestRow } from './event-products';
+import type { CheckItem } from './event-checklist-model';
+import type { RequestRow } from './event-products-model';
 
 const A = '/assets/event-detail';
 const CARD = 'rounded-xl bg-surface shadow-card';
@@ -19,11 +18,10 @@ const STYLE: Record<BoardColumnKey, { dot: string; badge: string; moreTone: stri
 };
 
 /** 행사의 Task를 상태별 열로 보여 준다. API에 없는 목업 행사(e1~e5)는 표시하지 않는다. */
-export function TaskBoard({ eventId, schedules = [], products = [] }: { eventId: string; schedules?: CheckItem[]; products?: RequestRow[] }) {
+export function TaskBoard({ schedules = [], products = [] }: { eventId?: string; schedules?: CheckItem[]; products?: RequestRow[] }) {
   const [expanded, setExpanded] = useState<Partial<Record<BoardColumnKey, boolean>>>({});
-  const items = useEventItemsList(eventId, { kind: 'task' }, { query: { enabled: eventId !== '' } });
-
-  const groups = useMemo(() => groupBoardItems(buildBoardItems(items.data ?? [], schedules, products)), [items.data, schedules, products]);
+  // 스케줄 트리가 서버 할 일을 담고 있으므로 서버 목록을 따로 합치지 않는다.
+  const groups = useMemo(() => groupBoardItems(buildBoardItems([], schedules, products)), [schedules, products]);
 
   return (
     <div className="grid grid-cols-4 gap-[24px] px-[5px] max-lg:grid-cols-2 max-sm:grid-cols-1">

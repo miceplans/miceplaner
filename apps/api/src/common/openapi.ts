@@ -7,6 +7,7 @@ import {
   proposalDto, registerBody, requestLeaveBody, rescheduleItemBody, saveDocBodyBody, searchHitDto, setClientVisibleBody, setDocVisibilityBody, transferPmBody, setEventPublicVisibilityBody, updateEventBody, updateItemBody,
   fileDto, userDto, staffAccountDto, updateStaffAccountBody, clientAccountDto, linkClientAccountBody, weekendWorkDto, wikiRevisionDetailDto, wikiRevisionDto, importJobDto, parseImportBody, previewImportBody,
   scheduleNoteDto, saveScheduleNoteBody,
+  eventProductDto, saveEventProductBody, eventCalendarBlockDto, saveEventCalendarBlockBody,
   noticeDto, createNoticeBody,
 } from '@miceplans/contracts';
 import { portalEventDto, portalProgramDto, publicEventDto } from '@miceplans/contracts/portal';
@@ -25,6 +26,7 @@ export const API_SCHEMAS: Record<string, ZodType> = {
   StaffAccountDto: staffAccountDto, UpdateStaffAccountBody: updateStaffAccountBody, ClientAccountDto: clientAccountDto, LinkClientAccountBody: linkClientAccountBody,
   ImportJobDto: importJobDto, ParseImportBody: parseImportBody, PreviewImportBody: previewImportBody,
   ScheduleNoteDto: scheduleNoteDto, SaveScheduleNoteBody: saveScheduleNoteBody,
+  EventProductDto: eventProductDto, SaveEventProductBody: saveEventProductBody, EventCalendarBlockDto: eventCalendarBlockDto, SaveEventCalendarBlockBody: saveEventCalendarBlockBody,
   NoticeDto: noticeDto, CreateNoticeBody: createNoticeBody,
 };
 
