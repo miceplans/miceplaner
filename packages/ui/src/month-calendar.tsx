@@ -276,12 +276,11 @@ export function MonthCalendar({
   /** 날짜 패널은 day:YYYY-MM-DD, 그 날의 항목 패널은 뒤에 항목 제목을 붙인다. */
   const peekKey = (day: number, item?: string) =>
     `day:${cursor.year}-${String(cursor.month).padStart(2, '0')}-${String(day).padStart(2, '0')}${item ? `:${item}` : ''}`;
-  const moveMonth = (delta: number) =>
-    setCursor((current) => {
-      const next = shiftMonth(current, delta);
-      onMonthChange?.(next);
-      return next;
-    });
+  const moveMonth = (delta: number) => {
+    const next = shiftMonth(cursor, delta);
+    setCursor(next);
+    onMonthChange?.(next);
+  };
   return (
     <div className="flex w-full flex-col items-center" style={{ gap: gridGap }}>
       {peek ? <SidePeekPanel title={peek.title} date={peek.date} agenda={[]} members={peekMembers} storageKey={peek.key} store={peekStore} onClose={() => setPeek(null)} /> : null}
