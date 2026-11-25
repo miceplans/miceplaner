@@ -1,60 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ChatEvent, ProposalDto } from '@miceplans/contracts';
-import { Input, toast } from '@miceplans/ui';
+import { Input, toast, usePersisted } from '@miceplans/ui';
 import { ApiError, streamChat } from '@/lib/api';
 import { useApproveProposal, useRejectProposal } from '@/lib/api/generated/endpoints';
 import { toChatMessages } from './chat-history';
+import { commitTurns, getTurns, patchTurn, turnsStore } from './chat-store';
 import { eventIdFrom, getEventItems, getEventTab } from './event-context';
 
 const A = '/assets/ai-chat';
 
 const CHIPS = ['다음 주 일정', '지연된 Task 보여줘'];
-/** 패널을 닫거나 화면을 이동핤 대화를 잃지 않도록 세션에 둔다. */
-const TURNS_KEY = 'miceplans.ai-chat.turns';
-
-type Source = Extract<ChatEvent, { type: 'sources' }>['sources'][number];
-type Turn = { role: 'user' | 'assistant'; content: string; sources?: Source[]; proposals?: ProposalDto[]; error?: string };
-
-/** 세션 저장값에서 유효한 대화만 골라낸다. */
-function validTurns(raw: unknown): Turn[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((turn): turn is Turn => {
-    if (!turn || typeof turn !== 'object') return false;
-    const candidate = turn as Turn;
-    return (candidate.role === 'user' || candidate.role === 'assistant') && typeof candidate.content === 'string';
-  });
-}
-
-function loadTurns(): Turn[] {
-  try {
-    const raw = window.sessionStorage.getItem(TURNS_KEY);
-    if (raw) return validTurns(JSON.parse(raw));
-  } catch {
-    /* 저장값을 읽을 수 없으면 새 대화로 시작한다. */
-  }
-  return [];
-}
-
-function saveTurns(turns: Turn[]) {
-  try {
-    window.sessionStorage.setItem(TURNS_KEY, JSON.stringify(turns));
-  } catch {
-    /* 저장할 수 없는 환경에서는 화면에만 둔다. */
-  }
-}
-
 const KIND_LABEL: Record<ProposalDto['kind'], string> = { task_drafts: 'Task 초안', notification: '알림', wiki_edit: '위키 수정' };
 const DECISION_LABEL: Record<ProposalDto['status'], string> = { pending: '승인 대기', approved: '승인됨', rejected: '반려됨' };
 
 export function AiChatPanel({ onClose, className }: { onClose?: () => void; className?: string } = {}) {
   const [open, setOpen] = useState(true);
   const [draft, setDraft] = useState('');
-  const [turns, setTurns] = useState<Turn[]>([]);
-  // 화면에 그리는 turns와 저장·스트리밍용 참조를 같이 둔다.
-  const turnsRef = useRef<Turn[]>([]);
-  const frameRef = useRef<number | null>(null);
+  const [turns] = usePersisted(turnsStore);
   const [busy, setBusy] = useState(false);
   /** 답변 글자가 오기 전 대기 안내. 대화 기록에는 저장하지 않는다. */
   const [status, setStatus] = useState<string | null>(null);
@@ -63,80 +27,33 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
   const approve = useApproveProposal();
   const reject = useRejectProposal();
 
-  // 패널이 언마운트돼도 대화가 사라지지 않게 세션 저장값을 복원한다.
-  useEffect(() => {
-    const saved = loadTurns();
-    turnsRef.current = saved;
-    setTurns(saved);
-  }, []);
-
-  // 스트리밍 중 토큰마다 전체 배열을 새로 만들지 않고 프레임 단위로 묶는다.
-  const commitFrame = useCallback(() => {
-    frameRef.current = null;
-    setTurns([...turnsRef.current]);
-    saveTurns(turnsRef.current);
-  }, []);
-  const scheduleFrame = useCallback(() => {
-    if (frameRef.current === null) frameRef.current = requestAnimationFrame(commitFrame);
-  }, [commitFrame]);
-
-  // 언마운트·탭 종료 때 프레임에 묶인 마지막 변경까지 저장한다.
-  useEffect(() => {
-    const flush = () => {
-      if (frameRef.current !== null) {
-        window.cancelAnimationFrame(frameRef.current);
-        frameRef.current = null;
-      }
-      saveTurns(turnsRef.current);
-    };
-    window.addEventListener('pagehide', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      flush();
-    };
-  }, []);
-
   if (!open) return null;
 
-  /** 즉시 반영이 필요한 변경(전송·승인 등)은 프레임을 기다리지 않는다. */
-  const commitNow = (next: Turn[]) => {
-    if (frameRef.current !== null) {
-      window.cancelAnimationFrame(frameRef.current);
-      frameRef.current = null;
-    }
-    turnsRef.current = next;
-    setTurns([...next]);
-    saveTurns(next);
-  };
-
-  const patchLast = (fn: (t: Turn) => Turn) => {
-    const current = turnsRef.current;
-    turnsRef.current = current.map((t, i) => (i === current.length - 1 ? fn(t) : t));
-    scheduleFrame();
-  };
-
   /** 토스트는 금방 사라지므로 답변 자리에도 이유를 남긴다. */
-  const fail = (message: string) => {
+  const fail = (index: number, message: string) => {
     toast.error(message);
-    patchLast((t) => ({ ...t, error: message }));
+    patchTurn(index, (t) => ({ ...t, error: message }));
   };
 
-  const handle = (e: ChatEvent) => {
+  const handle = (index: number, e: ChatEvent) => {
     if (e.type === 'status') setStatus(e.message);
     else if (e.type === 'text') {
       setStatus(null);
-      patchLast((t) => ({ ...t, content: t.content + e.delta }));
-    } else if (e.type === 'sources') patchLast((t) => ({ ...t, sources: e.sources }));
-    else if (e.type === 'proposal') patchLast((t) => ({ ...t, proposals: [...(t.proposals ?? []), e.proposal] }));
-    else if (e.type === 'error') fail(e.message);
+      patchTurn(index, (t) => ({ ...t, content: t.content + e.delta }));
+    } else if (e.type === 'sources') patchTurn(index, (t) => ({ ...t, sources: e.sources }));
+    else if (e.type === 'proposal') patchTurn(index, (t) => ({ ...t, proposals: [...(t.proposals ?? []), e.proposal] }));
+    else if (e.type === 'error') fail(index, e.message);
   };
 
   const send = async (text: string) => {
     const content = text.trim();
     if (!content || busy || sending.current) return;
     sending.current = true;
-    const history = toChatMessages([...turnsRef.current, { role: 'user', content }]);
-    commitNow([...turnsRef.current, { role: 'user', content }, { role: 'assistant', content: '' }]);
+    const before = getTurns();
+    const history = toChatMessages([...before, { role: 'user', content }]);
+    // 답변이 들어갈 자리. 대화는 뒤에만 붙으므로 자리가 바뀌지 않는다.
+    const index = before.length + 1;
+    commitTurns([...before, { role: 'user', content }, { role: 'assistant', content: '' }]);
     setDraft('');
     setBusy(true);
     abort.current = new AbortController();
@@ -144,11 +61,11 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
       const eventId = eventIdFrom(window.location.pathname, window.location.search);
       const eventTab = eventId ? getEventTab() : undefined;
       const eventItems = eventId ? getEventItems() : undefined;
-      await streamChat({ eventId, eventTab, eventItems, messages: history }, handle, abort.current.signal);
-      const last = turnsRef.current.at(-1);
-      if (last && !last.content.trim() && !last.error && !last.proposals?.length) fail('[500] 답변을 받지 못했습니다. 다시 질문해 주세요.');
+      await streamChat({ eventId, eventTab, eventItems, messages: history }, (e) => handle(index, e), abort.current.signal);
+      const last = getTurns()[index];
+      if (last && !last.content.trim() && !last.error && !last.proposals?.length) fail(index, '[500] 답변을 받지 못했습니다. 다시 질문해 주세요.');
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) fail(error instanceof ApiError ? error.message : '[500] 답변을 받지 못했습니다.');
+      if (!(error instanceof DOMException && error.name === 'AbortError')) fail(index, error instanceof ApiError ? error.message : '[500] 답변을 받지 못했습니다.');
     } finally {
       sending.current = false;
       setStatus(null);
@@ -159,7 +76,7 @@ export function AiChatPanel({ onClose, className }: { onClose?: () => void; clas
   const decide = async (turnIndex: number, proposal: ProposalDto, action: 'approve' | 'reject') => {
     try {
       const updated = await (action === 'approve' ? approve : reject).mutateAsync({ id: proposal.id });
-      commitNow(turnsRef.current.map((t, i) => (i === turnIndex ? { ...t, proposals: t.proposals?.map((p) => (p.id === updated.id ? updated : p)) } : t)));
+      commitTurns(getTurns().map((t, i) => (i === turnIndex ? { ...t, proposals: t.proposals?.map((p) => (p.id === updated.id ? updated : p)) } : t)));
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : '[500] 처리하지 못했습니다.');
     }
