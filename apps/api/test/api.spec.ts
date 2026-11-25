@@ -379,6 +379,32 @@ describe('Client 포털 (F-07)', () => {
       expect.objectContaining({ eventId: EVENT, title: '개막식', startsOn: null, dueOn: null }),
     ]);
   });
+  it('알림함은 공개 Program의 공개·일정 변경만 보여 주고 읽음은 본인 것만 바꾼다', async () => {
+    await api().get('/portal/notifications').set(as('staff')).expect(403);
+    await api().post('/portal/notifications/read').set(as('staff')).send({ ids: [1] }).expect(403);
+    await api().get('/portal/notifications').expect(401);
+    const { body: programs } = await api().get('/portal/programs').set(as('client')).expect(200);
+    const programId = programs[0].programId as string;
+    const list = async (who: 'client' | 'client2') => (await api().get('/portal/notifications').set(as(who)).expect(200)).body as { id: number; kind: string; programId: string; readAt: string | null }[];
+    const before = (await list('client')).length;
+
+    const { version } = (await api().get(`/items/${programId}`).set(as('pm')).expect(200)).body as { version: number };
+    const moved = await api().patch(`/items/${programId}/schedule`).set(as('pm')).send({ startsOn: '2026-12-01', dueOn: '2026-12-02', expectedVersion: version }).expect(200);
+    const after = await list('client');
+    expect(after).toHaveLength(before + 1);
+    expect(after[0]).toMatchObject({ kind: 'schedule_changed', programId, programTitle: '개막식', beforeDueOn: null, afterDueOn: '2026-12-02', readAt: null });
+    expect(Object.keys(after[0]!).sort()).toEqual(['afterDueOn', 'afterStartsOn', 'beforeDueOn', 'beforeStartsOn', 'createdAt', 'eventId', 'eventName', 'id', 'kind', 'programId', 'programTitle', 'readAt']);
+    expect(await list('client2')).toEqual([]);
+
+    await api().post('/portal/notifications/read').set(as('client')).send({ ids: [] }).expect(400);
+    const foreign = await api().post('/portal/notifications/read').set(as('client2')).send({ ids: [after[0]!.id] }).expect(200);
+    expect(foreign.body).toEqual({ updated: 0 });
+    const read = await api().post('/portal/notifications/read').set(as('client')).send({ ids: [after[0]!.id] }).expect(200);
+    expect(read.body).toEqual({ updated: 1 });
+    expect((await list('client'))[0]!.readAt).not.toBeNull();
+
+    await api().patch(`/items/${programId}/schedule`).set(as('pm')).send({ startsOn: null, dueOn: null, expectedVersion: moved.body.version }).expect(200);
+  });
   it('PM·AM은 Client를 지정·해제하고 포털에 반영된다', async () => {
     const count = async () => (await admin.query(`SELECT count(*)::int AS n FROM audit_log WHERE action = 'event.client.change'`)).rows[0]!.n as number;
     const before = await count();

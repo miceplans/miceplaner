@@ -88,6 +88,8 @@ AI 기능은 브랜드 레드와 분리된 바이올렛 계열 액센트를 쓴�
 | `text-xl` | 20px | 화면 제목(600·700, letter-spacing -0.008em) · 수치 강조 |
 | `text-2xl` | 24px | 통계 수치(700, -0.02em) |
 | `text-3xl` | 32px | 히어로 수치(700, -0.03em) |
+| `text-title` | 15px | Client 행사 목록 행 제목(500) |
+| `text-hero` · `text-hero-cta` · `text-gauge` | 53px · 26.5px · 50px | Client 대시보드 히어로 행사명(600) · 바로가기(600) · 게이지 수치(700) |
 
 - 기본 line-height는 1.4. 큰 수치(20px+)는 1.2~1.5로 조금 여유를 둔다.
 - 올캡·어컬러크 라벨은 letter-spacing +0.03~0.1em, 큰 수치는 -0.02~-0.03em.
@@ -102,6 +104,7 @@ AI 기능은 브랜드 레드와 분리된 바이올렛 계열 액센트를 쓴�
 | `rounded-md` | 8px | 카드 · 아바타 · 입력 · 내비 항목 |
 | `rounded-lg` | 10px | 콘텐츠 카드 · 채팅 버블 |
 | `rounded-xl` · `rounded-2xl` | 12px · 20px | 대형 카드 · 사이드 패널 · 연락 카드 |
+| `rounded-card` · `rounded-hero` | 14px · 26px | Client 목록·상세 카드 · Client 히어로 |
 | `rounded-full` | 999px | 숫자 배지 · 세그먼트 |
 
 - 간격: `gap` 4/6/8/10/12 기본 단계. 수평 패딩은 행 16px, 버튼 14px, 필 8px가 표준.
@@ -120,8 +123,14 @@ AI 기능은 브랜드 레드와 분리된 바이올렛 계열 액센트를 쓴�
 | View Header | h52 · px 16 · 하단 1px `border-border` |
 | Topbar(`PageTopbar`) | h56 · px 16 · gap 12 · 하단 1px `border-border` · 좌측 제목 13/500, 우측 보조 동작 |
 | 본문(`PageBody`) | `bg-surface` · px 24(모바일 16) · py 20 · 세로 gap 16 |
-| Client 헤더(`ClientHeader`) | h64 · px 40(모바일 16) · 하단 1px `border-border` · 좌측 로고+「고객 포털」, 우측 대시보드·캘린더 탭(h48 · `bg-surface-sunken`, 활성 탭 `bg-surface`) |
-| Client 본문 | Figma 「마이스플래너」 Client 화면(node 157-5395) 기준. `bg-surface-sunken` 페이지 · 콘텐츠 최대 폭 1361(대시보드) / 1200(목록) / 640(상세) 가운데 정렬 · 좁은 화면에서는 카드가 세로로 쌓인다 |
+| Client 헤더(`ClientHeader`) | Figma 157:5814. h64 · px 40(모바일 16) · 하단 1px `border-border` · 좌측 로고+「Client Portal」, **가운데** 대시보드·캘린더·알림함 탭(h48 · `bg-surface-sunken`, 활성 탭 h40 `bg-surface`). 문의 기능은 명세 F-07에 없어 Figma 문의함 자리에 알림함을 둔다 |
+| Client 알림함 | Figma 221:26740. 최대 폭 1360 · 묶음 gap 14 · 카드 `rounded-lg` · 행 h58(아이콘 칩 34) · 안 읽음은 600 + 7px 도트 |
+| Client 알림 상세 | Figma 221:27009. 상단 h52 · 왼쪽 320 카드(gap 14) + 오른쪽 연계 캘린더 · `text-unread`/`bg-unread-bg` 안 읽은 알림 칩. 1024px 미만은 세로로 쌓인다 |
+| Client 대시보드 | Figma 157:5395. `bg-surface-sunken` · p 40 · gap 22 · 최대 폭 1361을 575:371:371로 나눈다. 히어로(`rounded-hero` · `text-hero` · `text-hero-cta`) · 카드(`rounded-2xl` · p 24 · 제목 20/700, 내용은 아래 정렬) · 진행 단계(점 37.5 + 이름, `text-gauge` 게이지는 완료율로 칠한다) |
+| Client 목록 | Figma 157:4468. 최대 폭 1376 · `rounded-card` · 행 h72 · 제목 `text-title`/500 · D-day 필 h24 `bg-surface-pill` `text-fg-pill` |
+| Client 상세 | Figma 157:4535. 폭 640 · 카드 `rounded-card` · p 28 · 최소 높이 444 · 정보 행 h56(아이콘 16 + 라벨 64 + 값), 구분선 없음 |
+| Client 캘린더 | Figma 159:6086. 탭 h52 · 월 이동 h44 · 요일 h32 · 주 h102 · 칩 h20. 진행중 `bg-ongoing-bg`/`text-scheduled` · 예정 `*-notice` · 완료 `bg-surface-chip`. 토요일 열 비율 164.5:193.9. 좁은 화면에서는 달력만 가로 스크롤한다 |
+| Client 상태 필(`ScheduleStatus`) | `StatusTag` 톤을 쓴다. 완료=success, 진행중=progress, 예정=review |
 | 테이블 행 | 헤더 h36 · 스케줄 h44 · 목록 h48 |
 | 목록 표(`TableFrame`·`TableHeader`·`TableRow`·`TableMessage`) | 틀 rounded-lg + `border-border` · 헤더 h36 `bg-surface-sunken` 11/600 tracking 0.4px tertiary · 행 min-h48 px16 행 사이 `border-b` |
 | 사이드바(`SidebarLogo`·`SidebarNav`·`SidebarNavLink`) | 폭 240 · `bg-surface-sidebar` · 로고 행 h52 · 항목 h32 px10 rounded-sm, 활성 `bg-border` + 600 · 모바일은 상단 가로 막대 |

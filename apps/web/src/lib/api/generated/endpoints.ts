@@ -63,6 +63,7 @@ import type {
   ListEventFilesParams,
   LoginBody,
   MarkNotificationsReadBody,
+  MarkPortalNotificationsReadBody,
   MoveFileBody,
   NoticeDto,
   NotificationDto,
@@ -72,6 +73,8 @@ import type {
   PartnerDto,
   PartnerFieldDto,
   PortalEventDto,
+  PortalMarkNotificationsRead200,
+  PortalNotificationDto,
   PortalProgramDto,
   PreviewImportBody,
   ProposalDto,
@@ -4637,6 +4640,193 @@ export function usePortalPrograms<TData = Awaited<ReturnType<typeof portalProgra
 
 
 
+
+export const getPortalNotificationsUrl = () => {
+
+
+
+
+  return `/portal/notifications`
+}
+
+/**
+ * @summary 내 알림함 (공개 Program의 공개·일정 변경, 최근 30일)
+ */
+export const portalNotifications = async ( options?: Parameters<typeof http>[1]): Promise<PortalNotificationDto[]> => {
+
+  return http<PortalNotificationDto[]>(getPortalNotificationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPortalNotificationsQueryKey = () => {
+    return [
+    `/portal/notifications`
+    ] as const;
+    }
+
+
+export const getPortalNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof portalNotifications>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof portalNotifications>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPortalNotificationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof portalNotifications>>> = ({ signal }) => portalNotifications({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof portalNotifications>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type PortalNotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof portalNotifications>>>
+export type PortalNotificationsQueryError = unknown
+
+
+/** @summary 내 알림함 (공개 Program의 공개·일정 변경, 최근 30일) */
+export function usePortalNotifications<TData = Awaited<ReturnType<typeof portalNotifications>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof portalNotifications>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof portalNotifications>>,
+          TError,
+          Awaited<ReturnType<typeof portalNotifications>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 내 알림함 (공개 Program의 공개·일정 변경, 최근 30일) */
+export function usePortalNotifications<TData = Awaited<ReturnType<typeof portalNotifications>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof portalNotifications>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof portalNotifications>>,
+          TError,
+          Awaited<ReturnType<typeof portalNotifications>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 내 알림함 (공개 Program의 공개·일정 변경, 최근 30일) */
+export function usePortalNotifications<TData = Awaited<ReturnType<typeof portalNotifications>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof portalNotifications>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 내 알림함 (공개 Program의 공개·일정 변경, 최근 30일) */
+export function usePortalNotifications<TData = Awaited<ReturnType<typeof portalNotifications>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof portalNotifications>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getPortalNotificationsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPortalMarkNotificationsReadUrl = () => {
+
+
+
+
+  return `/portal/notifications/read`
+}
+
+/**
+ * @summary 내 알림 읽음 처리
+ */
+export const portalMarkNotificationsRead = async (markPortalNotificationsReadBody: MarkPortalNotificationsReadBody, options?: Parameters<typeof http>[1]): Promise<PortalMarkNotificationsRead200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<PortalMarkNotificationsRead200>(getPortalMarkNotificationsReadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(markPortalNotificationsReadBody)
+  }
+);}
+
+
+
+
+
+export const getPortalMarkNotificationsReadMutationKey = () => ['portalMarkNotificationsRead'] as const;
+
+export const getPortalMarkNotificationsReadMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalMarkNotificationsRead>>, TError,PortalMarkNotificationsReadMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof portalMarkNotificationsRead>>, TError,PortalMarkNotificationsReadMutationVariables, TContext> => {
+
+const mutationKey = getPortalMarkNotificationsReadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof portalMarkNotificationsRead>>, PortalMarkNotificationsReadMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  portalMarkNotificationsRead(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PortalMarkNotificationsReadMutationResult = NonNullable<Awaited<ReturnType<typeof portalMarkNotificationsRead>>>
+    export type PortalMarkNotificationsReadMutationBody = MarkPortalNotificationsReadBody
+    export type PortalMarkNotificationsReadMutationError = unknown
+    export type PortalMarkNotificationsReadMutationVariables = {data: MarkPortalNotificationsReadBody}
+
+    /** @summary 내 알림 읽음 처리 */
+export const usePortalMarkNotificationsRead = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalMarkNotificationsRead>>, TError,PortalMarkNotificationsReadMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof portalMarkNotificationsRead>>,
+        TError,
+        PortalMarkNotificationsReadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPortalMarkNotificationsReadMutationOptions(options), queryClient);
+    }
 
 export const getPortalPublicEventsUrl = () => {
 

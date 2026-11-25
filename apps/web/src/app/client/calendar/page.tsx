@@ -5,17 +5,21 @@ import type { PublicEventDto } from '@miceplans/contracts/portal';
 import { ClientHeader } from '@miceplans/ui';
 import { usePortalPublicEvents } from '../../../lib/api/generated/endpoints';
 import { eventColor } from '../../../lib/event-color';
-import { calendarWeeks, eventsInMonth, eventWeekBars, formatRange, inclusiveDays, shortRange, todayIso, type WeekBar } from '../portal';
+import { calendarWeeks, eventsInMonth, eventWeekBars, formatPeriodLong, inclusiveDays, shortRange, todayIso, type WeekBar } from '../portal';
 
 const A = '/assets/client/calendar-view';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 /** 주 행: 날짜 줄 아래에 기간 막대를 줄(lane)마다 쌓는다. */
-const BAR_TOP = 34;
+const BAR_TOP = 27;
+/** 오늘 표시 원(22px)이 있는 주는 막대를 그만큼 아래에서 시작한다. */
+const BAR_TOP_TODAY = 34;
 const BAR_H = 20;
 const BAR_GAP = 4;
 const ROW_MIN = 102;
+/** Figma 열 폭: 토요일 열(164.5)이 나머지(193.9)보다 좁다. */
+const COLS = { gridTemplateColumns: 'repeat(6, minmax(0, 193.9fr)) minmax(0, 164.5fr)' };
 
 /** 조회 실패 시 쓰는 고정 빈 목록. 렌더마다 새 배열을 만들면 useMemo가 매번 다시 계산된다. */
 const NO_EVENTS: PublicEventDto[] = [];
@@ -61,7 +65,7 @@ export default function ClientCalendarPage() {
           <button type="button" aria-label="이전 달" onClick={() => shiftMonth(-1)} className="cursor-pointer border-0 bg-transparent p-0">
             <img alt="" src={`${A}/nav-icon.svg`} className="size-[15px]" />
           </button>
-          <p className="whitespace-nowrap text-lg font-semibold text-fg">{cursor.year}년 {cursor.month}월</p>
+          <h1 className="whitespace-nowrap text-lg font-semibold text-fg">{cursor.year}년 {cursor.month}월</h1>
           <button type="button" aria-label="다음 달" onClick={() => shiftMonth(1)} className="cursor-pointer border-0 bg-transparent p-0">
             <img alt="" src={`${A}/nav-icon1.svg`} className="size-[15px]" />
           </button>
@@ -69,10 +73,10 @@ export default function ClientCalendarPage() {
             Today
           </button>
         </div>
-        <div className="flex w-full flex-1 flex-col gap-[24px] px-[24px] pb-[24px]">
+        <div className="flex w-full flex-1 flex-col gap-[24px] px-[24px] pb-[24px] max-md:px-[16px]">
           <div className="w-full overflow-x-auto">
             <div className="flex min-w-[720px] flex-col items-start">
-              <div className="grid h-[32px] w-full shrink-0 grid-cols-7 border-b border-solid border-border bg-surface">
+              <div style={COLS} className="grid h-[32px] w-full shrink-0 border-b border-solid border-border bg-surface">
                 {WEEKDAYS.map((d) => (
                   <div key={d} className="flex h-full items-center justify-center">
                     <p className="whitespace-nowrap text-xs font-medium text-fg-tertiary">{d}</p>
@@ -82,17 +86,16 @@ export default function ClientCalendarPage() {
               {weeks.map((week, w) => {
                 const weekBars = bars[w] ?? [];
                 const lanes = weekBars.reduce((n, b) => Math.max(n, b.lane + 1), 0);
-                const height = Math.max(ROW_MIN, BAR_TOP + lanes * (BAR_H + BAR_GAP) + 6);
+                const barTop = isCurrentMonth && week.includes(todayDay) ? BAR_TOP_TODAY : BAR_TOP;
+                const minHeight = Math.max(ROW_MIN, barTop + lanes * (BAR_H + BAR_GAP) + 6);
                 return (
-                  <div key={w} style={{ height }} className="relative grid w-full shrink-0 grid-cols-7 border-b border-l border-solid border-border-strong">
+                  <div key={w} style={{ ...COLS, minHeight }} className="relative grid w-full shrink-0 border-b border-l border-solid border-border-strong">
                     {week.map((day, i) => {
                       const isToday = isCurrentMonth && day === todayDay;
                       return (
                         <div
                           key={i}
-                          className={`flex h-full min-w-0 flex-col items-start overflow-hidden border-r border-solid border-border-soft px-[8px] pt-[8px] ${
-                            i === 6 ? 'border-r-border-strong' : ''
-                          } ${day ? 'bg-surface' : 'bg-surface-subtle'}`}
+                          className={`flex min-w-0 flex-col items-start border-r border-solid border-border-soft px-[8px] pt-[8px] ${day ? 'bg-surface' : 'bg-surface-subtle'}`}
                         >
                           {isToday ? (
                             <span className="flex size-[22px] shrink-0 items-center justify-center rounded-lg bg-brand text-xs font-semibold text-fg-inverse">{day}</span>
@@ -103,7 +106,7 @@ export default function ClientCalendarPage() {
                       );
                     })}
                     {weekBars.length > 0 ? (
-                      <div className="pointer-events-none absolute inset-x-0 grid grid-cols-7 px-[2px]" style={{ top: BAR_TOP, gridAutoRows: BAR_H, rowGap: BAR_GAP }}>
+                      <div className="pointer-events-none absolute inset-x-0 grid" style={{ ...COLS, top: barTop, gridAutoRows: BAR_H, rowGap: BAR_GAP }}>
                         {weekBars.map((b) => (
                           <EventBar key={b.eventId} bar={b} />
                         ))}
@@ -118,7 +121,7 @@ export default function ClientCalendarPage() {
           {monthEvents.length > 0 ? (
             <section className="flex w-full flex-col gap-[8px]">
               <h2 className="text-base font-semibold text-fg">{cursor.month}월 행사</h2>
-              <ul className="flex w-full flex-col divide-y divide-border-soft rounded-md border border-solid border-border-soft bg-surface">
+              <ul className="flex w-full flex-col divide-y divide-border-soft rounded-card border border-solid border-border bg-surface">
                 {monthEvents.map((e) => {
                   return (
                     <li key={e.eventId} className="flex items-center gap-[10px] px-[16px] py-[12px] max-md:flex-col max-md:items-start max-md:gap-[4px]">
@@ -127,7 +130,7 @@ export default function ClientCalendarPage() {
                         <span className="truncate text-sm font-medium text-fg">{e.name}</span>
                       </span>
                       <span className="whitespace-nowrap text-sm text-fg-secondary">
-                        {formatRange(e.startDate, e.endDate)} <span className="text-xs text-fg-tertiary">({inclusiveDays(e.startDate, e.endDate)}일)</span>
+                        {formatPeriodLong(e.startDate, e.endDate)} <span className="text-xs text-fg-tertiary">({inclusiveDays(e.startDate, e.endDate)}일)</span>
                       </span>
                     </li>
                   );
@@ -147,7 +150,7 @@ export default function ClientCalendarPage() {
 function EventBar({ bar }: { bar: WeekBar }) {
   return (
     <div
-      title={`${bar.name} · ${formatRange(bar.startDate, bar.endDate)}`}
+      title={`${bar.name} · ${formatPeriodLong(bar.startDate, bar.endDate)}`}
       className={`pointer-events-auto mx-[2px] flex min-w-0 items-center gap-[4px] px-[6px] text-fg-inverse ${bar.continuesBefore ? 'rounded-l-none' : 'rounded-l-xs'} ${
         bar.continuesAfter ? 'rounded-r-none' : 'rounded-r-xs'
       }`}

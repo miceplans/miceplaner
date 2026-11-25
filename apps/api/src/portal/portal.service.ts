@@ -1,13 +1,13 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { portalEventDto, portalProgramDto, publicEventDto } from '@miceplans/contracts/portal';
-import { portalEvents, portalPrograms, publicEvents, withContext } from '@miceplans/db';
+import { portalEventDto, portalNotificationDto, portalProgramDto, publicEventDto, type MarkPortalNotificationsReadBody } from '@miceplans/contracts/portal';
+import { markPortalNotificationsRead, portalEvents, portalNotifications, portalPrograms, publicEvents, withContext } from '@miceplans/db';
 import type { Pool } from '@miceplans/db';
 import type { AuthUser } from '../common/auth';
 import { config } from '../config';
 import { mapDbError } from '../common/http';
 import { DB_POOL } from '../tokens';
 
-/** Client 포털. 공개 전용 모델(portal_events·portal_programs)만 쓴다 (명세 F-07). */
+/** Client 포털. 공개 전용 모델(portal_events·portal_programs·portal_notifications)만 쓴다 (명세 F-07). */
 @Injectable()
 export class PortalService {
   constructor(@Inject(DB_POOL) private readonly pool: Pool) {}
@@ -26,6 +26,19 @@ export class PortalService {
     this.requireClient(user);
     const rows = await withContext(this.pool, user, (db) => portalPrograms(db)).catch((error) => mapDbError(error));
     return rows.map((r) => portalProgramDto.parse(r));
+  }
+
+  /** Client 알림함. 내부 알림 채널(notifications·Socket.IO)은 쓰지 않는다 (명세 F-06·F-07). */
+  async notifications(user: AuthUser) {
+    this.requireClient(user);
+    const rows = await withContext(this.pool, user, (db) => portalNotifications(db)).catch((error) => mapDbError(error));
+    return rows.map((r) => portalNotificationDto.parse(r));
+  }
+
+  async markNotificationsRead(user: AuthUser, body: MarkPortalNotificationsReadBody) {
+    this.requireClient(user);
+    const updated = await withContext(this.pool, user, (db) => markPortalNotificationsRead(db, body.ids)).catch((error) => mapDbError(error));
+    return { updated };
   }
 
   /**

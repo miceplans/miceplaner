@@ -11,7 +11,7 @@ import {
   noticeDto, createNoticeBody,
   partnerDto, savePartnerBody, partnerFieldDto, savePartnerFieldBody,
 } from '@miceplans/contracts';
-import { portalEventDto, portalProgramDto, publicEventDto } from '@miceplans/contracts/portal';
+import { markPortalNotificationsReadBody, portalEventDto, portalNotificationDto, portalProgramDto, publicEventDto } from '@miceplans/contracts/portal';
 
 /** OpenAPI components에 올리는 계약 스키마. 웹 클라이언트(orval)의 타입 이름이 된다. */
 export const API_SCHEMAS: Record<string, ZodType> = {
@@ -19,7 +19,7 @@ export const API_SCHEMAS: Record<string, ZodType> = {
   EventDto: eventDto, EventListItemDto: eventListItemDto, CreateEventBody: createEventBody, UpdateEventBody: updateEventBody, EventMemberDto: eventMemberDto, AddEventMemberBody: addEventMemberBody,
   ChangeEventMemberRoleBody: changeEventMemberRoleBody, TransferPmBody: transferPmBody, SetEventPublicVisibilityBody: setEventPublicVisibilityBody, EventItemDto: eventItemDto, CreateItemBody: createItemBody, UpdateItemBody: updateItemBody,
   AssignItemBody: assignItemBody, RescheduleItemBody: rescheduleItemBody, SetClientVisibleBody: setClientVisibleBody, NotificationDto: notificationDto,
-  PortalEventDto: portalEventDto, PortalProgramDto: portalProgramDto, PublicEventDto: publicEventDto, LeaveRecordDto: leaveRecordDto, LeaveBalanceDto: leaveBalanceDto,
+  PortalEventDto: portalEventDto, PortalProgramDto: portalProgramDto, PublicEventDto: publicEventDto, PortalNotificationDto: portalNotificationDto, MarkPortalNotificationsReadBody: markPortalNotificationsReadBody, LeaveRecordDto: leaveRecordDto, LeaveBalanceDto: leaveBalanceDto,
   RequestLeaveBody: requestLeaveBody, WeekendWorkDto: weekendWorkDto, EventDocDto: eventDocDto, SetDocVisibilityBody: setDocVisibilityBody,
   DocPageDto: docPageDto, CreateDocBody: createDocBody, SaveDocBodyBody: saveDocBodyBody, SearchHitDto: searchHitDto, WikiRevisionDto: wikiRevisionDto,
   WikiRevisionDetailDto: wikiRevisionDetailDto, ChatBody: chatBody, ProposalDto: proposalDto, MoveFileBody: moveFileBody, FileDto: fileDto,

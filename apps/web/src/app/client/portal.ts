@@ -40,9 +40,15 @@ export function programState(startsOn: string | null, dueOn: string | null, toda
   return '진행중';
 }
 
+/** UTC 자정 시각. Date.UTC의 월은 0부터라 1을 뺀다(안 빼면 달을 넘길 때 일수가 어긋난다). */
+const utc = (iso: string): number => {
+  const [y, m, d] = parts(iso);
+  return Date.UTC(y, m - 1, d);
+};
+
 /** 기준일까지 남은 일수 (오늘이면 0). */
 export function daysUntil(iso: string, today: string): number {
-  return Math.round((Date.UTC(...parts(iso)) - Date.UTC(...parts(today))) / 86_400_000);
+  return Math.round((utc(iso) - utc(today)) / 86_400_000);
 }
 
 /** 행사 목록의 D-day 칩 문구. */
@@ -62,21 +68,49 @@ export const formatDate = (iso: string): string => {
   return `${y}.${String(m).padStart(2, '0')}.${String(d).padStart(2, '0')}`;
 };
 
-/** 같은 해이면 연도를 한 번만 적는다: 2026.11.18 ~ 11.20 */
-export function formatRange(start: string, end: string): string {
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+
+/** Figma 목록 기간 표기: 하루면 04.18, 같은 해면 03.13 – 03.16, 해를 넘기면 연도까지 적는다. */
+export function formatPeriod(start: string, end: string): string {
   const [sy, sm, sd] = parts(start);
   const [ey, em, ed] = parts(end);
-  if (sy === ey) {
-    return sm === em
-      ? `${sy}.${String(sm).padStart(2, '0')}.${String(sd).padStart(2, '0')} ~ ${String(ed).padStart(2, '0')}`
-      : `${sy}.${String(sm).padStart(2, '0')}.${String(sd).padStart(2, '0')} ~ ${String(em).padStart(2, '0')}.${String(ed).padStart(2, '0')}`;
-  }
-  return `${formatDate(start)} ~ ${formatDate(end)}`;
+  if (sy !== ey) return `${formatDate(start)} – ${formatDate(end)}`;
+  const from = `${pad2(sm)}.${pad2(sd)}`;
+  return start === end ? from : `${from} – ${pad2(em)}.${pad2(ed)}`;
+}
+
+/** Figma 상세 기간 표기: 2025. 03. 13 – 03. 16. 하루면 시작일만, 해를 넘기면 양쪽에 연도를 적는다. */
+export function formatPeriodLong(start: string, end: string): string {
+  const [sy, sm, sd] = parts(start);
+  const [ey, em, ed] = parts(end);
+  const from = `${sy}. ${pad2(sm)}. ${pad2(sd)}`;
+  if (start === end) return from;
+  const to = `${pad2(em)}. ${pad2(ed)}`;
+  return `${from} – ${sy === ey ? to : `${ey}. ${to}`}`;
+}
+
+/** 대시보드 일정 날짜: 3/10 */
+export const formatMonthDay = (iso: string): string => {
+  const [, m, d] = parts(iso);
+  return `${m}/${d}`;
+};
+
+/** 진행 단계에 보일 구간의 시작 위치. 현재(아직 끝나지 않은 첫) 단계와 그 직전 단계가 보이게 size개를 고른다. */
+export function stepWindowStart(done: boolean[], size: number): number {
+  const firstOpen = done.indexOf(false);
+  const current = firstOpen === -1 ? done.length : firstOpen;
+  return Math.max(0, Math.min(current - 1, done.length - size));
+}
+
+/** 게이지 조각별 채움(0 빈칸, 0.5 절반, 1 채움). */
+export function gaugeFill(ratio: number, segments: number): (0 | 0.5 | 1)[] {
+  const filled = Math.round(Math.max(0, Math.min(1, ratio)) * segments * 2) / 2;
+  return Array.from({ length: segments }, (_, i) => (filled >= i + 1 ? 1 : filled > i ? 0.5 : 0));
 }
 
 /** 기간의 총 일수 (양끝 포함). */
 export function inclusiveDays(start: string, end: string): number {
-  return Math.round((Date.UTC(...parts(end)) - Date.UTC(...parts(start))) / 86_400_000) + 1;
+  return Math.round((utc(end) - utc(start)) / 86_400_000) + 1;
 }
 
 /** 시작일 오름차순, 같은 날이면 제목 순. */
