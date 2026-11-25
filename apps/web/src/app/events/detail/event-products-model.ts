@@ -97,6 +97,17 @@ export function sortProgress(rows: ProgressRow[], sort: ProgressSort): ProgressR
   });
 }
 
+/** 요청을 보내기 전에 채워야 하는 항목. 표 머리글의 * 표시와 같다. */
+const REQUIRED: { key: 'name' | 'size' | 'material'; label: string }[] = [
+  { key: 'name', label: '품명' },
+  { key: 'size', label: '사이즈' },
+  { key: 'material', label: '재질' },
+];
+export const missingFields = (r: RequestRow): string[] => REQUIRED.filter((f) => !r[f.key].trim()).map((f) => f.label);
+
+/** 작성 중이거나 반려된 요청만 승인 대기로 보낼 수 있다. */
+export const canRequest = (r: RequestRow): boolean => r.status === 'draft' || r.status === 'reject';
+
 export const FIELDS = ['name', 'size', 'qty', 'material', 'vendor', 'contact', 'note'] as const;
 export const WIDTHS = ['w-[120px]', 'w-[100px]', 'w-[85px]', 'w-[85px]', 'w-[140px]', 'w-[180px]', 'w-[120px]'];
 

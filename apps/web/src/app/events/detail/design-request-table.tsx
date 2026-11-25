@@ -1,10 +1,10 @@
 'use client';
 
 import { Fragment, useRef, useState } from 'react';
-import { Checkbox, ConfirmDialog, Input, StatusPill } from '@miceplans/ui';
+import { Checkbox, ConfirmDialog, Input, Select, StatusPill, toast } from '@miceplans/ui';
 import { AddPropertyButton, PROP_COL_WIDTH, PropCell, PropHeaderCell, useCustomProps } from './custom-props';
 import { ProductNameCombobox } from './product-name-combobox';
-import { matchPart, type PartFilter } from './event-parts';
+import { PART_FILTERS, matchPart, type PartFilter, type ProductPart } from './event-parts';
 import type { ProductCatalogItem } from './product-catalog';
 import {
   CELL,
@@ -12,13 +12,17 @@ import {
   HEAD,
   LINE,
   WIDTHS,
+  canRequest,
   downloadDesignRequests,
+  missingFields,
   type RequestRow,
   type Team,
 } from './event-products-model';
 import { Required, TableTitle } from './product-table-ui';
 
 const A = '/assets/event-detail';
+
+const PART_OPTIONS = PART_FILTERS.filter((p): p is ProductPart => p !== '전체').map((p) => ({ value: p, label: p }));
 
 const INITIAL_ROWS: Record<Team, RequestRow[]> = { planning: [], design: [] };
 
@@ -85,9 +89,19 @@ export function DesignRequestTable({ team, canEdit, part = '전체', eventName =
   const add = () =>
     setRows((list) => [
       ...list,
-      { id: crypto.randomUUID(), name: '', part: '디자인', due: '', size: '', qty: '', material: '', vendor: '', contact: '', note: '', negotiating: false, status: 'draft' },
+      { id: crypto.randomUUID(), name: '', part: part === '전체' ? '디자인' : part, due: '', size: '', qty: '', material: '', vendor: '', contact: '', note: '', negotiating: false, status: 'draft' },
     ]);
 
+  /** 작성 중·반려 요청을 승인 대기로 보낸다. 필수 항목이 비어 있으면 보내지 않는다. */
+  const requestApproval = (r: RequestRow) => {
+    const missing = missingFields(r);
+    if (missing.length) {
+      toast.error(`${missing.join('·')}을(를) 입력해야 요청할 수 있습니다.`);
+      return;
+    }
+    update(r.id, { status: 'pending' });
+    setEditingId(null);
+  };
   const startEdit = (id: string) => {
     setEditingId(id);
     requestAnimationFrame(() => tableRef.current?.querySelector<HTMLInputElement>(`[data-row-id="${id}"] input`)?.focus());
@@ -123,11 +137,11 @@ export function DesignRequestTable({ team, canEdit, part = '전체', eventName =
       </div>
       {!canEdit && <p className="m-0 text-sm text-fg-tertiary">행사 멤버만 디자인 요청을 추가·수정할 수 있습니다.</p>}
       <div ref={tableRef} className="overflow-x-auto">
-        <div className="flex flex-col" style={{ minWidth: 1320 + cp.props.length * PROP_COL_WIDTH }}>
+        <div className="flex flex-col" style={{ minWidth: 1480 + cp.props.length * PROP_COL_WIDTH }}>
           <div className={`flex items-center gap-[12px] rounded-t-lg px-[14px] py-[8px] ${HEAD}`}>
             <span className={`${CELL} w-[120px]`}>품명</span>
-            <span className={`${CELL} w-[70px]`}>파트</span>
-            <span className={`${CELL} w-[80px]`}>마감일</span>
+            <span className={`${CELL} w-[90px]`}>파트</span>
+            <span className={`${CELL} w-[150px]`}>마감일</span>
             <span className={`${CELL} w-[100px]`}>사이즈 <Required /></span>
             <span className={`${CELL} w-[85px]`}>수량</span>
             <span className={`${CELL} w-[85px]`}>재질 <Required /></span>
@@ -138,7 +152,7 @@ export function DesignRequestTable({ team, canEdit, part = '전체', eventName =
             {cp.props.map((p) => (
               <PropHeaderCell key={p.id} prop={p} className={CELL} onRename={(n) => cp.renameProp(p.id, n)} onRemove={() => cp.removeProp(p.id)} />
             ))}
-            <span className={`${CELL} w-[110px]`}>{planning ? '상태/기능' : '승인'}</span>
+            <span className={`${CELL} w-[180px]`}>{planning ? '상태/기능' : '승인'}</span>
           </div>
           {visible.map((r, i) => {
             const draft = r.status === 'draft';
@@ -147,12 +161,15 @@ export function DesignRequestTable({ team, canEdit, part = '전체', eventName =
               <div
                 key={r.id}
                 data-row-id={r.id}
-                // 작성이 끝난 요청은 수정 버튼이나 더블클릭으로 고친다. Enter·Esc 또는 행 밖으로 포커스가 나가면 끝난다.
+                // 작성이 끝난 요청은 수정 버튼이나 더블클릭으로 고친다. Enter·Esc 또는 완료 버튼으로 끝낸다.
+                // 파트 선택 팝업처럼 행 밖에 그려지는 입력이 있어 포커스 이탈로는 끝내지 않는다.
                 onDoubleClick={() => {
                   if (canEdit && !draft && !editing) startEdit(r.id);
                 }}
-                onKeyDown={(e) => { if (r.id === editingId && (e.key === 'Enter' || e.key === 'Escape')) setEditingId(null); }}
-                onBlur={(e) => { if (r.id === editingId && !e.currentTarget.contains(e.relatedTarget)) setEditingId(null); }}
+                onKeyDown={(e) => {
+                  if (r.id !== editingId || !(e.target instanceof HTMLInputElement) || !e.currentTarget.contains(e.target) || e.nativeEvent.isComposing) return;
+                  if (e.key === 'Enter' || e.key === 'Escape') setEditingId(null);
+                }}
                 className={`flex items-center gap-[12px] border-0 border-x border-b border-solid bg-surface px-[14px] py-[10px] ${LINE} ${i === visible.length - 1 ? 'rounded-b-lg' : ''}`}
               >
                 {FIELDS.map((f, fi) => {
@@ -192,8 +209,17 @@ export function DesignRequestTable({ team, canEdit, part = '전체', eventName =
                   return fi === 0 ? (
                     <Fragment key={f}>
                       {cell}
-                      <span className={`${CELL} w-[70px] text-fg-secondary`}>{r.part}</span>
-                      <span className={`${CELL} w-[80px] whitespace-nowrap`}>{r.due}</span>
+                      {editing ? (
+                        <>
+                          <Select aria-label="파트" value={r.part} onChange={(e) => update(r.id, { part: e.target.value })} options={PART_OPTIONS} size="lg" className="w-[90px] shrink-0" />
+                          <Input aria-label="마감일" type="date" value={r.due} onChange={(e) => update(r.id, { due: e.target.value })} size="lg" className="w-[150px] shrink-0" />
+                        </>
+                      ) : (
+                        <>
+                          <span className={`${CELL} w-[90px] text-fg-secondary`}>{r.part}</span>
+                          <span className={`${CELL} w-[150px] whitespace-nowrap`}>{r.due}</span>
+                        </>
+                      )}
                     </Fragment>
                   ) : cell;
                 })}
@@ -208,7 +234,7 @@ export function DesignRequestTable({ team, canEdit, part = '전체', eventName =
                 {cp.props.map((p) => (
                   <PropCell key={p.id} prop={p} value={cp.getValue(r.id, p.id)} onChange={(v) => cp.setValue(r.id, p.id, v)} />
                 ))}
-                <span className="flex w-[110px] shrink-0 items-center gap-[5.5px]">
+                <span className="flex w-[180px] shrink-0 items-center gap-[5.5px]">
                   {r.status === 'reject' && (
                     <span className="flex h-[24px] shrink-0 items-center gap-[4px] rounded-md px-[8px] text-xs font-bold bg-reject-bg text-reject">
                       <img alt="" src={`${A}/pill-reject.svg`} className="size-[14px]" />
@@ -225,6 +251,21 @@ export function DesignRequestTable({ team, canEdit, part = '전체', eventName =
                         <img alt="" src={`${A}/reject.svg`} className="size-[30px]" />
                       </button>
                     </>
+                  )}
+                  {canEdit && canRequest(r) && (
+                    <button
+                      type="button"
+                      aria-label={`${r.name || '요청 항목'} ${draft ? '승인 요청' : '다시 요청'}`}
+                      onClick={() => requestApproval(r)}
+                      className="flex h-[24px] shrink-0 items-center rounded-sm bg-brand px-[8px] text-2xs font-medium text-fg-inverse"
+                    >
+                      {draft ? '승인 요청' : '다시 요청'}
+                    </button>
+                  )}
+                  {canEdit && !draft && editing && (
+                    <button type="button" onClick={() => setEditingId(null)} className="flex h-[24px] shrink-0 items-center rounded-sm bg-surface-chip px-[8px] text-2xs text-fg-secondary hover:text-fg">
+                      완료
+                    </button>
                   )}
                   {canEdit && !draft && !editing && (
                     <button
