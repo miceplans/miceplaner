@@ -9,6 +9,7 @@ export * from './table';
 export * from './import-stepper';
 export * from './schedule';
 export * from './month-calendar';
+export * from './persisted-store';
 export * from './personal-todo';
 export * from './view-toggle';
 export * from './client-portal';
