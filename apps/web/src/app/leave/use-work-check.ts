@@ -1,95 +1,47 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import type { LeaveRecord } from './data';
+import { useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from '@miceplans/ui';
+import { ApiError, getToken } from '../../lib/api';
+import { getLeaveWeekendWorkQueryKey, useLeaveSetWeekendWork, useLeaveWeekendWork } from '../../lib/api/generated/endpoints';
 
-/** 로그인 사용자가 직접 체크한 주말 근무와 대휴 사용 내역. 로컬 퍼스트로 저장한다. */
-
-const WORK_KEY = 'miceplans.leave.weekend-work';
-const COMP_USED_KEY = 'miceplans.leave.comp-used';
-/** 다른 인스턴스에 변경을 알리는 창 내 이벤트. */
-const CHANGE_EVENT = 'miceplans:leave-work-check:change';
-
-/** 로그인 사용자(대표)의 주말 근무 날짜(YYYY-MM-DD). */
-function readWeekendWork(): string[] {
-  try {
-    const raw = window.localStorage.getItem(WORK_KEY);
-    if (raw) return JSON.parse(raw) as string[];
-  } catch {
-    /* 저장값이 깨져 있으면 비어 있는 값으로 돌아간다. */
-  }
-  return [];
+/** 서버가 준 사유를 그대로 보여 주되, 중복 신청처럼 DB 원문이 오는 경우만 바꾼다. */
+export function leaveErrorText(error: unknown, fallback: string): string {
+  if (!(error instanceof ApiError)) return fallback;
+  return error.status === 409 && error.message.includes('duplicate key') ? '[409] 이미 같은 형태로 신청한 날짜가 있습니다.' : error.message;
 }
 
-function readCompUsed(): LeaveRecord[] {
-  try {
-    const raw = window.localStorage.getItem(COMP_USED_KEY);
-    if (raw) return JSON.parse(raw) as LeaveRecord[];
-  } catch {
-    /* 동일 */
-  }
-  return [];
+/** 휴가·주말 근무가 바뀌면 목록과 연차 현황을 함께 다시 받는다. */
+export function useRefreshLeave(): () => void {
+  const queryClient = useQueryClient();
+  return useCallback(() => {
+    void queryClient.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === 'string' && q.queryKey[0].startsWith('/leave') });
+  }, [queryClient]);
 }
 
-/**
- * 주말 근무 체크와 대휴 사용 내역을 다루는 훅.
- * 토·일 근무 1일당 대휴 1일이 발생하며, 변경은 localStorage에 저장돼 같은 브라우저에서 즉시 공유된다.
- */
+/** 로그인 사용자가 직접 체크한 주말 근무 (명세 F-12). 서버에 저장하며 본인만 조회·변경한다. */
 export function useWorkCheck() {
-  const [weekendWork, setWeekendWork] = useState<string[]>([]);
-  const [compUsed, setCompUsed] = useState<LeaveRecord[]>([]);
+  const queryClient = useQueryClient();
+  const refresh = useRefreshLeave();
+  const query = useLeaveWeekendWork({ query: { enabled: getToken() !== null } });
+  const save = useLeaveSetWeekendWork();
+  const weekendWork = useMemo(() => query.data?.dates ?? [], [query.data]);
 
-  useEffect(() => {
-    setWeekendWork(readWeekendWork());
-    setCompUsed(readCompUsed());
-  }, []);
+  const toggleWeekendWork = (date: string) => {
+    // 목록을 받기 전이나 저장 중에는 체크 여부를 알 수 없어 반대로 저장할 수 있다.
+    if (!query.isSuccess || save.isPending) return;
+    save.mutate(
+      { data: { date, worked: !weekendWork.includes(date) } },
+      {
+        onSuccess: (dto) => {
+          queryClient.setQueryData(getLeaveWeekendWorkQueryKey(), dto);
+          refresh();
+        },
+        onError: (error) => toast.error(leaveErrorText(error, '[500] 주말 근무를 저장하지 못했습니다.')),
+      },
+    );
+  };
 
-  useEffect(() => {
-    const reload = () => {
-      setWeekendWork(readWeekendWork());
-      setCompUsed(readCompUsed());
-    };
-    window.addEventListener(CHANGE_EVENT, reload);
-    window.addEventListener('storage', reload);
-    return () => {
-      window.removeEventListener(CHANGE_EVENT, reload);
-      window.removeEventListener('storage', reload);
-    };
-  }, []);
-
-  const notify = () => window.dispatchEvent(new Event(CHANGE_EVENT));
-
-  const toggleWeekendWork = useCallback((date: string) => {
-    const current = readWeekendWork();
-    const next = current.includes(date) ? current.filter((d) => d !== date) : [...current, date].sort();
-    try {
-      window.localStorage.setItem(WORK_KEY, JSON.stringify(next));
-    } catch {
-      /* 저장 실패 시 세션 동안만 유지 */
-    }
-    setWeekendWork(next);
-    notify();
-  }, []);
-
-  /** 대휴 사용 내역을 추가한다. 같은 날짜는 한 번만 센다. */
-  const addCompUsed = useCallback((records: LeaveRecord[]) => {
-    const current = readCompUsed();
-    const dates = new Set(current.map((r) => r.date));
-    const next = [...current, ...records.filter((r) => !dates.has(r.date))].sort((a, b) => a.date.localeCompare(b.date));
-    try {
-      window.localStorage.setItem(COMP_USED_KEY, JSON.stringify(next));
-    } catch {
-      /* 동일 */
-    }
-    setCompUsed(next);
-    notify();
-  }, []);
-
-  /** 발생한 대휴 일수. 주말 근무 1일당 1일이다. */
-  const compEarned = weekendWork.length;
-  /** 사용한 대휴 일수. */
-  const compUsedDays = compUsed.length;
-  const compRemaining = compEarned - compUsedDays;
-
-  return { weekendWork, toggleWeekendWork, compUsed, addCompUsed, compEarned, compUsedDays, compRemaining };
+  return { weekendWork, toggleWeekendWork };
 }

@@ -12,13 +12,17 @@ export type LeaveEmployee = {
   used: number;
   /** 월별 사용 일수(1~12월, 합계는 used와 일치) */
   monthly: number[];
+  /** 올해 발생한 대휴(주말 근무) 일수 */
+  compEarned: number;
+  /** 올해 사용한 대휴 일수 */
+  compUsed: number;
 };
 
 /** 잔여 연차가 이 일수 이하면 부족으로 강조한다. */
 export const LOW_REMAINING_DAYS = 3;
 
 /** 로그인 사용자 정보가 연결되기 전 쓰는 빈 값. */
-export const LEAVE_ME: LeaveEmployee = { id: 'me', name: '나', role: '', total: 0, used: 0, monthly: [] };
+export const LEAVE_ME: LeaveEmployee = { id: 'me', name: '나', role: '', total: 0, used: 0, monthly: [], compEarned: 0, compUsed: 0 };
 
 export const MONTH_LABELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 
@@ -37,8 +41,6 @@ export const LEAVE_KINDS: { kind: LeaveKind; label: string; days: number; icon: 
   { kind: 'am-quarter', label: '오전 반반차', days: 0.25, icon: '/assets/leave/am-quarter.svg' },
   { kind: 'pm-quarter', label: '오후 반반차', days: 0.25, icon: '/assets/leave/pm-quarter.svg' },
 ];
-
-export type LeaveRecord = { date: string; employeeId: string; kind: LeaveKind };
 
 /** 오늘(YYYY-MM-DD, 로컬 시간대). */
 export const LEAVE_TODAY = new Date().toLocaleDateString('sv-SE');

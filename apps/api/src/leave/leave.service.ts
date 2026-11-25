@@ -28,7 +28,7 @@ export class LeaveService {
   async request(user: AuthUser, body: RequestLeaveBody) {
     requireInternal(user);
     const dates = body.kind === 'full' || body.kind === 'comp' ? weekdaysBetween(body.startDate, body.endDate) : [body.startDate];
-    const rows = await withContext(this.pool, user, (db) => requestLeave(db, user.userId, body.kind, dates)).catch((error) => mapDbError(error));
+    const rows = await withContext(this.pool, user, (db) => requestLeave(db, user.userId, body.kind, dates, { reason: body.reason, substituteId: body.substituteId })).catch((error) => mapDbError(error));
     return rows.map((r) => leaveRecordDto.parse(r));
   }
 

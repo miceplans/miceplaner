@@ -153,6 +153,20 @@ describe('휴가', () => {
   it('본인 명의로만 신청하고 모두의 내역을 본다', async () => {
     await withContext(app, as.member, (db) => requestLeave(db, U.member, 'full', ['2026-10-21']));
     await expect(withContext(app, as.member, (db) => requestLeave(db, U.pm, 'full', ['2026-10-22']))).rejects.toThrow(/row-level security/);
+  });
+  it('사유와 대체 근무자는 내부 직원 전원이 보고 Client는 못 보며, 본인·Client·퇴사자는 대체 근무자로 지정할 수 없다', async () => {
+    const DATE = '2028-03-01';
+    const [row] = await withContext(app, as.am, (db) => requestLeave(db, U.am, 'am-quarter', [DATE], { reason: '병원', substituteId: U.pm }));
+    const seen = await withContext(app, as.staff, (db) => listLeave(db, 2028, 3));
+    expect(seen.find((r) => r.id === row!.id)).toMatchObject({ reason: '병원', substituteId: U.pm });
+    expect(await withContext(app, as.client, (db) => listLeave(db, 2028, 3))).toEqual([]);
+    const apply = (substituteId: string) => withContext(app, as.am, (db) => requestLeave(db, U.am, 'pm-quarter', [DATE], { substituteId }));
+    await expect(apply(U.am)).rejects.toThrow(/leave_requests_substitute_other/);
+    await expect(apply(U.client)).rejects.toThrow(/대체 근무자/);
+    const gone = '00000000-0000-4000-8000-000000009990';
+    await admin.query(`INSERT INTO users (id, name, email, role, employment_status, departed_at) VALUES ($1, '퇴사자', 'leave-gone@x.test', 'staff', 'departed', now())`, [gone]);
+    await expect(apply(gone)).rejects.toThrow(/대체 근무자/);
+    await withContext(app, as.am, (db) => cancelLeave(db, row!.id));
     expect((await withContext(app, as.staff, (db) => listLeave(db, 2026))).map((r) => r.userId)).toEqual([U.member]);
     expect(await withContext(app, as.client, (db) => listLeave(db, 2026))).toEqual([]);
   });
