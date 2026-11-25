@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
-import { ConfirmDialog, FlowTopbar, PageFrame, Select, ViewTabs, toast, type ViewTab } from '@miceplans/ui';
+import { ConfirmDialog, FlowTopbar, PageFrame, Select, ViewTabs, toast, usePersisted, type ViewTab } from '@miceplans/ui';
 import { getToken, ApiError } from '../../lib/api';
 import {
   eventItemsCreate,
@@ -24,8 +24,6 @@ import {
   TODAY,
   avatarTone,
   fmtDue,
-  loadPrefs,
-  savePrefs,
   type Column,
   type DialogState,
   type EventOption,
@@ -33,6 +31,7 @@ import {
   type Task,
   type TaskFormValues,
 } from './task-board-model';
+import { taskBoardPrefsStore } from './task-board-store';
 import { TaskCard } from './task-card';
 import { EventSelect } from './event-select';
 import { TaskDialog } from './task-dialog';
@@ -50,20 +49,9 @@ const TABS: (ViewTab & { key: TabKey })[] = [
 export function TaskBoard() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('board');
-  const [event, setEvent] = useState(ALL);
-  const [sortMode, setSortMode] = useState<SortMode>('default');
-  // 저장한 필터·정렬은 hydration 이후에 적용해 서버 렌더 결과와 맞춘다.
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
-  useEffect(() => {
-    const prefs = loadPrefs();
-    if (prefs.event) setEvent(prefs.event);
-    if (prefs.sortMode) setSortMode(prefs.sortMode);
-    setPrefsLoaded(true);
-  }, []);
-  useEffect(() => {
-    if (!prefsLoaded) return;
-    savePrefs({ event, sortMode });
-  }, [event, sortMode, prefsLoaded]);
+  const [{ event, sortMode }, setPrefs] = usePersisted(taskBoardPrefsStore);
+  const setEvent = (next: string) => setPrefs((prev) => ({ ...prev, event: next }));
+  const setSortMode = (next: SortMode) => setPrefs((prev) => ({ ...prev, sortMode: next }));
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [deleting, setDeleting] = useState<Task | null>(null);
 

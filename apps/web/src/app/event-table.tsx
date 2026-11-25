@@ -4,6 +4,7 @@ import { useEffect, useState, type DragEvent, type FormEvent } from 'react';
 import Link from 'next/link';
 import { dDayLabel } from '@miceplans/domain';
 import { Checkbox, DatePicker, Dialog, Input, Select, StatusPill, type StatusKey } from '@miceplans/ui';
+import { createPersistedStore, usePersisted } from '@miceplans/ui/persisted-store';
 import { EMPTY_ATTR, type EventAttrType, useEventAttrs } from './event-attrs';
 import { eventColor } from '../lib/event-color';
 
@@ -15,32 +16,16 @@ const COLS_KEY = 'miceplans.event-table.cols';
 const ORDER_KEY = 'miceplans.event-table.order';
 
 /** 저장된 열 순서를 읽는다. 알 수 없는 열은 버리고 빠진 기본 열은 뒤에 채운다. */
-function loadCols(): ColKey[] {
-  try {
-    const raw = window.localStorage.getItem(COLS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as unknown;
-      if (Array.isArray(parsed)) {
-        const valid = parsed.filter((key): key is ColKey => key in COL_DEFS);
-        return [...valid, ...DEFAULT_COLS.filter((key) => !valid.includes(key))];
-      }
-    }
-  } catch {
-    /* 저장값이 깨져 있으면 기본 순서로 돌아간다. */
-  }
-  return DEFAULT_COLS;
+function decodeCols(raw: unknown): ColKey[] {
+  if (!Array.isArray(raw)) return DEFAULT_COLS;
+  const valid = raw.filter((key): key is ColKey => typeof key === 'string' && key in COL_DEFS);
+  return [...valid, ...DEFAULT_COLS.filter((key) => !valid.includes(key))];
 }
 
-function loadOrder(): string[] {
-  try {
-    const raw = window.localStorage.getItem(ORDER_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : null;
-    if (Array.isArray(parsed)) return parsed.filter((id): id is string => typeof id === 'string');
-  } catch {
-    /* 동일 */
-  }
-  return [];
-}
+const decodeOrder = (raw: unknown): string[] => (Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string') : []);
+
+const colsStore = createPersistedStore<ColKey[]>({ key: COLS_KEY, fallback: DEFAULT_COLS, decode: decodeCols });
+const orderStore = createPersistedStore<string[]>({ key: ORDER_KEY, fallback: [], decode: decodeOrder });
 
 /** 저장된 id 순서를 행에 적용한다. 목록에 없는 id는 버리고, 저장에 없는 새 행은 뒤에 둔다. */
 function applyOrder<T extends { id: string }>(list: T[], ids: string[]): T[] {
@@ -112,24 +97,17 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
       return [...applyOrder(initial, order), ...kept];
     });
   }, [initial]);
-  const [cols, setCols] = useState<ColKey[]>(DEFAULT_COLS);
+  const [cols, setCols] = usePersisted(colsStore);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
-  // 저장한 열·행 순서는 hydration 이후에 적용해 서버 렌더 결과와 맞춘다.
+  // 저장한 행 순서는 hydration 이후에 적용해 서버 렌더 결과와 맞춘다.
   useEffect(() => {
-    setCols(loadCols());
-    const savedOrder = loadOrder();
+    const savedOrder = orderStore.get();
     if (savedOrder.length) setRows((current) => applyOrder(current, savedOrder));
     setPrefsLoaded(true);
   }, []);
   useEffect(() => {
-    if (!prefsLoaded) return;
-    try {
-      window.localStorage.setItem(COLS_KEY, JSON.stringify(cols));
-      window.localStorage.setItem(ORDER_KEY, JSON.stringify(rows.map((row) => row.id)));
-    } catch {
-      /* 저장할 수 없는 환경에서는 현재 화면에만 적용한다. */
-    }
-  }, [cols, rows, prefsLoaded]);
+    if (prefsLoaded) orderStore.set(rows.map((row) => row.id));
+  }, [rows, prefsLoaded]);
   const [rowDrag, setRowDrag] = useState<{ from: number; over: number } | null>(null);
   const [colDrag, setColDrag] = useState<{ from: ColKey; over: ColKey } | null>(null);
   const [uncontrolledAdding, setUncontrolledAdding] = useState(false);

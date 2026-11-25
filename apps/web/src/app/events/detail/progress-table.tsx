@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Select, StatusPill, Textarea, toast } from '@miceplans/ui';
+import { createPersistedStore, scopedStores } from '@miceplans/ui/persisted-store';
 import { AddPropertyButton, PROP_COL_WIDTH, PropCell, PropHeaderCell, useCustomProps } from './custom-props';
 import { matchPart, type PartFilter } from './event-parts';
 import {
@@ -18,6 +19,15 @@ import {
 } from './event-products-model';
 import { Required, TableTitle } from './product-table-ui';
 
+/** 행사별로 보낸 의견. 행 id가 키다. */
+const commentStoreOf = scopedStores((eventId) =>
+  createPersistedStore<Record<string, unknown>>({
+    key: progressCommentKey(eventId),
+    fallback: {},
+    decode: (raw) => (raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}),
+  }),
+);
+
 /** 진행상황: 행사 전체 제작물의 현재 상태를 보여준다. 디자인팀은 행마다 의견을 보낼 수 있다. */
 export function ProgressTable({ team, part = '전체', eventId = 'default', rows: requestRows = [] }: { team: Team; part?: PartFilter; eventId?: string; rows?: RequestRow[] }) {
   const design = team === 'design';
@@ -32,13 +42,7 @@ export function ProgressTable({ team, part = '전체', eventId = 'default', rows
   const send = () => {
     const text = comment.trim();
     if (!text || !commentFor) return;
-    try {
-      const key = progressCommentKey(eventId);
-      const saved = JSON.parse(window.localStorage.getItem(key) ?? '{}') as Record<string, unknown>;
-      window.localStorage.setItem(key, JSON.stringify({ ...saved, [commentFor]: { text, at: new Date().toISOString() } }));
-    } catch {
-      // 저장 실패는 무시하고 전송 피드백만 준다.
-    }
+    commentStoreOf(eventId).set((prev) => ({ ...prev, [commentFor]: { text, at: new Date().toISOString() } }));
     toast.info('의견을 보냈습니다.');
     setComment('');
     setCommentFor(null);

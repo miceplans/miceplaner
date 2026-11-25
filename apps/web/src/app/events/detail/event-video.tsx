@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Input, Select, toast } from '@miceplans/ui';
+import { createPersistedStore, scopedStores, usePersisted } from '@miceplans/ui/persisted-store';
 
 // 영상 종류는 정해진 목록에서 고른다.
 const VIDEO_TYPES = ['루핑', '시상식', '오프닝', '홍보영상', '스케치 촬영 및 편집', '사진 촬영'] as const;
@@ -15,6 +16,20 @@ type VideoSpec = {
 
 type VideoForm = { led: string; resolution: string; videoType: string };
 
+const EMPTY_FORM: VideoForm = { led: '', resolution: '', videoType: '' };
+
+function decodeSpec(raw: unknown): VideoSpec | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const { led, resolution, videoType } = raw as Record<string, unknown>;
+  if (typeof led !== 'string' || typeof resolution !== 'string' || typeof videoType !== 'string') return null;
+  return { led, resolution, videoType: videoType as VideoType };
+}
+
+/** 서버 연결 전까지 영상 사양은 행사별로 브라우저에 저장한다. */
+const videoStoreOf = scopedStores((eventId) =>
+  createPersistedStore<VideoSpec | null>({ key: `miceplans.event-video.${eventId}`, fallback: null, decode: decodeSpec, encode: (spec) => spec ?? undefined }),
+);
+
 const HEAD = 'bg-surface-cell';
 const LINE = 'border-border-strong';
 const CELL = 'flex h-[40px] shrink-0 items-center rounded-lg px-[8px] text-[15px] text-fg';
@@ -25,38 +40,17 @@ function Required() {
 
 /** 영상 사양: LED 크기·피치, 해상도, 영상 종류를 입력한다. 모든 항목은 필수다. */
 export function VideoSection({ eventId }: { eventId: string }) {
-  const storageKey = `miceplans.event-video.${eventId}`;
-  const [saved, setSaved] = useState<VideoSpec | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [form, setForm] = useState<VideoForm>({ led: '', resolution: '', videoType: '' });
+  const [saved, setSaved, loaded] = usePersisted(videoStoreOf(eventId));
+  const [form, setForm] = useState<VideoForm>(EMPTY_FORM);
   const [editing, setEditing] = useState(true);
   const [errors, setErrors] = useState<{ led: boolean; resolution: boolean; videoType: boolean }>({ led: false, resolution: false, videoType: false });
 
-  // 서버 연결 전까지 영상 사양은 브라우저에 저장한다.
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw) as VideoSpec;
-        setSaved(parsed);
-        setForm({ led: parsed.led, resolution: parsed.resolution, videoType: parsed.videoType });
-        setEditing(false);
-      }
-    } catch {
-      // 저장소를 쓸 수 없으면 빈 양식으로 시작한다.
-    }
-    setLoaded(true);
-  }, [storageKey]);
-
+  // 저장값을 읽은 뒤, 그리고 행사가 바뀌거나 저장값이 갱신되면 양식을 저장값에 맞춘다.
   useEffect(() => {
     if (!loaded) return;
-    try {
-      if (saved) window.localStorage.setItem(storageKey, JSON.stringify(saved));
-      else window.localStorage.removeItem(storageKey);
-    } catch {
-      // 저장 실패는 화면 상태에만 영향을 주므로 무시한다.
-    }
-  }, [saved, loaded, storageKey]);
+    setForm(saved ?? EMPTY_FORM);
+    setEditing(!saved);
+  }, [saved, loaded]);
 
   const patch = (p: Partial<VideoForm>) => setForm((f) => ({ ...f, ...p }));
 

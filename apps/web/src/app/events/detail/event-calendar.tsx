@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type Dispatch, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
+import { useMemo, useRef, useState, type Dispatch, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
 import { Dialog, Input, SegmentControl, Select, SidePeekPanel } from '@miceplans/ui';
+import { createPersistedStore, usePersisted } from '@miceplans/ui/persisted-store';
 import type { CheckItem } from './event-checklist-model';
 import { useScheduleNoteStore } from '../../schedule-calendar/schedule-note-store';
 
@@ -63,6 +64,29 @@ const toYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padSta
 /** 보기와 기준 날짜를 저장해 새로고침 후에도 유지한다. 기준 날짜는 YYYY-MM-DD 절대 날짜로 저장해 주가 바뀌어도 어긋나지 않게 한다. */
 const CAL_PREFS_KEY = 'miceplans.event-detail.calendar';
 
+type CalView = 'Day' | 'Week' | 'Month';
+/** anchorDate가 null이면 오늘을 기준으로 한다. */
+type CalPrefs = { view: CalView; anchorDate: string | null };
+
+const DEFAULT_CAL_PREFS: CalPrefs = { view: 'Week', anchorDate: null };
+
+function decodeCalPrefs(raw: unknown): CalPrefs {
+  if (!raw || typeof raw !== 'object') return DEFAULT_CAL_PREFS;
+  const { view, anchorDate } = raw as { view?: unknown; anchorDate?: unknown };
+  return {
+    view: view === 'Day' || view === 'Week' || view === 'Month' ? view : DEFAULT_CAL_PREFS.view,
+    anchorDate: typeof anchorDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(anchorDate) ? anchorDate : null,
+  };
+}
+
+const calPrefsStore = createPersistedStore<CalPrefs>({ key: CAL_PREFS_KEY, fallback: DEFAULT_CAL_PREFS, decode: decodeCalPrefs });
+
+function anchorOf(anchorDate: string | null): number {
+  if (!anchorDate) return TODAY_INDEX;
+  const [y, m, d] = anchorDate.split('-').map(Number);
+  return absOf(new Date(y!, m! - 1, d!));
+}
+
 /** 행사 상세의 주간·월간 캘린더. 블록 드래그 이동, 일정 추가, 더블클릭 상세 패널을 담당한다. */
 export function EventCalendar({
   eventId,
@@ -84,37 +108,12 @@ export function EventCalendar({
   calEvents: CalEvent[];
   onCalEventsChange: Dispatch<SetStateAction<CalEvent[]>>;
 }) {
-  const [calView, setCalView] = useState<'Day' | 'Week' | 'Month'>('Week');
+  const [{ view: calView, anchorDate: savedAnchor }, setCalPrefs] = usePersisted(calPrefsStore);
+  const setCalView = (view: CalView) => setCalPrefs((prev) => ({ ...prev, view }));
   const [calDialog, setCalDialog] = useState(false);
   // 캘린더가 가리키는 날(BASE_MONDAY 기준 일수). Day/Week/Month 모두 이 날을 기준으로 표시 구간을 정한다.
-  const [anchor, setAnchor] = useState(TODAY_INDEX);
-  const [calPrefsLoaded, setCalPrefsLoaded] = useState(false);
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(CAL_PREFS_KEY);
-      const parsed: unknown = raw ? JSON.parse(raw) : null;
-      if (parsed && typeof parsed === 'object') {
-        const prefs = parsed as { view?: unknown; anchorDate?: unknown };
-        if (prefs.view === 'Day' || prefs.view === 'Week' || prefs.view === 'Month') setCalView(prefs.view);
-        if (typeof prefs.anchorDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(prefs.anchorDate)) {
-          const [y, m, d] = prefs.anchorDate.split('-').map(Number);
-          setAnchor(absOf(new Date(y!, m! - 1, d!)));
-        }
-      }
-    } catch {
-      /* 저장값이 깨져 있으면 기본값으로 둔다. */
-    }
-    setCalPrefsLoaded(true);
-  }, []);
-  const anchorIsoOf = (abs: number) => toYMD(dateOf(abs));
-  useEffect(() => {
-    if (!calPrefsLoaded) return;
-    try {
-      window.localStorage.setItem(CAL_PREFS_KEY, JSON.stringify({ view: calView, anchorDate: anchorIsoOf(anchor) }));
-    } catch {
-      /* 저장 실패는 화면 상태에만 영향을 주므로 무시한다. */
-    }
-  }, [calView, anchor, calPrefsLoaded]);
+  const anchor = anchorOf(savedAnchor);
+  const setAnchor = (abs: number) => setCalPrefs((prev) => ({ ...prev, anchorDate: toYMD(dateOf(abs)) }));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [peekId, setPeekId] = useState<string | null>(null);
@@ -200,8 +199,8 @@ export function EventCalendar({
           : `${weekStart.getMonth() + 1}월 ${weekStart.getDate()}일~${weekEnd.getMonth() + 1}월 ${weekEnd.getDate()}일`;
   const unitLabel = calView === 'Day' ? '날' : calView === 'Month' ? '달' : '주';
   const moveCalendar = (dir: -1 | 1) => {
-    if (calView === 'Day') setAnchor((a) => a + dir);
-    else if (calView === 'Week') setAnchor((a) => a + dir * 7);
+    if (calView === 'Day') setAnchor(anchor + dir);
+    else if (calView === 'Week') setAnchor(anchor + dir * 7);
     else setAnchor(absOf(new Date(anchorDate.getFullYear(), anchorDate.getMonth() + dir, 1)));
   };
   // 다른 행사 블록의 색은 알 수 없으니 회색으로 두고, 지금 행사만 대표색을 쓴다.

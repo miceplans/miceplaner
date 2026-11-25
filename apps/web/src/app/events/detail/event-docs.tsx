@@ -3,11 +3,25 @@
 import { useEffect, useState } from 'react';
 import { ConfirmDialog, Select } from '@miceplans/ui';
 
+import { createPersistedStore, scopedStores, usePersisted } from '@miceplans/ui/persisted-store';
 import { matchPart, type PartFilter } from './event-parts';
 import { DEFAULT_VISIBILITY, VISIBILITIES, relTime, type DocVisibility } from './event-docs-model';
 import { useCollab } from './use-event-docs-collab';
 import { Avatar, VisibilityChip } from './event-docs-ui';
 import { DocPanel } from './event-docs-panel';
+
+type VisibilityMap = Record<string, DocVisibility>;
+
+/** 저장값에서 알 수 없는 열람 범위는 버린다. */
+function decodeVisibility(raw: unknown): VisibilityMap {
+  if (!raw || typeof raw !== 'object') return {};
+  return Object.fromEntries(Object.entries(raw).filter((entry): entry is [string, DocVisibility] => (VISIBILITIES as readonly unknown[]).includes(entry[1])));
+}
+
+/** 행사별 문서 열람 인원 설정. 서버 연동 시 문서 메타로 옮긴다. */
+const visibilityStoreOf = scopedStores((eventId) =>
+  createPersistedStore<VisibilityMap>({ key: `miceplans.docs.visibility.${eventId}`, fallback: {}, decode: decodeVisibility }),
+);
 
 /** canManage: PM·AM만 문서 열람 범위를 바꿀 수 있다 (docs/functional-specification.md 위키 수용 기준). */
 export function EventDocs({ eventId, part = '전체', canManage = false }: { eventId: string; part?: PartFilter; canManage?: boolean }) {
@@ -15,39 +29,8 @@ export function EventDocs({ eventId, part = '전체', canManage = false }: { eve
   const { docs, peers } = collab;
   const [openId, setOpenId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  // 열람 인원 설정은 컴포넌트 state만 유지한다. 서버 연동 시 문서 메타로 옮긴다.
-  const [visibilityByDoc, setVisibilityByDoc] = useState<Record<string, DocVisibility>>({});
-  const visibilityKey = `miceplans.docs.visibility.${eventId}`;
-
-  // 새로고침 후에도 유지: hydration 이후 저장값을 복원하고, 알 수 없는 값은 버린다.
-  const [restored, setRestored] = useState(false);
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(visibilityKey);
-      const parsed: unknown = raw ? JSON.parse(raw) : null;
-      if (parsed && typeof parsed === 'object') {
-        const next: Record<string, DocVisibility> = {};
-        for (const [id, v] of Object.entries(parsed)) {
-          if ((VISIBILITIES as readonly string[]).includes(v as string)) next[id] = v as DocVisibility;
-        }
-        setVisibilityByDoc(next);
-      }
-    } catch {
-      // 저장값을 읽을 수 없으면 기본 공개 범위를 쓴다.
-    }
-    setRestored(true);
-  }, [visibilityKey]);
-
-  const changeVisibility = (docId: string, value: DocVisibility) =>
-    setVisibilityByDoc((prev) => {
-      const next = { ...prev, [docId]: value };
-      try {
-        window.localStorage.setItem(visibilityKey, JSON.stringify(next));
-      } catch {
-        // localStorage를 쓸 수 없는 환경에서는 세션 동안만 반영한다.
-      }
-      return next;
-    });
+  const [visibilityByDoc, setVisibilityByDoc, restored] = usePersisted(visibilityStoreOf(eventId));
+  const changeVisibility = (docId: string, value: DocVisibility) => setVisibilityByDoc((prev) => ({ ...prev, [docId]: value }));
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const openDoc = docs.find((d) => d.id === openId) ?? null;
   const visibleDocs = matchPart(

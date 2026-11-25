@@ -54,35 +54,6 @@ export const ALL = '전체 행사';
 
 export type SortMode = 'default' | 'due-asc' | 'due-desc';
 
-/** 선택한 행사 필터와 정렬을 저장해 새로고침 후에도 유지한다. */
-const PREFS_KEY = 'miceplans.task-board.prefs';
-type Prefs = { event?: string; sortMode?: SortMode };
-
-export function loadPrefs(): Prefs {
-  try {
-    const raw = window.localStorage.getItem(PREFS_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : null;
-    if (parsed && typeof parsed === 'object') {
-      const prefs = parsed as Prefs;
-      return {
-        event: typeof prefs.event === 'string' ? prefs.event : undefined,
-        sortMode: prefs.sortMode === 'due-asc' || prefs.sortMode === 'due-desc' ? prefs.sortMode : undefined,
-      };
-    }
-  } catch {
-    /* 저장값이 깨져 있으면 기본값으로 돌아간다. */
-  }
-  return {};
-}
-
-export function savePrefs(prefs: Prefs): void {
-  try {
-    window.localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
-  } catch {
-    /* 저장할 수 없는 환경에서는 현재 화면에만 적용한다. */
-  }
-}
-
 export type TaskFormValues = { title: string; event: string; schedule: string; due: string | null; who: string; status: string };
 
 export type DialogState = { mode: 'add'; status: string } | { mode: 'edit'; taskId: string };
