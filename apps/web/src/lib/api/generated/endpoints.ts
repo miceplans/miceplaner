@@ -69,6 +69,8 @@ import type {
   NotificationsListParams,
   NotificationsMarkRead200,
   ParseImportBody,
+  PartnerDto,
+  PartnerFieldDto,
   PortalEventDto,
   PortalProgramDto,
   PreviewImportBody,
@@ -80,6 +82,8 @@ import type {
   SaveDocBodyBody,
   SaveEventCalendarBlockBody,
   SaveEventProductBody,
+  SavePartnerBody,
+  SavePartnerFieldBody,
   SaveScheduleNoteBody,
   ScheduleNoteDto,
   ScheduleNotesGetParams,
@@ -7869,4 +7873,610 @@ export const useEventListsRemoveBlock = <TError = unknown,
         TContext
       > => {
       return useMutation(getEventListsRemoveBlockMutationOptions(options), queryClient);
+    }
+
+export const getPartnersListUrl = () => {
+
+
+
+
+  return `/partners`
+}
+
+/**
+ * @summary 협력사 목록 (내부 직원)
+ */
+export const partnersList = async ( options?: Parameters<typeof http>[1]): Promise<PartnerDto[]> => {
+
+  return http<PartnerDto[]>(getPartnersListUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPartnersListQueryKey = () => {
+    return [
+    `/partners`
+    ] as const;
+    }
+
+
+export const getPartnersListQueryOptions = <TData = Awaited<ReturnType<typeof partnersList>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof partnersList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPartnersListQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof partnersList>>> = ({ signal }) => partnersList({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof partnersList>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type PartnersListQueryResult = NonNullable<Awaited<ReturnType<typeof partnersList>>>
+export type PartnersListQueryError = unknown
+
+
+/** @summary 협력사 목록 (내부 직원) */
+export function usePartnersList<TData = Awaited<ReturnType<typeof partnersList>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof partnersList>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof partnersList>>,
+          TError,
+          Awaited<ReturnType<typeof partnersList>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 협력사 목록 (내부 직원) */
+export function usePartnersList<TData = Awaited<ReturnType<typeof partnersList>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof partnersList>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof partnersList>>,
+          TError,
+          Awaited<ReturnType<typeof partnersList>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 협력사 목록 (내부 직원) */
+export function usePartnersList<TData = Awaited<ReturnType<typeof partnersList>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof partnersList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 협력사 목록 (내부 직원) */
+export function usePartnersList<TData = Awaited<ReturnType<typeof partnersList>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof partnersList>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getPartnersListQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPartnersSaveUrl = (id: string,) => {
+
+
+
+
+  return `/partners/${id}`
+}
+
+/**
+ * @summary 협력사 저장 (없으면 생성, 마지막 저장 우선, 내부 직원)
+ */
+export const partnersSave = async (id: string,
+    savePartnerBody: SavePartnerBody, options?: Parameters<typeof http>[1]): Promise<PartnerDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<PartnerDto>(getPartnersSaveUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(savePartnerBody)
+  }
+);}
+
+
+
+
+
+export const getPartnersSaveMutationKey = () => ['partnersSave'] as const;
+
+export const getPartnersSaveMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof partnersSave>>, TError,PartnersSaveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof partnersSave>>, TError,PartnersSaveMutationVariables, TContext> => {
+
+const mutationKey = getPartnersSaveMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof partnersSave>>, PartnersSaveMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  partnersSave(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PartnersSaveMutationResult = NonNullable<Awaited<ReturnType<typeof partnersSave>>>
+    export type PartnersSaveMutationBody = SavePartnerBody
+    export type PartnersSaveMutationError = unknown
+    export type PartnersSaveMutationVariables = {id: string;data: SavePartnerBody}
+
+    /** @summary 협력사 저장 (없으면 생성, 마지막 저장 우선, 내부 직원) */
+export const usePartnersSave = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof partnersSave>>, TError,PartnersSaveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof partnersSave>>,
+        TError,
+        PartnersSaveMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPartnersSaveMutationOptions(options), queryClient);
+    }
+
+export const getPartnersRemoveUrl = (id: string,) => {
+
+
+
+
+  return `/partners/${id}`
+}
+
+/**
+ * @summary 협력사 삭제 (soft delete, 내부 직원, 감사 로그)
+ */
+export const partnersRemove = async (id: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getPartnersRemoveUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getPartnersRemoveMutationKey = () => ['partnersRemove'] as const;
+
+export const getPartnersRemoveMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof partnersRemove>>, TError,PartnersRemoveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof partnersRemove>>, TError,PartnersRemoveMutationVariables, TContext> => {
+
+const mutationKey = getPartnersRemoveMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof partnersRemove>>, PartnersRemoveMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  partnersRemove(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PartnersRemoveMutationResult = NonNullable<Awaited<ReturnType<typeof partnersRemove>>>
+
+    export type PartnersRemoveMutationError = unknown
+    export type PartnersRemoveMutationVariables = {id: string}
+
+    /** @summary 협력사 삭제 (soft delete, 내부 직원, 감사 로그) */
+export const usePartnersRemove = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof partnersRemove>>, TError,PartnersRemoveMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof partnersRemove>>,
+        TError,
+        PartnersRemoveMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPartnersRemoveMutationOptions(options), queryClient);
+    }
+
+export const getPartnersListFieldsUrl = () => {
+
+
+
+
+  return `/partner-fields`
+}
+
+/**
+ * @summary 협력사 분야 태그 목록 (내부 직원)
+ */
+export const partnersListFields = async ( options?: Parameters<typeof http>[1]): Promise<PartnerFieldDto[]> => {
+
+  return http<PartnerFieldDto[]>(getPartnersListFieldsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPartnersListFieldsQueryKey = () => {
+    return [
+    `/partner-fields`
+    ] as const;
+    }
+
+
+export const getPartnersListFieldsQueryOptions = <TData = Awaited<ReturnType<typeof partnersListFields>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof partnersListFields>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPartnersListFieldsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof partnersListFields>>> = ({ signal }) => partnersListFields({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof partnersListFields>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type PartnersListFieldsQueryResult = NonNullable<Awaited<ReturnType<typeof partnersListFields>>>
+export type PartnersListFieldsQueryError = unknown
+
+
+/** @summary 협력사 분야 태그 목록 (내부 직원) */
+export function usePartnersListFields<TData = Awaited<ReturnType<typeof partnersListFields>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof partnersListFields>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof partnersListFields>>,
+          TError,
+          Awaited<ReturnType<typeof partnersListFields>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 협력사 분야 태그 목록 (내부 직원) */
+export function usePartnersListFields<TData = Awaited<ReturnType<typeof partnersListFields>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof partnersListFields>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof partnersListFields>>,
+          TError,
+          Awaited<ReturnType<typeof partnersListFields>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 협력사 분야 태그 목록 (내부 직원) */
+export function usePartnersListFields<TData = Awaited<ReturnType<typeof partnersListFields>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof partnersListFields>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary 협력사 분야 태그 목록 (내부 직원) */
+export function usePartnersListFields<TData = Awaited<ReturnType<typeof partnersListFields>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof partnersListFields>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getPartnersListFieldsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPartnersCreateFieldUrl = () => {
+
+
+
+
+  return `/partner-fields`
+}
+
+/**
+ * @summary 분야 태그 추가 (내부 직원, 같은 이름이면 409)
+ */
+export const partnersCreateField = async (savePartnerFieldBody: SavePartnerFieldBody, options?: Parameters<typeof http>[1]): Promise<PartnerFieldDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<PartnerFieldDto>(getPartnersCreateFieldUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(savePartnerFieldBody)
+  }
+);}
+
+
+
+
+
+export const getPartnersCreateFieldMutationKey = () => ['partnersCreateField'] as const;
+
+export const getPartnersCreateFieldMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof partnersCreateField>>, TError,PartnersCreateFieldMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof partnersCreateField>>, TError,PartnersCreateFieldMutationVariables, TContext> => {
+
+const mutationKey = getPartnersCreateFieldMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof partnersCreateField>>, PartnersCreateFieldMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  partnersCreateField(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PartnersCreateFieldMutationResult = NonNullable<Awaited<ReturnType<typeof partnersCreateField>>>
+    export type PartnersCreateFieldMutationBody = SavePartnerFieldBody
+    export type PartnersCreateFieldMutationError = unknown
+    export type PartnersCreateFieldMutationVariables = {data: SavePartnerFieldBody}
+
+    /** @summary 분야 태그 추가 (내부 직원, 같은 이름이면 409) */
+export const usePartnersCreateField = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof partnersCreateField>>, TError,PartnersCreateFieldMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof partnersCreateField>>,
+        TError,
+        PartnersCreateFieldMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPartnersCreateFieldMutationOptions(options), queryClient);
+    }
+
+export const getPartnersRenameFieldUrl = (id: string,) => {
+
+
+
+
+  return `/partner-fields/${id}`
+}
+
+/**
+ * @summary 분야 태그 이름 변경 (쓰는 협력사의 분야도 함께 변경)
+ */
+export const partnersRenameField = async (id: string,
+    savePartnerFieldBody: SavePartnerFieldBody, options?: Parameters<typeof http>[1]): Promise<PartnerFieldDto> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return http<PartnerFieldDto>(getPartnersRenameFieldUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(savePartnerFieldBody)
+  }
+);}
+
+
+
+
+
+export const getPartnersRenameFieldMutationKey = () => ['partnersRenameField'] as const;
+
+export const getPartnersRenameFieldMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof partnersRenameField>>, TError,PartnersRenameFieldMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof partnersRenameField>>, TError,PartnersRenameFieldMutationVariables, TContext> => {
+
+const mutationKey = getPartnersRenameFieldMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof partnersRenameField>>, PartnersRenameFieldMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  partnersRenameField(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PartnersRenameFieldMutationResult = NonNullable<Awaited<ReturnType<typeof partnersRenameField>>>
+    export type PartnersRenameFieldMutationBody = SavePartnerFieldBody
+    export type PartnersRenameFieldMutationError = unknown
+    export type PartnersRenameFieldMutationVariables = {id: string;data: SavePartnerFieldBody}
+
+    /** @summary 분야 태그 이름 변경 (쓰는 협력사의 분야도 함께 변경) */
+export const usePartnersRenameField = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof partnersRenameField>>, TError,PartnersRenameFieldMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof partnersRenameField>>,
+        TError,
+        PartnersRenameFieldMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPartnersRenameFieldMutationOptions(options), queryClient);
+    }
+
+export const getPartnersRemoveFieldUrl = (id: string,) => {
+
+
+
+
+  return `/partner-fields/${id}`
+}
+
+/**
+ * @summary 분야 태그 삭제 (soft delete, 감사 로그, 협력사에 적힌 값은 유지)
+ */
+export const partnersRemoveField = async (id: string, options?: Parameters<typeof http>[1]): Promise<void> => {
+
+  return http<void>(getPartnersRemoveFieldUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getPartnersRemoveFieldMutationKey = () => ['partnersRemoveField'] as const;
+
+export const getPartnersRemoveFieldMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof partnersRemoveField>>, TError,PartnersRemoveFieldMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof partnersRemoveField>>, TError,PartnersRemoveFieldMutationVariables, TContext> => {
+
+const mutationKey = getPartnersRemoveFieldMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof partnersRemoveField>>, PartnersRemoveFieldMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  partnersRemoveField(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PartnersRemoveFieldMutationResult = NonNullable<Awaited<ReturnType<typeof partnersRemoveField>>>
+
+    export type PartnersRemoveFieldMutationError = unknown
+    export type PartnersRemoveFieldMutationVariables = {id: string}
+
+    /** @summary 분야 태그 삭제 (soft delete, 감사 로그, 협력사에 적힌 값은 유지) */
+export const usePartnersRemoveField = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof partnersRemoveField>>, TError,PartnersRemoveFieldMutationVariables, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof partnersRemoveField>>,
+        TError,
+        PartnersRemoveFieldMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPartnersRemoveFieldMutationOptions(options), queryClient);
     }

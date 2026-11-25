@@ -15,3 +15,4 @@ export * from './import';
 export * from './realtime';
 export * from './schedule-note';
 export * from './notice';
+export * from './partner';
