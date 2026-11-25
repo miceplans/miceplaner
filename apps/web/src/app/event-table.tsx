@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type DragEvent, type FormEvent } from 'react';
+import { useMemo, useState, type DragEvent, type FormEvent } from 'react';
 import Link from 'next/link';
 import { dDayLabel } from '@miceplans/domain';
 import { Checkbox, DatePicker, Dialog, Input, Select, StatusPill, type StatusKey } from '@miceplans/ui';
@@ -87,27 +87,11 @@ function dDayBadge(startDate: string, endDate: string): { label: string; classNa
 const EMPTY_FORM = { name: '', start: '', end: '', client: '', pm: '', am: '', design: '', status: '진행중' as StatusKey, place: '' };
 
 export function EventTable({ initial, adding: controlledAdding, onAddingChange }: { initial: EventRow[]; adding?: boolean; onAddingChange?: (open: boolean) => void }) {
-  const [rows, setRows] = useState(initial);
-  // 부모가 나중에 불러온 데이터를 넘길 수 있어 prop이 바뀌면 행을 맞춘다.
-  // 이때 지금 행 순서를 재사용해 서버 목록이 갱신돼도 사용자가 정한 순서가 유지되게 한다.
-  useEffect(() => {
-    setRows((current) => {
-      const order = current.map((row) => row.id);
-      const kept = current.filter((row) => !initial.some((item) => item.id === row.id));
-      return [...applyOrder(initial, order), ...kept];
-    });
-  }, [initial]);
+  // 화면에서 추가해 아직 서버 목록에 없는 행.
+  const [added, setAdded] = useState<EventRow[]>([]);
+  const [order, setOrder] = usePersisted(orderStore);
+  const rows = useMemo(() => applyOrder([...initial, ...added.filter((row) => !initial.some((item) => item.id === row.id))], order), [initial, added, order]);
   const [cols, setCols] = usePersisted(colsStore);
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
-  // 저장한 행 순서는 hydration 이후에 적용해 서버 렌더 결과와 맞춘다.
-  useEffect(() => {
-    const savedOrder = orderStore.get();
-    if (savedOrder.length) setRows((current) => applyOrder(current, savedOrder));
-    setPrefsLoaded(true);
-  }, []);
-  useEffect(() => {
-    if (prefsLoaded) orderStore.set(rows.map((row) => row.id));
-  }, [rows, prefsLoaded]);
   const [rowDrag, setRowDrag] = useState<{ from: number; over: number } | null>(null);
   const [colDrag, setColDrag] = useState<{ from: ColKey; over: ColKey } | null>(null);
   const [uncontrolledAdding, setUncontrolledAdding] = useState(false);
@@ -132,7 +116,11 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
   };
 
   const onRowDrop = (to: number) => {
-    if (rowDrag) setRows((r) => reorder(r, rowDrag.from, to));
+    if (rowDrag) {
+      const ids = reorder(rows, rowDrag.from, to).map((row) => row.id);
+      // 다른 탭(내 행사 등)에서 안 보이는 행의 순서는 뒤에 남겨 둔다.
+      setOrder((prev) => [...ids, ...prev.filter((id) => !ids.includes(id))]);
+    }
     setRowDrag(null);
   };
 
@@ -146,7 +134,7 @@ export function EventTable({ initial, adding: controlledAdding, onAddingChange }
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    setRows((r) => [
+    setAdded((r) => [
       ...r,
       {
         id: `new-${Date.now()}`,
